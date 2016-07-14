@@ -1,0 +1,9 @@
+setup.py
+stmpy/__init__.py
+stmpy/read_STMView.py
+stmpy/read_all.py
+stmpy/tools.py
+stmpy.egg-info/PKG-INFO
+stmpy.egg-info/SOURCES.txt
+stmpy.egg-info/dependency_links.txt
+stmpy.egg-info/top_level.txt
