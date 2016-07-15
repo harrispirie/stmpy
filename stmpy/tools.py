@@ -51,7 +51,10 @@ def binData(x,y,nBins):
 
 
 def linecut(F, x1, y1, x2, y2, n):
-	''' Using Linear interpolation on a 2D data set F, sample along a line from (x1,y1) to (x2,y2) in n points'''
+	''' Use linear interpolation on a 2D data set F, sample along a line from (x1,y1) to (x2,y2) in n points
+
+Usage:  x_linecut, y_linecut = linecut(image, x1, y1, x2, y2, n)
+	'''
 	x = np.arange(F.shape[0])
 	y =  np.arange(F.shape[1])
 	cen = np.sqrt((x1-x2)**2 + (y1-y2)**2) / 2.0
