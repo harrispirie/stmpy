@@ -1,39 +1,11 @@
 from struct import unpack
 import numpy as np
+import scipy.io as sio
 import os
 import re
 
-# Change dataFolder variable to make loading easier: turn on use_data_folder.
-dataFolder = '/Users/Harry/Documents/University/Hoffman Lab/SmB6/Data/_Good Data/'
-validFiles = []
-for fileName in os.listdir(dataFolder):
-    if fileName.endswith('.3ds'): validFiles.append(fileName)
-    elif fileName.endswith('.sxm'): validFiles.append(fileName)
-
 def load(filePath, use_data_folder=False):
-    if use_data_folder:
-        if filePath.endswith('.3ds'):
-            try:
-                grid = Nanonis3ds(dataFolder + filePath)
-                grid = _correct_for_bias_offset(grid)
-            except(NameError):
-                _print_all_files_in_dataFolder()
-                return 0
-        elif filePath.endswith('.sxm'):
-            try:
-                topo = NanonisSXM(dataFolder + filePath)
-            except(NameError):
-                _print_all_files_in_dataFolder()
-                return 0
-        elif filePath.endswith('.dat'):
-            try:
-                topo = NanonisDat(dataFolder + filePath)
-            except(NameError):
-                _print_all_files_in_dataFolder()
-                return 0
-        else: _print_all_files_in_dataFolder()
-
-    elif filePath.endswith('.3ds'):
+    if filePath.endswith('.3ds'):
         return _correct_for_bias_offset(Nanonis3ds(filePath))
 
     elif filePath.endswith('.sxm'):
@@ -41,6 +13,13 @@ def load(filePath, use_data_folder=False):
 
     elif filePath.endswith('.dat'):
         return NanonisDat(filePath)
+
+    elif filePath[-3:] == 'NVI' or filePath[-3:] == 'nvi':
+        return NISTnvi(sio.readsav(filePath))
+	
+    elif filePath[-3:] == 'NVL' or filePath[-3:] == 'nvl':
+        return NISTnvl(sio.readsav(filePath))
+    else:raise IOError('ERR - Wrong file type.')
 
 
 def _print_all_files_in_dataFolder():
@@ -227,6 +206,55 @@ class NanonisDat(object):
             self.I = self.channels['Current (A)']
             self.en = self.channels['Bias (V)']
         except (KeyError): print('WARNING:  Could not create standard attributes, look in channels instead.')
+
+class NISTnvi(object):
+    def __init__(self,nviData):
+        self.raw = nviData['imagetosave']
+        self.data = self.raw.currentdata[0]
+        self.header = {name:self.raw.header[0][name][0] for name in self.raw.header[0].dtype.names}
+        self.info = {'FILENAME'    : self.raw.filename[0],
+                     'FILSIZE'     : int(self.raw.header[0].filesize[0]),
+                     'CHANNELS'    : self.raw.header[0].scan_channels[0],
+                     'XSIZE'       : self.raw.xsize[0],
+                     'YSIZE'       : self.raw.ysize[0],
+                     'TEMPERATURE' : self.raw.header[0].temperature[0],
+                     'LOCKIN_AMPLITUDE' : self.raw.header[0].lockin_amplitude[0],
+                     'LOCKIN_FREQUENCY' : self.raw.header[0].lockin_frequency[0],
+                     'DATE'        : self.raw.header[0].date[0],
+                     'TIME'        : self.raw.header[0].time[0],
+                     'BIAS_SETPOINT'    : self.raw.header[0].bias_setpoint[0],
+                     'BIAS_OFFSET' : self.raw.header[0].bias_offset[0],
+                     'BFIELD'      : self.raw.header[0].bfield[0],
+                     'ZUNITS'      : self.raw.zunits[0],
+					}
+        
+class NISTnvl(object):
+    def __init__(self,nvlData):
+        self.raw = nvlData['savestructure']
+        self.en = self.raw.energies[0]
+        self.data = self.raw.fwddata[0]
+        self.averageSpectrum = [np.mean(layer) for layer in self.data]
+        self.header = {name:self.raw.header[0][name][0] for name in self.raw.header[0].dtype.names}
+        for name in self.raw.dtype.names:
+            if name not in self.header.keys():
+                self.header[name] = self.raw[name][0]
+        self.info = {'FILENAME'    : self.raw.filename[0],
+                     'FILSIZE'     : int(self.raw.header[0].filesize[0]),
+                     'CHANNELS'    : self.raw.header[0].scan_channels[0],
+                     'XSIZE'       : self.raw.xsize[0],
+                     'YSIZE'       : self.raw.ysize[0],
+                     'TEMPERATURE' : self.raw.header[0].temperature[0],
+                     'LOCKIN_AMPLITUDE' : self.raw.header[0].lockin_amplitude[0],
+                     'LOCKIN_FREQUENCY' : self.raw.header[0].lockin_frequency[0],
+                     'DATE'        : self.raw.header[0].date[0],
+                     'TIME'        : self.raw.header[0].time[0],
+                     'BIAS_SETPOINT'    : self.raw.header[0].bias_setpoint[0],
+                     'BIAS_OFFSET' : self.raw.header[0].bias_offset[0],
+                     'BFIELD'      : self.raw.header[0].bfield[0],
+                     'WINDOWTITLE' : self.raw.windowtitle[0],
+                     'XYUNITS'     : self.raw.xyunits[0],
+                     'EUNITS'      : self.raw.eunits[0],
+                    }
 
 
 
