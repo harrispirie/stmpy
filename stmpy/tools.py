@@ -89,9 +89,10 @@ def lineCrop(x, y, cropRange):
     return np.array(xCrop), np.array(yCrop)
 
 
-def removePolynomial1d(x,y,fitRange=None,n = 1):
-    ''' Removes a background polynomial of degree n to the line y(x) in the range fitRange.
-        Usage: yCorrected = removePolynomial1d(x,y,[x[0],x[-1]],2)'''
+def removePolynomial1d(y, n, x=None, fitRange=None):
+    ''' Removes a background polynomial of degree n to the line y(x) in the range fitRange (optional).
+        Usage: yCorrected = removePolynomial1d(y, n)'''
+    if x is None: x=np.linspace(0, 1, len(y))
     if fitRange is None: fitRange = [x[0],x[-1]]
     xBkg,yBkg = lineCrop(x,y,fitRange)
     polyCoeff = np.polyfit(xBkg,yBkg,n)
