@@ -38,34 +38,34 @@ Useage:
 def nvl2mat(nvlfile, matfile):
 	'''
 Convert an NVL file to a .mat file containing an (almost) STM_View compatible data structure.
-Returns the NVL file data in a pymap object.
+Returns the NVL file data in a mappy object.
 
 Useage:
     >>> nvl2mat('infile.NVL', 'outfile.mat')
 		'''
 	nvl = stmpy.load(nvlfile)		# Load NVL data from file
-	pymap_dat = pymap()				# Create a pymap data structure
-	pymap_dat.nvl2pymap(nvl)		# Convert from NVL object to pymap object
-	pymap_dat.savemat(matfile)		# Save the data in the .mat file
-	return pymap_dat
+	mappy_dat = mappy()				# Create a mappy data structure
+	mappy_dat.nvl2mappy(nvl)		# Convert from NVL object to mappy object
+	mappy_dat.savemat(matfile)		# Save the data in the .mat file
+	return mappy_dat
 	
 
-class pymap():
+class mappy():
 	def __init__(self):
 		self.ops = []
-		print('Created pymap')
+		print('Created mappy')
 
-	def nvl2pymap(self,nvl):
+	def nvl2mappy(self,nvl):
 		'''
 Example useage:
     >>> nvl_data = stmpy.load('filename.NVL')
-    >>> pymap_data = pymap()
-    >>> pymap_data.nvl2pymap(nvl_data)
+    >>> mappy_data = mappy()
+    >>> mappy_data.nvl2mappy(nvl_data)
 			'''
 		self.map = np.copy(nvl.data)
 		self.en = np.copy(nvl.en)
 		self.ave = np.copy(nvl.averageSpectrum)
-		self.add_op('nvl2pymap')
+		self.add_op('nvl2mappy')
 
 		# Handle dictionaries properly
 		for key in ['info', 'header']:
@@ -91,13 +91,13 @@ Example useage:
 
 		return self
 			
-	def mat2pymap(self,mhh):
+	def mat2mappy(self,mhh):
 		'''
 Example useage:
     >>> rawmat = loadmat('filename.mat')
     >>> mat_data = rawmat['varname']
-    >>> pymap_data = pymap()
-    >>> pymap_data = mat2pymap(mat_data)
+    >>> mappy_data = mappy()
+    >>> mappy_data = mat2mappy(mat_data)
 			'''
 		for key in mhh:
 			if type(mhh[key][0]) is np.str_:
@@ -125,16 +125,16 @@ Example useage:
 
 		return self
 	
-	def pymap2mat(self):
+	def mappy2mat(self):
 		'''
-Converts data in a pymap object to a dictionary with fields formatted for writing to a .mat file using the scipy.io module.  The pymap object will be (mostly) compatible with STM_View in Matlab.
+Converts data in a mappy object to a dictionary with fields formatted for writing to a .mat file using the scipy.io module.  The mappy object will be (mostly) compatible with STM_View in Matlab.
 
 Conversion:
 - strings are nested in an np.array (will be strings in Matlab)
 - dictionaries will become structures in Matlab
 - lists will become cell arrays in Matlab
 
-Input: pymap data structure.
+Input: mappy data structure.
 Output: dictionary which can be written to a matlab file.
 			'''
 		pydct = vars(self)
@@ -156,7 +156,7 @@ Output: dictionary which can be written to a matlab file.
 		return mhh
 
 	def savemat(self, filename):
-		mhh = self.pymap2mat()
+		mhh = self.mappy2mat()
 		sio.savemat(filename, mhh)
 		print('In Matlab, you will need to permute map indeces:')
 		print('A.map = permute(A.map, [2,3,1])')
