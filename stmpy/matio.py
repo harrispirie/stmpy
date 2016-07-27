@@ -1,7 +1,7 @@
 import numpy as np
-import scipy
+#import scipy  #HP: Removing modeules that aren't being used...
 import scipy.io as sio
-import sys
+#import sys
 import stmpy
 
 def loadmat(filePath):
@@ -15,14 +15,14 @@ STM_View structures will be stored as dictionaries.
 Ignore any variables starting with '__', to avoid __header__, etc...
 Return the variables imported in a dictionary.
 
-Useage:
+Usage:
     >>> data_dict = loadmat(filename)
 	   '''
 	fileObject = sio.loadmat(filePath)
 	data = {}
 	for x in fileObject:
 		if not x.startswith('__'):
-			print('Importing ', x)
+#			print('Importing ', x)
 			mat_raw = fileObject[x]
 			try:
 				mat = {}
@@ -31,8 +31,8 @@ Useage:
 				data[x] = mat
 			except:
 				data[x] = mat_raw
-		else:
-			print('Skip ',x)
+#		else:
+#			print('Skip ',x)
 	return data
 
 def nvl2mat(nvlfile, matfile):
@@ -48,23 +48,23 @@ Useage:
 	mappy_dat.nvl2mappy(nvl)		# Convert from NVL object to mappy object
 	mappy_dat.savemat(matfile)		# Save the data in the .mat file
 	return mappy_dat
-	
+
 
 class mappy():
 	def __init__(self):
 		self.ops = []
-		print('Created mappy')
+#		print('Created mappy')
 
 	def nvl2mappy(self,nvl):
 		'''
-Example useage:
+Example usage:
     >>> nvl_data = stmpy.load('filename.NVL')
     >>> mappy_data = mappy()
     >>> mappy_data.nvl2mappy(nvl_data)
 			'''
-		self.map = np.copy(nvl.data)
+		self.map = np.copy(nvl.map)
 		self.en = np.copy(nvl.en)
-		self.ave = np.copy(nvl.averageSpectrum)
+		self.ave = np.copy(nvl.ave)
 		self.add_op('nvl2mappy')
 
 		# Handle dictionaries properly
@@ -89,16 +89,22 @@ Example useage:
 		self.name = self.info['FILENAME']
 		self.var = self.name
 
-		return self
-			
+#		return self
+
 	def mat2mappy(self,mhh):
 		'''
-Example useage:
+Example usage:
     >>> rawmat = loadmat('filename.mat')
     >>> mat_data = rawmat['varname']
     >>> mappy_data = mappy()
     >>> mappy_data = mat2mappy(mat_data)
 			'''
+        # HP: I think this only works for Mo's DOS-map type
+        # files.  I think he has other file types too, like
+        # topography.  They might be distinguishable by his
+        # type attribute, which is a number:
+        # 0 - for DOS map (works fine)
+        # 2 - for topography (error)
 		for key in mhh:
 			if type(mhh[key][0]) is np.str_:
 				print(key, ' is a string')
@@ -123,8 +129,8 @@ Example useage:
 		self.map = np.swapaxes(self.map, 1, 2)		# [i,e,j]
 		self.map = np.swapaxes(self.map, 0, 1)		# [e,i,j]
 
-		return self
-	
+#		return self
+
 	def mappy2mat(self):
 		'''
 Converts data in a mappy object to a dictionary with fields formatted for writing to a .mat file using the scipy.io module.  The mappy object will be (mostly) compatible with STM_View in Matlab.
@@ -137,6 +143,9 @@ Conversion:
 Input: mappy data structure.
 Output: dictionary which can be written to a matlab file.
 			'''
+        # HP: I think we want an array containing a dictionary
+        # or something like that.  Otherwise, when I import to
+        # matlab everything is just loaded into the namespace.
 		pydct = vars(self)
 		mhh = {}
 		for key in pydct:
@@ -158,6 +167,8 @@ Output: dictionary which can be written to a matlab file.
 	def savemat(self, filename):
 		mhh = self.mappy2mat()
 		sio.savemat(filename, mhh)
+        # HP: I think we should do this for the user,
+        # perhaps inside the mappy2mat method?
 		print('In Matlab, you will need to permute map indeces:')
 		print('A.map = permute(A.map, [2,3,1])')
 
@@ -165,6 +176,7 @@ Output: dictionary which can be written to a matlab file.
 		self.ops.append(new_op_string)
 
 #######################################################################
+
 def format_mat_struct(matred):
 # Input: dictionary of strings and arrays
 # Output: .mat structure format
@@ -196,3 +208,4 @@ def format_mat_cell(matred):
         matcell[0][i] = np.array([x])
         
     return matcell
+
