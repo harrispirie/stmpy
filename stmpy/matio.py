@@ -44,13 +44,13 @@ Useage:
     >>> nvl2mat('infile.NVL', 'outfile.mat')
 		'''
 	nvl = stmpy.load(nvlfile)		# Load NVL data from file
-	mappy_dat = mappy()				# Create a mappy data structure
+	mappy_dat = Mappy()				# Create a mappy data structure
 	mappy_dat.nvl2mappy(nvl)		# Convert from NVL object to mappy object
 	mappy_dat.savemat(matfile)		# Save the data in the .mat file
 	return mappy_dat
 
 
-class mappy():
+class Mappy():
 	def __init__(self):
 		self.ops = []
 #		print('Created mappy')
@@ -59,7 +59,7 @@ class mappy():
 		'''
 Example usage:
     >>> nvl_data = stmpy.load('filename.NVL')
-    >>> mappy_data = mappy()
+    >>> mappy_data = Mappy()
     >>> mappy_data.nvl2mappy(nvl_data)
 			'''
 		self.map = np.copy(nvl.map)
@@ -96,7 +96,7 @@ Example usage:
 Example usage:
     >>> rawmat = loadmat('filename.mat')
     >>> mat_data = rawmat['varname']
-    >>> mappy_data = mappy()
+    >>> mappy_data = Mappy()
     >>> mappy_data = mat2mappy(mat_data)
 			'''
         # HP: I think this only works for Mo's DOS-map type

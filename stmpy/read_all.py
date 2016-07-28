@@ -34,7 +34,7 @@ Usage: data = load(filePath)
         mappy_dict = {}
         for key in raw_mat:
             try:
-                mappy_dict[key] = matio.mappy()
+                mappy_dict[key] = matio.Mappy()
                 mappy_dict[key].mat2mappy(raw_mat[key])
                 print('Created channel: {:}'.format(key))
             except:
@@ -56,10 +56,10 @@ Please include the file extension in the path, e.g. 'file.mat'
 Usage: save(filePath, data)
     '''
     if filePath.endswith('.mat'):
-        if pyObject.__class__ == matio.mappy:
+        if pyObject.__class__ == matio.Mappy:
             pyObject.savemat(filePath)
         elif pyObject.__class__ == NISTnvl:
-            mappyObject = matio.mappy()
+            mappyObject = matio.Mappy()
             mappyObject.nvl2mappy(pyObject)
             mappyObject.savemat(filePath)
     else: raise IOError('ERR - File format not supported.')
