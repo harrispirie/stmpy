@@ -3,7 +3,7 @@ import numpy as np
 import scipy.io as sio
 import os
 import re
-import matio
+from stmpy import matio
 
 
 def load(filePath):
