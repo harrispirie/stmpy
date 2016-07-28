@@ -7,13 +7,13 @@ import matio
 
 
 def load(filePath):
-''' 
+    '''
 Loads data into python.  Currently supports formats: 3ds, sxm, dat, nvi, nvl, mat.
 Note: mat files are supported as exports from STMView only.
 Please include the file extension in the path, e.g. 'file.3ds'
 
 Usage: data = load(filePath)
-'''
+    '''
     if filePath.endswith('.3ds'):
         return _correct_for_bias_offset(Nanonis3ds(filePath))
 
@@ -47,14 +47,14 @@ Usage: data = load(filePath)
 
 
 def save(filePath, pyObject):
-'''
+    '''
 Save objects from a python workspace to disk.
 Currently implemented for the following python data types: nvl, mat.
 Currently saves to the following file types: mat.
 Please include the file extension in the path, e.g. 'file.mat'
 
 Usage: save(filePath, data)
-'''
+    '''
     if filePath.endswith('.mat'):
         if pyObject.__class__ == matio.mappy:
             pyObject.savemat(filePath)
