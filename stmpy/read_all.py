@@ -118,7 +118,7 @@ class Nanonis3ds(object):
                     'channels'	:	self.header['Channels'][1:-1].split(';'),
                     'points'	:	int(self.header['Points']),
                     'sizex'		:	int(self.header['Grid dim'][1:-1].split(' x ')[0]),
-                    'sizey'		:	int(self.header['Grid dim'][1:-1].split(' x ')[0]),
+                    'sizey'		:	int(self.header['Grid dim'][1:-1].split(' x ')[1]),
                     'dataStart'	:	fileObj.tell()
                     }
 
