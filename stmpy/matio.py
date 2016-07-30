@@ -1,7 +1,5 @@
 import numpy as np
-#import scipy  #HP: Removing modeules that aren't being used...
 import scipy.io as sio
-#import sys
 import stmpy
 
 def loadmat(filePath):
@@ -35,7 +33,7 @@ Usage:
 #			print('Skip ',x)
 	return data
 
-def nvl2mat(nvlfile, matfile):
+def nvl2mat(nvlfile, matfile, varname='nvlfile'):
 	'''
 Convert an NVL file to a .mat file containing an (almost) STM_View compatible data structure.
 Returns the NVL file data in a mappy object.
@@ -46,7 +44,7 @@ Useage:
 	nvl = stmpy.load(nvlfile)		# Load NVL data from file
 	mappy_dat = Mappy()				# Create a mappy data structure
 	mappy_dat.nvl2mappy(nvl)		# Convert from NVL object to mappy object
-	mappy_dat.savemat(matfile)		# Save the data in the .mat file
+	mappy_dat.savemat(matfile, varname)	# Save the data in the .mat file
 	return mappy_dat
 
 
@@ -143,9 +141,6 @@ Conversion:
 Input: mappy data structure.
 Output: dictionary which can be written to a matlab file.
 			'''
-        # HP: I think we want an array containing a dictionary
-        # or something like that.  Otherwise, when I import to
-        # matlab everything is just loaded into the namespace.
 		pydct = vars(self)
 		mhh = {}
 		for key in pydct:
@@ -161,16 +156,17 @@ Output: dictionary which can be written to a matlab file.
 				mhh['e'] = np.copy(obj)
 			else:
 				mhh[key] = np.copy(obj)
+
+		# Make the energy axis the last index
+		# start with [e,i,j]
+		mhh['map'] = np.swapaxes(mhh['map'], 0, 1)		# [i,e,j]
+		mhh['map'] = np.swapaxes(mhh['map'], 1, 2)		# [i,j,e]
 		
 		return mhh
 
-	def savemat(self, filename):
-		mhh = self.mappy2mat()
+	def savemat(self, filename, varname='mappy'):
+		mhh = {varname: self.mappy2mat()}
 		sio.savemat(filename, mhh)
-        # HP: I think we should do this for the user,
-        # perhaps inside the mappy2mat method?
-		print('In Matlab, you will need to permute map indeces:')
-		print('A.map = permute(A.map, [2,3,1])')
 
 	def add_op(self, new_op_string):
 		self.ops.append(new_op_string)

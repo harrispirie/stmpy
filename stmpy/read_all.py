@@ -280,23 +280,71 @@ class NISTnvl(object):
         for name in self._raw.dtype.names:
             if name not in self.header.keys():
                 self.header[name] = self._raw[name][0]
-        self.info = {'FILENAME'    : self._raw.filename[0],
-                     'FILSIZE'     : int(self._raw.header[0].filesize[0]),
-                     'CHANNELS'    : self._raw.header[0].scan_channels[0],
-                     'XSIZE'       : self._raw.xsize[0],
-                     'YSIZE'       : self._raw.ysize[0],
-                     'TEMPERATURE' : self._raw.header[0].temperature[0],
-                     'LOCKIN_AMPLITUDE' : self._raw.header[0].lockin_amplitude[0],
-                     'LOCKIN_FREQUENCY' : self._raw.header[0].lockin_frequency[0],
-                     'DATE'        : self._raw.header[0].date[0],
-                     'TIME'        : self._raw.header[0].time[0],
-                     'BIAS_SETPOINT'    : self._raw.header[0].bias_setpoint[0],
-                     'BIAS_OFFSET' : self._raw.header[0].bias_offset[0],
-                     'BFIELD'      : self._raw.header[0].bfield[0],
-                     'WINDOWTITLE' : self._raw.windowtitle[0],
-                     'XYUNITS'     : self._raw.xyunits[0],
-                     'EUNITS'      : self._raw.eunits[0],
-                    }
+        self.info = {}
+        try:
+            self.info['FILENAME']   = self._raw.filename[0]
+        except:
+            1
+        try:
+            self.info['FILSIZE']    = int(self._raw.header[0].filesize[0])
+        except:
+            1
+        try:
+            self.info['CHANNELS']   = self._raw.header[0].scan_channels[0]
+        except:
+            1
+        try:
+            self.info['XSIZE']      = self._raw.xsize[0]
+        except:
+            1
+        try:
+            self.info['YSIZE']      = self._raw.ysize[0]
+        except:
+            1
+        try:
+            self.info['TEMPERATURE']= self._raw.header[0].temperature[0]
+        except:
+            1
+        try:
+            self.info['LOCKIN_AMPLITUDE']= self._raw.header[0].lockin_amplitude[0]
+        except:
+            1
+        try:
+            self.info['LOCKIN_FREQUENCY']= self._raw.header[0].lockin_frequency[0]
+        except:
+            1
+        try:
+            self.info['DATE']       = self._raw.header[0].date[0]
+        except:
+            1
+        try:
+            self.info['TIME']       = self._raw.header[0].time[0]
+        except:
+            1
+        try:
+            self.info['BIAS_SETPOINT'] = self._raw.header[0].bias_setpoint[0]
+        except:
+            1
+        try:
+            self.info['BIAS_OFFSET']= self._raw.header[0].bias_offset[0]
+        except:
+            1
+        try:
+            self.info['BFIELD']     = self._raw.header[0].bfield[0]
+        except:
+            1
+        try:
+            self.info['WINDOWTITLE'] = self._raw.windowtitle[0]
+        except:
+            1
+        try:
+            self.info['XYUNITS']    = self._raw.xyunits[0]
+        except:
+            1
+        try:
+            self.info['EUNITS']     = self._raw.eunits[0]
+        except:
+            1
 
 
 
