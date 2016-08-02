@@ -73,7 +73,7 @@ def _correct_for_bias_offset(grid):
         avgCurrent = [np.mean(grid.I[ix]) for ix,en in enumerate(grid.en)]
         biasOffset = grid.en[np.argmin(np.abs(avgCurrent))]
         grid.en -= biasOffset
-        print('Corrected for a bias offset of {:2.2f} meV'.format(biasOffset))
+        print('Corrected for a bias offset of {:2.2f} meV'.format(biasOffset*1000))
         return grid
     except:
         print('ERR: File not in standard format for processing. Could not correct for Bias offset')
