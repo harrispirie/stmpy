@@ -122,11 +122,6 @@ class Nanonis3ds(object):
                     'dataStart'	:	fileObj.tell()
                     }
 
-        self.en = np.linspace(float(self.header['Bias Spectroscopy>Sweep Start (V)']),
-                              float(self.header['Bias Spectroscopy>Sweep End (V)']),
-                              int(self.header['Bias Spectroscopy>Num Pixel'])
-                              ) * 1000
-                             
         self.data = {}; self.parameters = {}
         for channel in self.info['channels']:
             self.data[channel] = np.zeros([self.info['points'],self.info['sizex'],self.info['sizey']])
@@ -143,6 +138,10 @@ class Nanonis3ds(object):
                     for ie in range(self.info['points']):
                         value = unpack('>f',fileObj.read(4))[0]
                         self.data[channel][ie,ix,iy] =value
+        
+        self.en = np.linspace(self.parameters['Sweep Start'].flatten()[0],
+                              self.parameters['Sweep End'].flatten()[0],
+                              self.info['points'])
 
         dataRead = fileObj.tell()
         fileObj.read()
