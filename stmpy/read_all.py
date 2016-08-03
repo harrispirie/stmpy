@@ -246,7 +246,11 @@ class NanonisDat(object):
             self.didv = self.channels['LIY 1 omega (A)']
             self.I = self.channels['Current (A)']
             self.en = self.channels['Bias (V)']
-        except (KeyError): print('WARNING:  Could not create standard attributes, look in channels instead.')
+        except (KeyError):
+            try:
+                self.en = self.channels['Bias calc (V)']
+            except (KeyError):
+                print('WARNING:  Could not create standard attributes, look in channels instead.')
 
 class NISTnvi(object):
     def __init__(self,nviData):
