@@ -15,13 +15,13 @@ Please include the file extension in the path, e.g. 'file.3ds'
 Usage: data = load(filePath)
     '''
     if filePath.endswith('.3ds'):
-        return _correct_for_bias_offset(Nanonis3ds(filePath))
+        return _correct_bias_offset(Nanonis3ds(filePath), '.3ds')
 
     elif filePath.endswith('.sxm'):
         return NanonisSXM(filePath)
 
     elif filePath.endswith('.dat'):
-        return NanonisDat(filePath)
+        return _correct_bias_offset(NanonisDat(filePath), '.dat')
 
     elif filePath[-3:] == 'NVI' or filePath[-3:] == 'nvi':
         return NISTnvi(sio.readsav(filePath))
@@ -43,7 +43,7 @@ Usage: data = load(filePath)
         if len(mappy_dict) == 1: return mappy_dict[mappy_dict.keys()[0]]
         else: return mappy_dict
 
-    else:raise IOError('ERR - Wrong file type.')
+    else: raise IOError('ERR - Wrong file type.')
 
 
 def save(filePath, pyObject):
@@ -68,16 +68,26 @@ Usage: save(filePath, data)
 
 ####    ____HIDDEN METHODS____    ####
 
-def _correct_for_bias_offset(grid):
+def _correct_bias_offset(data, fileType):
     try:
-        avgCurrent = [np.mean(grid.I[ix]) for ix,en in enumerate(grid.en)]
-        biasOffset = grid.en[np.argmin(np.abs(avgCurrent))]
-        grid.en -= biasOffset
+        if fileType == '.dat': 
+            I = data.I
+        elif fileType == '.3ds':
+            I = [np.mean(data.I[ix]) for ix, __ in enumerate(data.en)]
+        else:
+            print('ERR: Bias offset for {:} not yet implemented'.format(fileType))
+            return data
+        for ix, (I_low, I_high) in enumerate(zip(I[:-1], I[1:])):
+            if np.sign(I_low) != np.sign(I_high):
+                en_low, en_high = data.en[ix], data.en[ix+1]
+                biasOffset = en_high - I_high * (en_high-en_low) / (I_high - I_low)
+                data.en -= biasOffset
+                break
         print('Corrected for a bias offset of {:2.2f} meV'.format(biasOffset*1000))
-        return grid
+        return data
     except:
         print('ERR: File not in standard format for processing. Could not correct for Bias offset')
-        return grid
+        return data
 
 
 
