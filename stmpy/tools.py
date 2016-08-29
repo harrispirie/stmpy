@@ -4,7 +4,6 @@ import scipy.interpolate as sin
 import scipy.optimize as opt
 import scipy.ndimage as snd
 
-
 def saturate(level_low=0, level_high=None):
     '''
     Adjusts color axis of in current handle.  Calculates a probablility density function for the data in current axes handle.  Uses upper and lower thresholds to find sensible c-axis limits.  Thresholds are between 0 and 100.  If unspecified the upper threshold is assumed to be 100 - lower threshold.

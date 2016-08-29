@@ -25,7 +25,7 @@ Usage: data = load(filePath)
 
     elif filePath[-3:] == 'NVI' or filePath[-3:] == 'nvi':
         return NISTnvi(sio.readsav(filePath))
-	
+
     elif filePath[-3:] == 'NVL' or filePath[-3:] == 'nvl':
         return NISTnvl(sio.readsav(filePath))
 
@@ -70,7 +70,7 @@ Usage: save(filePath, data)
 
 def _correct_bias_offset(data, fileType):
     try:
-        if fileType == '.dat': 
+        if fileType == '.dat':
             I = data.I
         elif fileType == '.3ds':
             I = [np.mean(data.I[ix]) for ix, __ in enumerate(data.en)]
@@ -143,7 +143,7 @@ class Nanonis3ds(object):
                 for name in self.info['paramName']:
                     value = unpack('>f',fileObj.read(4))[0]
                     self.parameters[name][ix,iy] = value
-                
+
                 for channel in self.info['channels']:
                     for ie in range(self.info['points']):
                         value = unpack('>f',fileObj.read(4))[0]
