@@ -5,7 +5,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib import cm
 
 def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
-                    zoom=1, codec='prores'):
+                    zoom=1, codec='prores', clims=(0,1)):
     '''
     Create a movie from a 3D data set and save it in the working directory.  Intended    for visualising DOS maps.
 
@@ -33,7 +33,11 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
     plt.xlim(-1.0/zoom, 1.0/zoom)
     plt.ylim(-1.0/zoom, 1.0/zoom)
     im = plt.pcolormesh(x, x, F[0], cmap=cmap)
-    sp.saturate(saturation)
+    if saturation is not None:
+        sp.saturate(saturation)
+    else:
+        plt.clim(clims)
+
     if label is not None:
         tx = plt.text(0.95,0.95,'{:2.2f} meV'.format(label[0]), 
                   transform=ax.transAxes, **textOptions1)
@@ -44,7 +48,10 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
 
     def animate(i):
         im.set_array(F[i].ravel())
-        sp.saturate(saturation)
+        if saturation is not None:
+            sp.saturate(saturation)
+        else:
+            plt.clim(clims)
         if label is not None:
             tx.set_text('{:2.0f} meV'.format(label[i]))
         return [im]
