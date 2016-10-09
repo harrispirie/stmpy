@@ -26,13 +26,14 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
         cmap = cm.bone_r
 
     x = np.linspace(-1, 1, F.shape[1]+1)
+    y = np.linspace(-1, 1, F.shape[2]+1)
     fig = plt.figure(figsize=[4,4])
     ax = plt.subplot(111)
     ax.set_xticks([])
     ax.set_yticks([])
     plt.xlim(-1.0/zoom, 1.0/zoom)
     plt.ylim(-1.0/zoom, 1.0/zoom)
-    im = plt.pcolormesh(x, x, F[0], cmap=cmap)
+    im = plt.pcolormesh(y, x, F[0], cmap=cmap)
     if saturation is not None:
         sp.saturate(saturation)
     else:
