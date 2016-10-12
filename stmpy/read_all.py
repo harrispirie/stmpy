@@ -5,6 +5,10 @@ import os
 import re
 from stmpy import matio
 
+'''
+I think I should use more doc strings.
+'''
+
 
 def load(filePath):
     '''
