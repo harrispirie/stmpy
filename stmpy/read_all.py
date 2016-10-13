@@ -4,11 +4,12 @@ import scipy.io as sio
 import os
 import re
 from stmpy import matio
+from datetime import datetime, timedelta
 
 
 def load(filePath):
     '''
-Loads data into python.  Currently supports formats: 3ds, sxm, dat, nvi, nvl, mat.
+Loads data into python.  Currently supports formats: 3ds, sxm, dat, nvi, nvl, mat, nsp.
 Note: mat files are supported as exports from STMView only.
 Please include the file extension in the path, e.g. 'file.3ds'
 
@@ -29,6 +30,9 @@ Usage: data = load(filePath)
     elif filePath[-3:] == 'NVL' or filePath[-3:] == 'nvl':
         return NISTnvl(sio.readsav(filePath))
 
+    elif filePath.endswith('.nsp'):
+        return LongTermSpectrum(filePath)
+        
     elif filePath.endswith('.mat'):
         raw_mat = matio.loadmat(filePath)
         mappy_dict = {}
@@ -42,9 +46,7 @@ Usage: data = load(filePath)
                 print('Could not convert: {:}'.format(key))
         if len(mappy_dict) == 1: return mappy_dict[mappy_dict.keys()[0]]
         else: return mappy_dict
-
     else: raise IOError('ERR - Wrong file type.')
-
 
 def save(filePath, pyObject):
     '''
@@ -138,6 +140,7 @@ class Nanonis3ds(object):
         for name in self.info['paramName']:
             self.parameters[name] = np.zeros([self.info['sizex'],self.info['sizey']])
 
+#<<<<<<< Updated upstream
         try:
             for ix in range(self.info['sizex']):
                 for iy in range(self.info['sizey']):
@@ -152,6 +155,24 @@ class Nanonis3ds(object):
         except:
             print('WARNING - Data set is not complete.')
 
+#=======
+        for ix in range(self.info['sizex']):
+            for iy in range(self.info['sizey']):
+                for name in self.info['paramName']:
+                    try:
+                        value = unpack('>f',fileObj.read(4))[0]
+                        self.parameters[name][ix,iy] = value
+                    except:
+                        pass
+
+                for channel in self.info['channels']:
+                    for ie in range(self.info['points']):
+                        try:
+                            value = unpack('>f',fileObj.read(4))[0]
+                            self.data[channel][ie,ix,iy] =value
+                        except:
+                            pass
+#>>>>>>> Stashed changes
         self.en = np.linspace(self.parameters['Sweep Start'].flatten()[0],
                               self.parameters['Sweep End'].flatten()[0],
                               self.info['points'])
@@ -163,6 +184,65 @@ class Nanonis3ds(object):
         else: print('ERR: Did not reach end of file.')
         fileObj.close()
         return 1
+
+class LongTermSpectrum(object):
+    '''
+header: a dict containging all parameters
+time: time length of the spectrum, in unit of (s)
+freq: freq range of the spectrum, in unit of (Hz)
+fftI, fftV, or fftSignal:
+    current signal >> fftI
+    voltage signal >> fftV
+    other signal   >> fftSignal 
+Example Usage:
+import stmpy \nimport matplotlib.pyplot as plt \nimport matplotlib.dates as md \nimport numpy as np \nfrom datetime import datetime \n 
+data = stmpy.load('***.nsp')
+x=np.array(data.start,dtype='datetime64[s]') \nstepsize = int(np.floor(((data.end - data.start).total_seconds())/data.header['DATASIZEROWS']))
+dates = x + np.arange(0,stepsize*data.header['DATASIZEROWS'],stepsize) \nnew_dates=[np.datetime64(ts).astype(datetime) for ts in dates]
+datenums=md.date2num(new_dates) \nplt.subplots_adjust(bottom=0.2) \nplt.xticks( rotation=45 ) \nplt.ax=plt.gca() \nxfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+plt.ax.xaxis.set_major_formatter(xfmt) \nplt.pcolormesh(datenums, data.freq, data.fftI)#depending on which kind of data used
+plt.clim(0,1e-12)#can be different \nplt.ylabel('Frequency (Hz)') \nplt.savefig('pic name.png',dpi = 600,bbox_inches = 'tight') \nplt.show()
+    '''
+    def __init__(self, filePath):
+        self._loadnsp(filePath)
+        if self.header['SIGNAL'] == 'Current (A)':
+            self.fftI = self.data.T
+        elif self.header['SIGNAL'] == 'InternalGeophone (V)':
+            self.fftV = self.data.T
+        else:
+            self.fftSignal = self.data.T
+
+    def _loadnsp(self, filePath):
+        try: fileObj = open(filePath, 'rb')
+        except: return 0
+        self.header = {}
+        while True:
+            line = fileObj.readline().strip().decode('utf-8')
+            if line == ':HEADER_END:': 
+                break
+            elif re.match('^:.*:$', line):
+                tagname = line[1:-1]
+            else:
+                try:
+                    self.header[tagname] = int(line.split('\t')[0])
+                except:
+                    self.header[tagname] = line.split('\t')[0]
+
+        self.freq = np.linspace(0, np.round(float(self.header['DATASIZECOLS'])*float(self.header['DELTA_f'])),float(self.header['DATASIZECOLS']))
+        
+        self.start = datetime.strptime(self.header['START_DATE']+self.header['START_TIME'],'%d.%m.%Y%H:%M:%S')
+        self.end = datetime.strptime(self.header['END_DATE']+self.header['END_TIME'],'%d.%m.%Y%H:%M:%S')
+        self.time = np.linspace(0, (self.end - self.start).total_seconds(), int(self.header['DATASIZEROWS']))
+
+        self.data = np.zeros([int(self.header['DATASIZEROWS']),int(self.header['DATASIZECOLS'])])
+        fileObj.read(2) #first two bytes are not data
+        try:
+            for ix in range(int(self.header['DATASIZEROWS'])):
+                for iy in range(int(self.header['DATASIZECOLS'])):
+                    value = unpack('>f',fileObj.read(4))[0]
+                    self.data[ix,iy] = value
+        except:
+            print('Error: Data set is not complete')
 
 
 class NanonisSXM(object):
@@ -233,6 +313,7 @@ class NanonisSXM(object):
         self._file.close()
 
 
+
 class NanonisDat(object):
     def __init__(self,filename):
         self.channels = {}
@@ -252,8 +333,11 @@ class NanonisDat(object):
             line = line.rstrip().split('\t')
             allData.append(np.array(line, dtype = float))
         allData = np.array(allData)
-        for ix,channel in enumerate(channels):
-            self.channels[channel] = allData[:,ix]
+        try:
+            for ix,channel in enumerate(channels):
+                self.channels[channel] = allData[:,ix]
+        except:
+            pass
         self._file.close()
         try:
             self.didv = self.channels['LIY 1 omega (A)']
@@ -361,6 +445,7 @@ class NISTnvl(object):
             self.info['EUNITS']     = self._raw.eunits[0]
         except:
             1
+
 
 
 
