@@ -13,19 +13,28 @@ I think I should use more doc strings.
 def load(filePath):
     '''
 Loads data into python.  Currently supports formats: 3ds, sxm, dat, nvi, nvl, mat.
+For 3ds and dat file types their is an optional flag to correct for bias offset
+that is true by default.  This does not correct for a current offset, and
+should not be used in cases where there is a significant current offset.
 Note: mat files are supported as exports from STMView only.
 Please include the file extension in the path, e.g. 'file.3ds'
 
-Usage: data = load(filePath)
+Usage: data = load('file.3ds', biasOffset=True)
     '''
-    if filePath.endswith('.3ds'):
-        return _correct_bias_offset(Nanonis3ds(filePath), '.3ds')
+    if filePath.endswith('.3ds', biasOffset=True):
+        if biasOffset:
+            return _correct_bias_offset(Nanonis3ds(filePath), '.3ds')
+        else:
+            return Nanonis3ds(filePath)
 
     elif filePath.endswith('.sxm'):
         return NanonisSXM(filePath)
 
-    elif filePath.endswith('.dat'):
-        return _correct_bias_offset(NanonisDat(filePath), '.dat')
+    elif filePath.endswith('.dat', biasOffset=True):
+        if biasOffset:
+            return _correct_bias_offset(NanonisDat(filePath), '.dat')
+        else:
+            return NanonisDat(filePath)
 
     elif filePath[-3:] == 'NVI' or filePath[-3:] == 'nvi':
         return NISTnvi(sio.readsav(filePath))
