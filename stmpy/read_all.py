@@ -46,6 +46,9 @@ Usage: data = load(filePath)
                 print('Could not convert: {:}'.format(key))
         if len(mappy_dict) == 1: return mappy_dict[mappy_dict.keys()[0]]
         else: return mappy_dict
+    
+    elif filePath.endswith('.asc'):
+        return AsciiFile(filePath)
 
     else: raise IOError('ERR - Wrong file type.')
 
@@ -366,5 +369,35 @@ class NISTnvl(object):
         except:
             1
 
+class AsciiFile(object):
+    def __init__(self, filePath):
+        self.load(filePath)
+    
+    def load(self, filePath):
+        fid = open(filePath, 'r')
+        header= {}
+        channels = {}
+        while True:
+            line = fid.readline().rstrip()
+            if line is '':
+                break
+            splitLine = line.split(':')
+            header[splitLine[0]] = splitLine[1]
+        channelNames = fid.readline().rstrip().split('      ')
+        for chn in channelNames:
+            channels[chn] = []
+        for data in fid.readlines():
+            dsplit = data.rstrip().split('   ')
+            dfloat = [float(val) for val in dsplit]
+            for chn, val in zip(channelNames, dfloat):
+                channels[chn] += [val]
+        for chn in channelNames:
+            channels[chn] = np.array(channels[chn])
+        if len(channelNames) is 2:
+            self.x = channels[channelNames[0]]
+            self.y = channels[channelNames[1]]
+        self.header = header
+        self.channels = channels
+        fid.close()
 
 

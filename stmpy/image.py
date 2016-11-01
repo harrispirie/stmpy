@@ -5,9 +5,10 @@ from matplotlib.animation import FuncAnimation
 from matplotlib import cm
 
 def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
-                    zoom=1, codec='prores', clims=(0,1)):
+                    zoom=1, codec='prores', clims=(0,1), label_caption='meV'):
     '''
-    Create a movie from a 3D data set and save it in the working directory.  Intended    for visualising DOS maps.
+    Create a movie from a 3D data set and save it in the working directory.
+    Intended for visualising DOS maps.
 
     Iterates through the first index in the data set to create an animation.
     Make sure you include '.mov' in the file name.  Default codec is prores
@@ -40,7 +41,7 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
         plt.clim(clims)
 
     if label is not None:
-        tx = plt.text(0.95,0.95,'{:2.2f} meV'.format(label[0]), 
+        tx = plt.text(0.95,0.95,'{:2.2f} {:}'.format(label[0], label_caption), 
                   transform=ax.transAxes, **textOptions1)
     def init():
         im.set_array(F[0].ravel())
@@ -54,7 +55,7 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
         else:
             plt.clim(clims)
         if label is not None:
-            tx.set_text('{:2.0f} meV'.format(label[i]))
+            tx.set_text('{:2.0f} {:}'.format(label[i], label_caption))
         return [im]
     fig.tight_layout()
     ani = FuncAnimation(fig, animate, init_func=init, frames = F.shape[0])
