@@ -10,7 +10,7 @@ I think I should use more doc strings.
 '''
 
 
-def load(filePath):
+def load(filePath, biasOffset=True):
     '''
 Loads data into python.  Currently supports formats: 3ds, sxm, dat, nvi, nvl, mat.
 For 3ds and dat file types their is an optional flag to correct for bias offset
@@ -21,7 +21,7 @@ Please include the file extension in the path, e.g. 'file.3ds'
 
 Usage: data = load('file.3ds', biasOffset=True)
     '''
-    if filePath.endswith('.3ds', biasOffset=True):
+    if filePath.endswith('.3ds'):
         if biasOffset:
             return _correct_bias_offset(Nanonis3ds(filePath), '.3ds')
         else:
@@ -30,7 +30,7 @@ Usage: data = load('file.3ds', biasOffset=True)
     elif filePath.endswith('.sxm'):
         return NanonisSXM(filePath)
 
-    elif filePath.endswith('.dat', biasOffset=True):
+    elif filePath.endswith('.dat'):
         if biasOffset:
             return _correct_bias_offset(NanonisDat(filePath), '.dat')
         else:
