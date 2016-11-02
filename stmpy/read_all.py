@@ -237,8 +237,10 @@ class NanonisSXM(object):
         self.channels = {}
         for channel in self.header['data_info']:
             if channel['Direction'] == 'both':
-                self.channels[channel['Name'] + '_Fwd'] = np.ndarray(shape=shape, dtype='>f', buffer=self._file.read(size))
-                self.channels[channel['Name'] + '_Bkd'] = np.ndarray(shape=shape, dtype='>f', buffer=self._file.read(size))
+                self.channels[channel['Name'] + '_Fwd'] =
+                np.ndarray(shape=shape[::-1], dtype='>f', buffer=self._file.read(size))
+                self.channels[channel['Name'] + '_Bkd'] =
+                np.ndarray(shape=shape[::-1], dtype='>f', buffer=self._file.read(size))
             else:
                 self.channels[channel['Name'] + channel['Direction']] = np.ndarray(shape=shape, dtype='>f', buffer=self._file.read(size))
         try:
