@@ -155,16 +155,16 @@ class Nanonis3ds(object):
             self.parameters[name] = np.zeros([self.info['sizex'],self.info['sizey']])
 
         try:
-            for ix in range(self.info['sizex']):
-                for iy in range(self.info['sizey']):
+            for ix in range(self.info['sizey']):
+                for iy in range(self.info['sizex']):
                     for name in self.info['paramName']:
                         value = unpack('>f',fileObj.read(4))[0]
-                        self.parameters[name][ix,iy] = value
+                        self.parameters[name][iy,ix] = value
 
                     for channel in self.info['channels']:
                         for ie in range(self.info['points']):
                             value = unpack('>f',fileObj.read(4))[0]
-                            self.data[channel][ie,ix,iy] =value
+                            self.data[channel][ie,iy,ix] =value
         except:
             print('WARNING - Data set is not complete.')
 
