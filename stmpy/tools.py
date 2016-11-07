@@ -36,7 +36,7 @@ def saturate(level_low=0, level_high=None):
 
 def azimuthalAverage(F,x0,y0,r,theta = np.linspace(0,2*np.pi,500)):
     ''' Uses 2d interpolation to average F over an arc defined by theta for every r value starting from x0,y0. '''
-    f = sin.interp2d(np.arange(F.shape[0]), np.arange(F.shape[1]), F, kind='linear')
+    f = sin.interp2d(np.arange(F.shape[1]), np.arange(F.shape[0]), F, kind='linear')
     Z = np.zeros_like(r); fTheta = np.zeros_like(theta)
     for ix, r0 in enumerate(r):
         x = r0*np.cos(theta) + x0
@@ -132,6 +132,27 @@ def removePolynomial1d(y, n, x=None, fitRange=None):
     polyBackgroundFunction = np.poly1d(polyCoeff)
     return y - polyBackgroundFunction(x)
 
+def lineSubtract(data, n):
+    '''
+    Remove a polynomial background from the data line-by-line.  If the data is
+    3D (eg. 3ds) this does a 2D background subtract on each layer
+    independently.  Input is a numpy array. 
+    
+    Usage: A.z = lineSubtract(A.Z, 2)
+    '''
+    def subtract_2D(data, n):
+        output = np.zeros_like(data)
+        for ix, line in enumerate(data):
+            output[ix] = removePolynomial1d(line, n)
+        return output
+    if len(data.shape) is 3:
+        output = np.zeros_like(data)
+        for ix, layer in enumerate(data):
+            output[ix] = subtract_2D(layer, n)
+        return output
+    elif len(data.shape) is 2:
+        return subtract_2D(data, n)
+
 
 def fitGaussian2d(data, p0):
     ''' Fit a 2D gaussian to the data with initial parameters p0. '''
@@ -154,7 +175,7 @@ def findOtherBraggPeaks(FT, bpx, bpy, n = 1):
     '''Once one bragg peak is found this retruns n other bragg peak harmonics by symmetry of the Fourier transform.'''
     N  = range(-n,0)+range(1,n+1)
     Bpx = [];  Bpy = []
-    cenX = FT.shape[0]/2.0;  cenY = FT.shape[1]/2.0 
+    cenX = FT.shape[1]/2.0;  cenY = FT.shape[0]/2.0 
     rScale = np.sqrt((bpx-cenX)**2 + (bpy-cenY)**2)
     dx = bpx - cenX;  dy = bpy - cenY
     for i in N:
