@@ -243,4 +243,24 @@ def foldLayerImage(layerImage,bpThetaInRadians=0,n=4):
     if n not in options.keys(): print('{:}-fold symmetrization not yet implemented'.format(n))
     return B
 
+def quickFT(data, zero_center=True):
+    '''
+    A hassle-free FFT for 2D or 3D data.  Useful for quickly computing the QPI
+    patterns from a DOS map. Returns the absolute value of the FF Tfor each
+    layer in the image. Has the option of setting the center pixel to zero.
+
+    Usage: A.qpi = quickFT(A.LIY, zero_center=True)
+    '''
+    def ft2(data):
+        ft = np.fft.fft2(data)
+        if zero_center:
+            ft[0,0] = 0
+        return np.absolute(np.fft.fftshift(ft))
+    if len(data.shape) is 2:
+        return ft2(data)
+    else:
+        output = np.zeros_like(data)
+        for ix, layer in enumerate(data):
+            output[ix] = ft2(layer)
+        return output
 
