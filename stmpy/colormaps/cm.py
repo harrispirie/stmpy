@@ -23,6 +23,7 @@ def _make_STMView_colormap(fileName):
         if key not in ['__version__', '__header__', '__globals__']:
             return _ListedColormap(matFile[key])
 
+#yh = _make_STMView_colormap('YH2.mat')
 yanghe = _make_STMView_colormap('YH.mat')
 autumn = _make_STMView_colormap('Autumn.mat')
 blue1 = _make_STMView_colormap('Blue1.mat')
@@ -34,6 +35,7 @@ defect2 = _make_STMView_colormap('Defect2.mat')
 defect4 = _make_STMView_colormap('Defect4.mat')
 gray = _make_STMView_colormap('Gray.mat')
 
+#yh_r = _ListedColormap(yh.colors[::-1])
 yanghe_r =_ListedColormap(yanghe.colors[::-1])
 autumn_r =_ListedColormap(autumn.colors[::-1])
 blue1_r = _ListedColormap(blue1.colors[::-1])
