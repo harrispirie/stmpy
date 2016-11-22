@@ -3,6 +3,38 @@ import matplotlib as mpl
 import scipy.interpolate as sin
 import scipy.optimize as opt
 import scipy.ndimage as snd
+import cv2
+
+def bilateralFilter(F, d=10, si=1.0, sd=1.0):
+    '''
+    A wraper for the openCV bilateral filter.  Applies a non-linear,
+    edge-preserving filter to a 2D image.  If input is a 3D dataset, this will
+    apply the filter to each layer by iterating over the first index.
+
+    Inputs:
+        d - Diameter of pixel neighborhood used in filtering.
+        si - Width of gaussian in pixel intensity space.
+        sd - Width of gaussian in real space.
+
+    Usage: output = bilateralFilter(image, d=10, si=1.0, sd=1.0)
+
+    Issues: If data dominated by one number (e.g. center pixel in the FT)
+    then filter does not work. 
+    '''
+    def filter2d(img, d, si, sd):
+        norm = float(np.max(img))
+        data = np.float32(img/norm)
+        out = cv2.bilateralFilter(data, d, si, sd)
+        return norm * np.float64(out)
+    if len(F.shape) is 2:
+        return filter2d(F, d, si, sd)
+    if len(F.shape) is 3:
+        out = np.zeros_like(F)
+        for ix, layer in enumerate(F):
+            out[ix] = filter2d(layer, d, si, sd)
+        return out
+    else:
+        print('ERR: Input must be 2D or 3D numpy array.')
 
 def saturate(level_low=0, level_high=None):
     '''
@@ -243,13 +275,14 @@ def foldLayerImage(layerImage,bpThetaInRadians=0,n=4):
     if n not in options.keys(): print('{:}-fold symmetrization not yet implemented'.format(n))
     return B
 
-def quickFT(data, zero_center=True):
+def quickFT(data, n=None, zero_center=True):
     '''
     A hassle-free FFT for 2D or 3D data.  Useful for quickly computing the QPI
-    patterns from a DOS map. Returns the absolute value of the FF Tfor each
-    layer in the image. Has the option of setting the center pixel to zero.
+    patterns from a DOS map. Returns the absolute value of the FFT for each
+    layer in the image. Has the option of setting the center pixel to zero and
+    the option to n-fold symmetrize the output.
 
-    Usage: A.qpi = quickFT(A.LIY, zero_center=True)
+    Usage: A.qpi = quickFT(A.LIY, zero_center=True, n=None)
     '''
     def ft2(data):
         ft = np.fft.fft2(data)
@@ -257,10 +290,44 @@ def quickFT(data, zero_center=True):
             ft[0,0] = 0
         return np.absolute(np.fft.fftshift(ft))
     if len(data.shape) is 2:
-        return ft2(data)
-    else:
+        if n is None:
+            return ft2(data)
+        else:
+            return symmetrize(ft2(data), n)
+    if len(data.shape) is 3:
         output = np.zeros_like(data)
         for ix, layer in enumerate(data):
             output[ix] = ft2(layer)
-        return output
+        if n is None:
+            return output
+        else:
+            return symmetrize(output, n)
+    else:
+        print('ERR: Input must be 2D or 3D numpy array.')
+
+
+def symmetrize(F, n):
+    '''
+    Applies n-fold symmetrization to the image by rotating clockwise and
+    anticlockwise by an angle 2pi/n, then applying a mirror line.  Works on 2D
+    and 3D data sets, in the case of 3D each layer is symmetrzed 
+    '''
+    def sym2d(F, n):
+
+        angle = 360.0/n
+        out = np.zeros_like(F)
+        for ix in range(n):
+            out += snd.rotate(F, angle*ix, reshape=False)
+            out += snd.rotate(F, -angle*ix, reshape=False)
+        out /= 4*n
+        return out
+    if len(F.shape) is 2:
+        return sym2d(F, n)
+    if len(F.shape) is 3:
+        out = np.zeros_like(F)
+        for ix, layer in enumerate(F):
+            out[ix] = sym2d(layer, n)
+        return out
+    else:
+        print('ERR: Input must be 2D or 3D numpy array.')
 
