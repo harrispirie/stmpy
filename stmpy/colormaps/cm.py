@@ -62,6 +62,7 @@ def _make_diverging_colormap(i, f, m=[1,1,1], name='my_cmap'):
 RdBu = _cm.RdBu
 RdGy = _cm.RdGy
 BuGy = _make_diverging_colormap(_cm.RdGy(0.99), _cm.RdBu(0.99))
+GnGy = _make_diverging_colormap(_cm.RdGy(0.99), _cm.BuGn(0.99))
 yanghe = _make_STMView_colormap('YH.mat')
 autumn = _make_STMView_colormap('Autumn.mat')
 blue1 = _make_STMView_colormap('Blue1.mat')
@@ -76,6 +77,7 @@ gray = _make_STMView_colormap('Gray.mat')
 RdBu_r = _cm.RdBu_r
 RdGy_r = _cm.RdGy_r
 BuGy_r = _reverse_LSC(BuGy)
+GnGy_r = _reverse_LSC(GnGy)
 yanghe_r =_ListedColormap(yanghe.colors[::-1])
 autumn_r =_ListedColormap(autumn.colors[::-1])
 blue1_r = _ListedColormap(blue1.colors[::-1])
