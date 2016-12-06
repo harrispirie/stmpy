@@ -1,8 +1,11 @@
 import numpy as np
 import matplotlib as mpl
 import pylab as plt
+from scipy.optimize import minimize
 
 k = np.linspace(0, 1, 5e3)
+enh = np.linspace(-100,100,500)
+
 
 def tight_binding_model_1D(p, en, greens_functions=False,
         anisotropy=(True,True), constrained=False):
@@ -253,4 +256,50 @@ def plot_band_character(k, v, label=False):
         plt.plot(-10, -10, color=my_cmap(255), label='5d')
     return u 
 
-
+def fitData(data, X0=None, bounds=None, nix=None, add_constant=True, anisotropy=(True, False)):
+    if nix is None:
+        nix = np.where((data.en<-9) | ((data.en>=-5)&(data.en<-3)) | (data.en>3)) 
+    if add_constant:
+        def chi_data(X):
+            p = X[:-3]
+            didv_FIT = tight_binding_model_1D(p, data.en[nix], anisotropy=anisotropy)
+            data.fit = didv_FIT * X[-3] + X[-2]*(data.en[nix]) + X[-1]
+            err = np.abs(data.fit - data.didv[nix])
+            return np.log(np.sum(err**2))
+        if X0 is None:
+            X0 = 7, -1, -5, -28,  0.55, 36, 45, 3.5, 8, 0.04, -0.01, 3.3, 0.002, 0
+        if bounds is None:
+            no = (None, None)
+            pos = (0, None)
+            bounds = [(8,17), (-5,1), (-10,5), (-25,-20), (0.535,0.555), 
+                      (20,50), (50,100), pos, pos, no, no, no, no, no]
+        data.result = minimize(chi_data, X0, bounds=bounds, method='SLSQP')
+        p = data.result.x[:-3]
+        fit = tight_binding_model_1D(p, enh, anisotropy=anisotropy)
+        data.G = tight_binding_model_1D(p, enh, greens_functions=True, anisotropy=anisotropy)
+        data.didvf = fit * data.result.x[-3] + data.result.x[-2]*enh + data.result.x[-1]
+        fit = tight_binding_model_1D(p, data.en, anisotropy=anisotropy)
+        data.ss = data.didv - fit * data.result.x[-3] - \
+                data.result.x[-2]*data.en - data.result.x[-1]
+    else:
+        def chi_data(X):
+            p = X[:-2]
+            fit = tight_binding_model_1D(p, data.en[nix], anisotropy=anisotropy)
+            data.fit = fit * X[-2] + X[-1]*(data.en[nix])
+            err = np.abs(data.fit - data.didv[nix])
+            return np.log(np.sum(err**2))
+        if X0 is None:
+            X0 = 7, -1, -5, -28,  0.55, 36, 45, 3.5, 8, 0.04, -0.01, 3.3, 0.002
+        if bounds is None:
+            no = (None, None)
+            pos = (0, None)
+            bounds = [(8,17), (-5,1), (-10,5), (-25,-20), (0.535,0.555), 
+                      (20,50), (50,100), pos, pos, no, no, no, no]
+        data.result = minimize(chi_data, X0, bounds=bounds, method='SLSQP')
+        p = data.result.x[:-2]
+        fit = tight_binding_model_1D(p, enh, anisotropy=anisotropy)
+        data.G = tight_binding_model_1D(p, enh, greens_functions=True, anisotropy=anisotropy)
+        data.didvf = fit * data.result.x[-2] + data.result.x[-1]*enh
+        fit = tight_binding_model_1D(p, data.en, anisotropy=anisotropy)
+        data.ss = data.didv - fit * data.result.x[-2] - data.result.x[-1]*data.en
+    data.bands = fbands_1D(data.result.x[:7], data.en, anisotropy=anisotropy)
