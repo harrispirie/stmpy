@@ -278,7 +278,9 @@ def symmetrize(F, n):
     '''
     Applies n-fold symmetrization to the image by rotating clockwise and
     anticlockwise by an angle 2pi/n, then applying a mirror line.  Works on 2D
-    and 3D data sets, in the case of 3D each layer is symmetrzed 
+    and 3D data sets, in the case of 3D each layer is symmetrzed.
+
+    Usage: A.sym = symmetrize(A.qpi, 2)
     '''
     def sym2d(F, n):
 
@@ -298,4 +300,92 @@ def symmetrize(F, n):
         return out
     else:
         print('ERR: Input must be 2D or 3D numpy array.')
+
+class ngauss1d(object):
+    '''
+    Fits a combination of n gaussians to 1d data. Output is an object
+    containing various attributs pertaining to the fit. Includes the option to
+    fix a number of parameters in the fit by providing an array of 1 and 0
+    corresponding to each parameter: 1 - vary, 0 - fix.  
+
+    Inputs:
+        x - x data
+        y - normalized y data: divide by the end point and subtract 1:
+            y = y_data / y_data[-1] - 1
+        p0 - array of initial guess parameters in the form:
+            [amp, mu, sigma, amp, mu, sigma, ...]
+            len(p0) must be divisible by 3.
+        vary - array with same lengh as p0 describing whether to vary or fix
+            each parameter. Defaults to varying all. 
+        kwarg - additional keyword arguments passed to scipy.optimize.minimize
+
+    Usage: result = ngauss1d(x, y, p0, vary=None, **kwarg) 
+    '''
+    def __init__(self, x, y, p0, vary=None, **kwarg):
+        if vary is None:
+            vary = np.zeros(len(p0)) + 1
+        if len(vary) != len(p0):
+            print('Warning - Vary not specified for each parameter.')
+        self._x = x
+        self._yf = y
+        self._ix = np.where(vary == 1)[0]
+        self._p0 = p0
+        self.output = opt.minimize(self._chix, p0[self._ix], **kwarg)
+        p = self._find_p(self.output.x)
+        self.fit = self.gaussn(*p)
+        self.p_unsrt = p.reshape(len(p0)/3, 3).T
+        mu = self.p_unsrt[1]
+        self.p = self.p_unsrt[:, mu.argsort()]
+        self.peaks = np.zeros([self.p.shape[1], len(self._x)])
+        self.peaks_unsrt = np.zeros([self.p.shape[1], len(self._x)])
+        for ix, (peak, peak_u) in enumerate(zip(self.p.T, self.p_unsrt.T)):
+            self.peaks[ix] = self.gaussn(*peak)
+            self.peaks_unsrt[ix] = self.gaussn(*peak_u)
+    
+    def gaussn(self, *p):
+        g = np.zeros_like(self._x)
+        for i in range(0,len(p),3):
+            amp = abs(float(p[i]))
+            mu = float(p[i+1])
+            sigma = float(p[i+2])
+            g += amp * np.exp(-(self._x-mu)**2 / (2.0*sigma**2))
+        return g
+    
+    def _find_p(self, p_vary):
+        p = np.zeros([len(self._p0)])
+        vix = 0
+        for ix in range(len(self._p0)):
+            if ix in self._ix:
+                p[ix] = p_vary[vix]
+                vix += 1
+            else:
+                p[ix] = self._p0[ix]
+        return p
+
+    def _chix(self, p_vary):
+        p = self._find_p(p_vary)
+        gf = self.gaussn(*p)
+        err = np.abs(gf - self._yf)
+        return np.log(sum(err**2))
+
+def track_peak(x, z, p0, **kwarg):
+    '''
+    Simple interface for ngauss1d that tracks peaks on a 2d map in the y
+    direction. 
+
+    Inputs:
+        x - x data
+        z - 2d map with peaks in the y direction
+        p0 - initial guess parameters for peaks
+        kwarg - additional keyword arguments passed to ngauss1d.  Check
+        ngauss1d.__doc__ for details. 
+
+    Usage: mu = track_peak(x, z, p0, vary=vary, bounds=bounds)
+    '''
+    mu = np.zeros([len(p0)/3, z.shape[0]])
+    for ix, yv in enumerate(z):
+        y = yv/yv[-1] - 1
+        result = ngauss1d(x, y, p0, **kwarg)
+        mu[:,ix] = result.p_unsrt[1,:]
+    return mu
 
