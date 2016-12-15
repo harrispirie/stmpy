@@ -403,7 +403,7 @@ def shearcorr(FT, Bragg):
     from skimage import transform as tf
     
     def calctform(F, Br):
-    ''' calculate transform matrix based on 2D image F and Bragg peaks Br'''
+        ''' calculate transform matrix based on 2D image F and Bragg peaks Br'''
         N = Br.shape[0]
         sx, sy = F.shape
         xn = Br[:, 0]/sx*2-1
