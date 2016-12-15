@@ -408,19 +408,19 @@ def shearcorr(FT, Bragg):
         sx, sy = F.shape
         xn = Br[:, 0]/sx*2-1
         yn = Br[:, 1]/sy*2-1
-        R = np.mean(sqrt(xn**2+yn**2))
+        R = np.mean(np.sqrt(xn**2+yn**2))
         theta = np.arctan2(yn, xn)
         atansorted = np.asarray(sorted((atanval, ix) for ix, atanval in enumerate(theta)))# sort angles of vertices in rad
         theta = atansorted[:, 0]
         tanseq = np.int_(atansorted[:, 1])
         Br = Br[tanseq] # sort Bragg peaks accordingly
-        theta_M = np.arange(N)*2*pi/N-pi # Model angles of vertices, in rad, range (-pi, pi)
+        theta_M = (np.arange(N)*2/N-1)*np.pi # Model angles of vertices, in rad, range (-pi, pi)
         dtheta = np.mean(theta - theta_M)
         xn_M = R * np.cos(theta_M+dtheta) # Generate Model coordinates
         yn_M = R * np.sin(theta_M+dtheta) # based on first point
         Br_M = np.concatenate(((xn_M+1)*sx/2, (yn_M+1)*sy/2)).reshape(2, N).T # Back to original coordinates
         tform = tf.ProjectiveTransform()
-        if tform.estimate(Bragg, Bragg_M):
+        if tform.estimate(Br, Br_M):
             return tform
         else:
             print('failed in calculating transform matrix')
