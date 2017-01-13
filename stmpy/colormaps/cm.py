@@ -73,6 +73,7 @@ defect1 = _make_STMView_colormap('Defect1.mat')
 defect2 = _make_STMView_colormap('Defect2.mat')
 defect4 = _make_STMView_colormap('Defect4.mat')
 gray = _make_STMView_colormap('Gray.mat')
+sailingMod2 = _make_STMView_colormap('SailingMod2.mat')
 
 RdBu_r = _cm.RdBu_r
 RdGy_r = _cm.RdGy_r
@@ -88,4 +89,5 @@ defect1_r = _ListedColormap(defect1.colors[::-1])
 defect2_r = _ListedColormap(defect2.colors[::-1])
 defect4_r = _ListedColormap(defect4.colors[::-1])
 gray_r = _ListedColormap(gray.colors[::-1])
+sailingMod2_r = _ListedColormap(sailingMod2.colors[::-1])
 

@@ -4,7 +4,7 @@ import scipy.interpolate as sin
 import scipy.optimize as opt
 import scipy.ndimage as snd
 
-def saturate(level_low=0, level_high=None):
+def saturate(level_low=0, level_high=None, im=None):
     '''
     Adjusts color axis of in current handle.  Calculates a probablility density function for the data in current axes handle.  Uses upper and lower thresholds to find sensible c-axis limits.  Thresholds are between 0 and 100.  If unspecified the upper threshold is assumed to be 100 - lower threshold.
     
@@ -16,13 +16,17 @@ def saturate(level_low=0, level_high=None):
         level_high = 1-level_low
     else:
         level_high = (float(level_high)+100) / 200.0
-    imageObjects = mpl.pyplot.gca().get_children()
-    data = []
-    images = []
-    for item in imageObjects:
-        if isinstance(item, (mpl.image.AxesImage, mpl.collections.QuadMesh)):
-            images.append(item)
-            data.append(item.get_array().ravel())
+    if im is not None:
+        images = [im]
+        data = im.get_array().ravel()
+    else:
+        imageObjects = mpl.pyplot.gca().get_children()
+        data = []
+        images = []
+        for item in imageObjects:
+            if isinstance(item, (mpl.image.AxesImage, mpl.collections.QuadMesh)):
+                images.append(item)
+                data.append(item.get_array().ravel())
     y = sorted(np.array(data).ravel())
     y_density = np.absolute(y) / sum(np.absolute(y))
     pdf = np.cumsum(y_density)
@@ -440,3 +444,32 @@ def shearcorr(FT, Bragg):
             print('ERR: Input must be 2D or 3D numpy array')
     else:
         print('Bragg peak coordinates should be 2D array of the shape (N, 2)')
+
+
+
+def planeSubtract(image, deg, X0=None):
+    '''
+    Subtracts a polynomial plane from an image. The polynomial does not keep
+    any cross terms.
+    '''
+    def plane(a):
+        z = np.zeros_like(image) + a[0]
+        N = (len(a)-1)/2
+        for k in range(1, N+1):
+            z += a[2*k-1] * x**k + a[2*k] * y**k
+        return z
+    def chi(X):
+        chi.fit = plane(X)
+        res = norm - chi.fit
+        err = np.sum(np.absolute(res))
+        return err
+    if X0 is None:
+        X0 = np.zeros([2*deg+1])
+    vx = np.linspace(-1, 1, image.shape[0])
+    vy = np.linspace(-1, 1, image.shape[1])
+    x, y = vx[:, None], vy[None, :]
+    norm = (image-np.mean(image)) / np.max(image-np.mean(image))
+    result = opt.minimize(chi, X0)
+    return norm - chi.fit
+
+

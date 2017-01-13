@@ -259,12 +259,14 @@ class NanonisDat(object):
         self._open()
     def _open(self):
         self._file = open(self.header['filename'],'r')
-        for line in self._file:
+        while True:
+            line = self._file.readline()
             splitLine = line.split('\t')
-            if line[0:6] == '[DATA]':
-                channels = self._file.readline().rstrip().split('\t')
+            if line[0:6] == '[DATA]': 
                 break
-            elif line[0:2] != '\n': self.header[splitLine[0]] = splitLine[1]
+            elif line.rstrip() != '': 
+                self.header[splitLine[0]] = splitLine[1]
+        channels = self._file.readline().rstrip().split('\t')
         allData=[]
         for line in self._file:
             line = line.rstrip().split('\t')
@@ -278,6 +280,7 @@ class NanonisDat(object):
             self.I = self.channels['Current (A)']
             self.en = self.channels['Bias (V)']
         except (KeyError):
+            print('WARNING:  Could not create standard attributes, look in channels instead.')
             try:
                 self.en = self.channels['Bias calc (V)']
             except (KeyError):
