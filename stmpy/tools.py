@@ -3,6 +3,7 @@ import matplotlib as mpl
 import scipy.interpolate as sin
 import scipy.optimize as opt
 import scipy.ndimage as snd
+from scipy.signal import butter, filtfilt
 
 def saturate(level_low=0, level_high=None, im=None):
     '''
@@ -472,4 +473,30 @@ def planeSubtract(image, deg, X0=None):
     result = opt.minimize(chi, X0)
     return norm - chi.fit
 
-
+def butter_lowpass_filter(data, ncutoff=0.5, order=1):
+    '''
+    Low-pass filter applied for an individual spectrum (.dat) or every spectrum in a DOS map (.3ds)
+    
+    Parameters:
+    data: data to be filtered, could be A.didv or A.LIY
+    ncutoff: unitless cutoff frequency normaled by Nyquist frequency (half of sampling frequency),
+    note that ncutoff <=1, i.e., real cutoff frequency should be less than Nyquist frequency
+    order: degree of high frequency attenuation, see Wikipedia item "Butterworth filter".
+    
+    Usage: A_didv_filt = butter_lowpass_filter(A.didv, ncutoff=0.5, order=1)
+           A_LIY_filt = butter_lowpass_filter(A.LIY, ncutoff=0.5, order=1)
+    '''
+    
+    b, a = butter(order, ncutoff, btype='low', analog=False)
+    y = np.zeros_like(data)
+    if len(data.shape) is 1:
+        y = filtfilt(b, a, data)
+        return y
+    elif len(data.shape) is 3:
+        for ic in np.arange(data.shape[1]):
+            for ir in np.arange(data.shape[2]):
+                didv = data[:, ic, ir]
+                y[:, ic, ir] = filtfilt(b, a, didv)
+        return y
+    else:
+        print('ERR: Input must be 1D or 3D numpy array.')
