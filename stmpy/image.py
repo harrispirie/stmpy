@@ -63,7 +63,7 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
             tx.set_text('{:2.0f} {:}'.format(label[i], label_caption))
         return [im]
     fig.tight_layout()
-    ani = FuncAnimation(fig, animate, init_func=init, frames = F.shape[0])
+    ani = FuncAnimation(fig, animate, init_func=init, frames=F.shape[0])
     ani.save(fileName, codec=codec, dpi=200, fps=speed)
 
 
