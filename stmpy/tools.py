@@ -500,3 +500,71 @@ def butter_lowpass_filter(data, ncutoff=0.5, order=1):
         return y
     else:
         print('ERR: Input must be 1D or 3D numpy array.')
+
+
+def gradfilter(A, x, y, genvec=False):
+    '''
+    Minimum gradient filter for dispersive features (Ref. arXiv:1612.07880), returns filtered image
+    with optional gradient components for pseudo-vector-field and gradient modulus maps,
+    e.g. grad[I(k, E)].
+    
+    A is a 2D array composed of two axes x and y representing two independent experimental variables
+    x and y should be both equally spaced 1D array but may not be same increment dx and dy
+    
+    Usage: x = np.linspace(-1, 1, 40)
+           y = np.linspace(0, 1, 20)
+           A = np.array([...])
+           # simple filtering
+           A_gfl = gradfilter(A, x, y)
+           
+           # with gradient mapped
+           A_gfl, A_grad_x, A_grad_y = gradfilter(A, x, y, genvec=True)
+           
+           X, Y = np.meshgrid(x, y)
+           quiver(X, Y, A_grad_x, A_grad_Y, facecolors='b' ,width=0.005, pivot='mid') # vector-field
+           A_grad_map = np.sqrt(A_grad_x**2 + A_grad_y**2) # modulus map
+           pcolormesh(X, Y, A_gfl) # filtered image
+    '''
+    # Use built-in np.gradient() function
+    #A_grad_row, A_grad_col = np.gradient(A, edge_order=1)
+    #A_grad = np.sqrt(A_grad_row**2 + A_grad_col**2)
+    #A_grad_filtered = A / np.sqrt(A_grad_row**2 + A_grad_col**2)
+    
+    # 8-component method
+    col, row = A.shape
+    norm = np.sqrt(1/8) # normalize boundaries such that boundary values of modulus map are 1 to be divided.
+    dx = x[1]-x[0] # increment of W, E
+    dy = y[1]-y[0] # increment of N, S
+    dxy = np.sqrt(dx**2 + dy**2) # increment of NW, NE, SW, SE
+    
+    A_grad_N = ones_like(A)*norm
+    A_grad_S = ones_like(A)*norm
+    A_grad_W = ones_like(A)*norm
+    A_grad_E = ones_like(A)*norm
+    A_grad_NW = ones_like(A)*norm
+    A_grad_NE = ones_like(A)*norm
+    A_grad_SW = ones_like(A)*norm
+    A_grad_SE = ones_like(A)*norm
+    
+    for i in arange(1,col-1):
+        for j in arange(1,row-1):
+            A_grad_N[i, j] = (A[i, j] - A[i-1, j]) / dy
+            A_grad_S[i, j] = (A[i, j] - A[i+1, j]) / dy
+            A_grad_W[i, j] = (A[i, j] - A[i, j-1]) / dx
+            A_grad_E[i, j] = (A[i, j] - A[i, j+1]) / dx
+            A_grad_NW[i, j] = (A[i, j] - A[i-1, j-1]) / dxy
+            A_grad_NE[i, j] = (A[i, j] - A[i-1, j+1]) / dxy
+            A_grad_SW[i, j] = (A[i, j] - A[i+1, j-1]) / dxy
+            A_grad_SE[i, j] = (A[i, j] - A[i+1, j+1]) / dxy
+    
+    A_grad_col = A_grad_W + (A_grad_NW + A_grad_SW) / np.sqrt(2) - A_grad_E - (A_grad_NE + A_grad_SE)/ np.sqrt(2)
+    A_grad_row = A_grad_N + (A_grad_NW + A_grad_NE) / np.sqrt(2) - A_grad_S - (A_grad_SW + A_grad_SE)/ np.sqrt(2)
+    A_grad_mod = np.sqrt(A_grad_N**2 + A_grad_S**2 + A_grad_W**2 + A_grad_E**2 + A_grad_NW**2 + A_grad_NE**2 \
+                         + A_grad_SW**2 + A_grad_SE**2)
+    #A_grad_filtered = A / A_grad_mod
+    A_grad_filtered = (A_grad_filtered * (A.max() - A.min()) + (A.min() * A_grad_filtered.max() - A.max() * A_grad_filtered.min())) \
+    /(A_grad_filtered.max() - A_grad_filtered.min()) # optional: normalize amplitude to fit original range
+    if genvec:
+        return A_grad_filtered, A_grad_col, A_grad_row
+    else:
+        return A_grad_filtered
