@@ -561,7 +561,7 @@ def gradfilter(A, x, y, genvec=False):
     A_grad_row = A_grad_N + (A_grad_NW + A_grad_NE) / np.sqrt(2) - A_grad_S - (A_grad_SW + A_grad_SE)/ np.sqrt(2)
     A_grad_mod = np.sqrt(A_grad_N**2 + A_grad_S**2 + A_grad_W**2 + A_grad_E**2 + A_grad_NW**2 + A_grad_NE**2 \
                          + A_grad_SW**2 + A_grad_SE**2)
-    #A_grad_filtered = A / A_grad_mod
+    A_grad_filtered = A / A_grad_mod
     A_grad_filtered = (A_grad_filtered * (A.max() - A.min()) + (A.min() * A_grad_filtered.max() - A.max() * A_grad_filtered.min())) \
     /(A_grad_filtered.max() - A_grad_filtered.min()) # optional: normalize amplitude to fit original range
     if genvec:
