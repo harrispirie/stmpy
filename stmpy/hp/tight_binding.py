@@ -2,19 +2,73 @@ import numpy as np
 import matplotlib as mpl
 import pylab as plt
 from scipy.optimize import minimize
+from scipy.special import j0
+import scipy.constants as const
 
 k = np.linspace(0, 1, 5e3)
 enh = np.linspace(-100,100,500)
 
+def nonlocal_model(p, en, get_G=False, get_N=False):
+    af1, ef1, af2, ef2, c0, v1, v2, g1, g2, t1, t2 = p
+    g0 = 3.0
+    c0 = float(c0)
+    b = 1600
+    f1 = af1*np.cos(k*np.pi) + ef1
+    f2 = af2*np.cos(k*np.pi) + ef2
+    c = (k**2.-c0**2) * b/c0**2
+
+    G = np.zeros([6, len(en), len(k)], dtype=np.complex128)
+    for ix, enval in enumerate(en):
+        w0 = enval + 1j*g0
+        w1 = enval + 1j*g1
+        w2 = enval + 1j*g2
+        denominator =  (c - w0) * (f1 - w1) * (f2 - w2) - (v2**2 * (f1 - w1) + 
+                v1**2 * (f2 - w2)) * (np.sin(np.pi*k)**2)
+        G[0,ix] = (-(f1 - w1) * (f2 - w2)) /denominator
+        G[1,ix] = (-(c - w0) * (f2 - w2) + v2**2 * np.sin(np.pi*k)**2) /denominator
+        G[2,ix] = (-(c - w0) * (f1 - w1) + v1**2 * np.sin(np.pi*k)**2) /denominator
+        G[3,ix] = (v1 * (f2 - w2)) /denominator
+        G[4,ix] = (v2 * (f1 - w1)) /denominator 
+        G[5,ix] = -v1*v2*np.sin(np.pi*k)**2 /denominator
+    if get_G:
+        return G
+    N = np.zeros([9,len(en)],  dtype=np.complex128)
+    N[0] = (0.5/np.pi)*np.sum(k*G[0], axis=1)
+    N[1] = (0.5/np.pi)*np.sum(k*G[1], axis=1)
+    N[2] = (0.5/np.pi)*np.sum(k*G[2], axis=1)
+    N[3] = (0.5/np.pi)*np.sum(k*G[5], axis=1)
+    N[4] = (0.5/np.pi)*np.sum(k*G[1]*j0(2*k), axis=1)
+    N[5] = (0.5/np.pi)*np.sum(k*G[2]*j0(2*k), axis=1)
+    N[6] = (0.5/np.pi)*np.sum(k*G[5]*j0(2*k), axis=1)
+    N[7] = (0.25/np.pi)*np.sum(k*G[3]*(1-j0(2*k)), axis=1)
+    N[8] = (0.25/np.pi)*np.sum(k*G[4]*(1-j0(2*k)), axis=1)
+    if get_N:
+        return N
+    didv = -1*(np.imag(N[0]) + 4*t1**2*np.imag(N[1]) + 
+            4*t2**2*np.imag(N[2]) + 8*t1*t2*np.imag(N[3]) -
+            4*t1**2*np.imag(N[4]) - 4*t2**2*np.imag(N[5]) -
+            8*t1*t2*np.imag(N[6]) + 8*t1*np.imag(N[7]) + 8*t2*np.imag(N[8]))
+    return didv
+
+
+
+
+
+
+
+
+
+     
+
+
 
 def tight_binding_model_1D(p, en, greens_functions=False,
-        anisotropy=(True,True), constrained=False):
+        anisotropy=(True,True), constrained=False, antitunnel=True, get_n=False):
     if constrained:
         #af1, af2, v1, v2, g1, g2 = p
         ef1, ef2, c0, t1, t2 = -1.5, -25.5, 0.55, 0.032, -0.020
         ef1, ef2, c0, t1, t2 = -0.9, -26.5, 0.54, 0.0361, -0.0142
         ef1, ef2, c0, t1, t2 = -0.3, -23.5, 0.56, 0.0383, -0.0189
-        
         ef1, ef2, c0, t1, t2 = -1.17, -23.25, 0.537, 0.0385, -0.0033
         af1, af2 = 10., -8.
         v1, v2, g1, g2 = p
@@ -48,10 +102,25 @@ def tight_binding_model_1D(p, en, greens_functions=False,
         G[5,ix] = (s1 * s2) / denominator
     if greens_functions:
         return G
-    
-    N = 1/(2*np.pi)*np.sum(k*G, axis=2)
-    dIdV = -(np.imag(N[0]) +  t1**2*np.imag(N[1]) + t2**2*np.imag(N[2]) 
-            + 2*t1*np.imag(N[3]) + 2*t2*np.imag(N[4]) + 2*t1*t2*np.imag(N[5]))
+    if antitunnel:
+        T = np.array([np.ones_like(k), (t1*np.sin(k*np.pi))**2, (t2*np.sin(k*np.pi))**2,
+                  2*t1*np.sin(k*np.pi),  2*t2*np.sin(k*np.pi),
+                  2*t1*t2*(np.sin(k*np.pi))**2])
+    else:
+        t = np.array([1, t1**2, t2**2, 2*t1, 2*t2, 2*t1*t2])
+        T = t[:,None]*np.ones_like(k)
+    Gt = np.ones_like(G)
+    for ix, t in enumerate(T):
+        Gt[ix] = t*G[ix]
+    N = 1/(2*np.pi)*np.sum(k*Gt, axis=2)
+    if get_n:
+        return N
+    dIdV = -np.imag(np.sum(N, axis=0))
+#    else:
+
+#        N = 1/(2*np.pi)*np.sum(k*G, axis=2)
+#        dIdV = -(np.imag(N[0]) +  t1**2*np.imag(N[1]) + t2**2*np.imag(N[2]) 
+#                + 2*t1*np.imag(N[3]) + 2*t2*np.imag(N[4]) + 2*t1*t2*np.imag(N[5]))
     return dIdV
 
 
@@ -256,13 +325,15 @@ def plot_band_character(k, v, label=False):
         plt.plot(-10, -10, color=my_cmap(255), label='5d')
     return u 
 
-def fitData(data, X0=None, bounds=None, nix=None, add_constant=True, anisotropy=(True, False)):
+def fitData(data, X0=None, bounds=None, nix=None, add_constant=True,
+        anisotropy=(True, False), antitunnel=True):
     if nix is None:
         nix = np.where((data.en<-9) | ((data.en>=-5)&(data.en<-3)) | (data.en>3)) 
     if add_constant:
         def chi_data(X):
             p = X[:-3]
-            didv_FIT = tight_binding_model_1D(p, data.en[nix], anisotropy=anisotropy)
+            didv_FIT = tight_binding_model_1D(p, data.en[nix],
+                    anisotropy=anisotropy, antitunnel=antitunnel)
             data.fit = didv_FIT * X[-3] + X[-2]*(data.en[nix]) + X[-1]
             err = np.abs(data.fit - data.didv[nix])
             return np.log(np.sum(err**2))
@@ -275,16 +346,18 @@ def fitData(data, X0=None, bounds=None, nix=None, add_constant=True, anisotropy=
                       (20,50), (50,100), pos, pos, no, no, no, no, no]
         data.result = minimize(chi_data, X0, bounds=bounds, method='SLSQP')
         p = data.result.x[:-3]
-        fit = tight_binding_model_1D(p, enh, anisotropy=anisotropy)
-        data.G = tight_binding_model_1D(p, enh, greens_functions=True, anisotropy=anisotropy)
+        fit = tight_binding_model_1D(p, enh, anisotropy=anisotropy, antitunnel=antitunnel)
+        data.G = tight_binding_model_1D(p, enh, greens_functions=True,
+                anisotropy=anisotropy, antitunnel=antitunnel)
         data.didvf = fit * data.result.x[-3] + data.result.x[-2]*enh + data.result.x[-1]
-        fit = tight_binding_model_1D(p, data.en, anisotropy=anisotropy)
+        fit = tight_binding_model_1D(p, data.en, anisotropy=anisotropy, antitunnel=antitunnel)
         data.ss = data.didv - fit * data.result.x[-3] - \
                 data.result.x[-2]*data.en - data.result.x[-1]
     else:
         def chi_data(X):
             p = X[:-2]
-            fit = tight_binding_model_1D(p, data.en[nix], anisotropy=anisotropy)
+            fit = tight_binding_model_1D(p, data.en[nix],
+                    anisotropy=anisotropy, antitunnel=antitunnel)
             data.fit = fit * X[-2] + X[-1]*(data.en[nix])
             err = np.abs(data.fit - data.didv[nix])
             return np.log(np.sum(err**2))
@@ -297,9 +370,10 @@ def fitData(data, X0=None, bounds=None, nix=None, add_constant=True, anisotropy=
                       (20,50), (50,100), pos, pos, no, no, no, no]
         data.result = minimize(chi_data, X0, bounds=bounds, method='SLSQP')
         p = data.result.x[:-2]
-        fit = tight_binding_model_1D(p, enh, anisotropy=anisotropy)
-        data.G = tight_binding_model_1D(p, enh, greens_functions=True, anisotropy=anisotropy)
+        fit = tight_binding_model_1D(p, enh, anisotropy=anisotropy, antitunnel=antitunnel)
+        data.G = tight_binding_model_1D(p, enh, greens_functions=True,
+                anisotropy=anisotropy, antitunnel=antitunnel)
         data.didvf = fit * data.result.x[-2] + data.result.x[-1]*enh
-        fit = tight_binding_model_1D(p, data.en, anisotropy=anisotropy)
+        fit = tight_binding_model_1D(p, data.en, anisotropy=anisotropy, antitunnel=antitunnel)
         data.ss = data.didv - fit * data.result.x[-2] - data.result.x[-1]*data.en
     data.bands = fbands_1D(data.result.x[:7], data.en, anisotropy=anisotropy)
