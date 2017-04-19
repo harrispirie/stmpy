@@ -1,0 +1,114 @@
+
+
+\documentclass[11pt]{article}
+\date{}
+ 
+\usepackage[margin=0.8in]{geometry} 
+\usepackage{amsmath,amsthm,amssymb,bm,graphicx,pdfpages,enumerate,enumitem,breqn,blkarray}
+\newcommand*\tageq{\refstepcounter{equation}\tag{\theequation}}
+\usepackage{graphicx, bbm, color, parskip}
+\usepackage{multirow}
+\newcommand{\indep}{\rotatebox[origin=c]{90}{$\models$}}
+\setcounter{MaxMatrixCols}{20}
+
+\usepackage{physics}
+\usepackage[makeroom]{cancel}
+\usepackage{listings}
+
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\R}{\mathbb{R}}
+\allowdisplaybreaks
+\makeatletter
+\newcommand{\colvect}{\rcvector}
+\newcommand{\rowvect}{\rcvector}
+\newcommand{\E}{\textrm{E}}
+\newcommand{\Var}{\textrm{Var}}
+\newcommand{\Cov}{\textrm{Cov}}
+\newcommand{\Corr}{\textrm{Corr}}
+\newcommand{\pf}{\begin{flushright}$\square$\end{flushright}}
+\newcommand{\asreq}{\begin{flushright}...as required\end{flushright}}
+ 
+\begin{document}
+
+\title{\vspace{-0.7cm}The \texttt{stmpy} package}
+\date{\today}
+\author{Hoffman lab} 
+\maketitle
+
+
+%----------------------------------------------------------
+
+
+\section*{Methods in \texttt{stmpy.tools}:}
+
+Descriptions are shown in the order functions appear in {\tt stmpy.tools}, which is vaguely chronologically.
+
+\begin{enumerate}
+\item {\tt saturate} - Designed to make it easy to set color limits on images. Adjusts color axis of current image handle by calculating a probability density function for the data in the current axis.  Uses upper and lower thresholds on the PDF to find sensible c-axis limits. 
+
+\item {\tt azimuthalAverage} - Given a point $\mathbf{p}=(x_0,y_0)$ in a 2D data set $F(x,y)$, computes the azimuthal average of the $F$ as a function of $r$ away from $\mathbf{p}$. Uses 2D interpolation on $F$ to get evenly spaced $r$ values. 
+
+\item {\tt azimuthalAverageRaw} - Computes a raw azimuthal average on 2D data $F(x,y)$.  This is similar to {\tt \small azimuthalAverage} but does not interpolate the data.  Instead the returned $r$ values are not linearly spaced, but follow the sequence: $1,\sqrt{2}, 2, \sqrt{5}...$
+
+\item {\tt binData} - Puts non-linearly sampled data into linear bins.
+
+\item {\tt linecut} - Simple algorithm for taking a line-cut on a 2D data set $F(x,y)$.  Uses interpolation to sample $F$ along a line from $(x_1,y_1)$ to $(x_2,y_2)$ with $n$ evenly spaced points.
+
+\item {\tt squareCrop} - Crops a 2D image to be $m\times m$.
+
+\item {\tt lineCrop} - Takes 1D data $y(x)$ and removes arbitrarily many sections to return $y(x(t_0:t_1, t_2:t_3, ...))$.
+
+\item {\tt removePolynomial1d} - Removes an $n$ degree polynomial fit to 1D data $y(x)$. Optional: can specify the sections of $y(x)$ to use when fitting the background polynomial.
+
+\item {\tt lineSubtract} - Acts on 3D or 2D data $A(\mathbf{r})$ to remove an $n$ degree polynomial from each line in $A(\mathbf{r})$.  Specifically, it iterates over the first index of $A(\mathbf{r})$ until to get 1D data $y(x)$  and implements {\small \tt removePolynomial1d} to remove the background.
+
+\item {\tt fitGaussian2d} - Fit a 2D gaussian of the form $$f(x,y) = A \exp (-a(x-x_0)^2 +2b(x-x_0)(y-y_0) - c(y-y_0)^2 ) + B$$
+to 2D data $F(x,y)$ given specified initial parameters: $A, B, x_0, y_0, \sigma_x,  \sigma_y, \theta.$
+
+\item {\tt findOtherBraggPeaks} - For a Fourier transformed lattice, the Bragg peaks come in pairs at $\pm \mathbf{Q}_{B}$, with harmonics at  $\pm n\mathbf{Q}_{B}$ with $n\in \mathbb{N}$.  This function takes on Bragg peak and returns the $2n-1$ other Bragg peak locations for 2D data $F(x,y)$.
+
+\item {\tt findPeaks} - Simple peak detection algorithm that returns the location of the $n$ highest peaks, $x^*$, in 1D data $y(x)$ by checking where the derivative crosses zeros, $y'(x^*)=0$.
+
+\item {\tt fitGaussian1d} - Fits $N$ gaussians to 1D data $y(x)$ of the form $$f(x) = \sum_{n=0}^N A_n \exp (-\frac{(x-\mu_n)^2}{2\sigma_n^2}).$$
+
+\item {\tt foldLayerImage} - Takes 3D data $A(\mathbf{r})$ and returns a $n$-fold symmetric 3D image $\tilde{A}(\mathbf{r})$, by iterating through the first index of $A(\mathbf{r})$ and symmetrizing the $i^{th}$ 2D layer, $A(E_i,x,y)$, about a specified fold direction.  The intended use is to symmetrize an FT-DOS map along the direction of a Bragg peak. Currently implemented for $n=1,2,4$ and all but replaced by {\tt \small symmetrize}
+
+\item {\tt quickFT} - Computes a 2D Fourier transform of 2D or 3D data $A(\mathbf{r})$, with the option to $n$-fold symmetrize the result.  If 3D data is used the 2D Fourier transforms will be computed by iterating along the first index.
+
+\item {\tt symmetrize} - Similar to {\tt \small foldLayerImage}, returns $n$-fold symmetric 2D or 3D data $\tilde{A}(\mathbf{r})$ by rotating clockwise and anti-clockwise by an angle $2\pi/n$, then applying a mirror line.  Works on 2D and 3D data sets, in the case of 3D each layer is symmetrized.
+
+\item {\tt ngauss1d} - More general version of {\tt fitGaussian1d}, which allows any fit parameter to be fixed. Also returns information about the quality of fit.
+
+\item {\tt track_peak} - Generalizes {\tt \small ngauss1d} to work on 2D data $F(x,y)$ by iterating the first index of $F(x,y)$. Only retains information about the position of the gaussian peaks, which track features that disperse in the $y$ direction.
+
+\item {\tt shearcorr} - ... to be updated to include local drift correction.
+
+\item {\tt planeSubtract} - Removes a 2D polynomial plane $P(x,y)$  from 2D data $F(x,y)$.  The polynomial is of the form:
+$$ P(x,y) = a_0 + \sum_{k=1}^N a_{2k-1}\ x^k + a_{2k}\ y^k,$$
+where $a_0,a_1,a_2, ...$ are the polynomial coefficients. 
+
+\item {\tt butter_lowpass_filter} - Implements a Butterworth filter for 1D data $y(x)$ or for each spectrum $g(E)$ in a 3D data set $g(E,x,y)$.
+
+\item {\tt gradfilter} -  Applies a minimum gradient filter to extract dispersive features in a 2D data set $F(x,y)$ (Ref: arXiv:1612.07880).  Returns filtered data with optional gradient components for pseudo-vector-field and gradient modulus maps.
+
+\end{enumerate}
+
+
+\end{document}
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
