@@ -406,59 +406,6 @@ def track_peak(x, z, p0, **kwarg):
         mu[:,ix] = result.p_unsrt[1,:]
     return mu
 
-def shearcorr(FT, Bragg):
-    '''
-        Shear correction on FT, based on coordinates of Bragg peaks.
-        Inputs: FT - 2D image or 3D layers;
-        Bragg - 2D array of the shape (N, 2), e.g. Bragg = np.array([[x1, y1], [x2, y2], ...])
-        
-        Note: 1. only works on symmetric (like hexagonal or square) lattices.
-        2. should install the package 'skimage' first:   'pip install -U scikit-image'
-        3. another function 'peak_local_max' in this package helps you find Bragg peak locations.
-        Usage: 'from skimage.feature import peak_local_max'
-        '''
-    from skimage import transform as tf
-    
-    def calctform(F, Br):
-        ''' calculate transform matrix based on 2D image F and Bragg peaks Br'''
-        N = Br.shape[0]
-        sx, sy = F.shape
-        xn = Br[:, 0]/sx*2-1
-        yn = Br[:, 1]/sy*2-1
-        R = np.mean(np.sqrt(xn**2+yn**2))
-        theta = np.arctan2(yn, xn)
-        atansorted = np.asarray(sorted((atanval, ix) for ix, atanval in enumerate(theta)))# sort angles of vertices in rad
-        theta = atansorted[:, 0]
-        tanseq = np.int_(atansorted[:, 1])
-        Br = Br[tanseq] # sort Bragg peaks accordingly
-        theta_M = (np.arange(N)*2/N-1)*np.pi # Model angles of vertices, in rad, range (-pi, pi)
-        dtheta = np.mean(theta - theta_M)
-        xn_M = R * np.cos(theta_M+dtheta) # Generate Model coordinates
-        yn_M = R * np.sin(theta_M+dtheta) # based on first point
-        Br_M = np.concatenate(((xn_M+1)*sx/2, (yn_M+1)*sy/2)).reshape(2, N).T # Back to original coordinates
-        tform = tf.ProjectiveTransform()
-        if tform.estimate(Br, Br_M):
-            return tform
-        else:
-            print('failed in calculating transform matrix')
-
-    if len(Bragg.shape) is 2 and Bragg.shape[1] is 2:
-        if len(FT.shape) is 2:
-            tform = calctform(FT, Bragg)
-            FT_corr = tf.warp(FT, inverse_map=tform.inverse, preserve_range=True)
-            return FT_corr
-        if len(FT.shape) is 3:
-            tform = calctform(FT[0], Bragg)
-            FT_corr = np.zeros_like(FT)
-            for ix, layer in enumerate(FT):
-                FT_corr[ix] = tf.warp(layer, inverse_map=tform.inverse, preserve_range=True)
-            return FT_corr
-        else:
-            print('ERR: Input must be 2D or 3D numpy array')
-    else:
-        print('Bragg peak coordinates should be 2D array of the shape (N, 2)')
-
-
 
 def planeSubtract(image, deg, X0=None):
     '''
