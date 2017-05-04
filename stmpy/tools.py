@@ -279,13 +279,14 @@ def quickFT(data, n=None, zero_center=True):
         print('ERR: Input must be 2D or 3D numpy array.')
 
 
-def symmetrize(F, n):
+def symmetrize(F, n, p):
     '''
     Applies n-fold symmetrization to the image by rotating clockwise and
     anticlockwise by an angle 2pi/n, then applying a mirror line.  Works on 2D
     and 3D data sets, in the case of 3D each layer is symmetrzed.
-
-    Usage: A.sym = symmetrize(A.qpi, 2)
+    p is the location of one Bragg peak
+    
+    Usage: A.sym = symmetrize(A.qpi, 4, (x1, y1))
     '''
     def sym2d(F, n):
 
@@ -294,14 +295,25 @@ def symmetrize(F, n):
         for ix in range(n):
             out += snd.rotate(F, angle*ix, reshape=False)
             out += snd.rotate(F, -angle*ix, reshape=False)
-        out /= 4*n
+        out /= 2*n
         return out
+    
+    def linmirr(F, x1, y1):
+        
+        x0 = int(F.shape[0]/2)
+        y0 = int(F.shape[1]/2)
+        alpha = 3*np.pi/4-np.arctan((y1-y0)/(x1-x0)) # angle between mirror line and diagonal line, unit in rad
+        Fr = snd.rotate(F, -alpha/np.pi*180, reshape=False) # roatate the mirror line to be diagonal
+        Ff = Fr.T # diagnoal mirror
+        Ffr = snd.rotate(Ff, alpha/np.pi*180, reshape=False) # rotate back
+        return (Ffr+F)/2
+    
     if len(F.shape) is 2:
-        return sym2d(F, n)
+        return linmirr(sym2d(F, n), p[0], p[1])
     if len(F.shape) is 3:
         out = np.zeros_like(F)
         for ix, layer in enumerate(F):
-            out[ix] = sym2d(layer, n)
+            out[ix] = linmirr(sym2d(layer, n), p[0], p[1])
         return out
     else:
         print('ERR: Input must be 2D or 3D numpy array.')
@@ -455,7 +467,7 @@ def planeSubtract(image, deg, X0=None):
     '''
     def plane(a):
         z = np.zeros_like(image) + a[0]
-        N = (len(a)-1)/2
+        N = int((len(a)-1)/2)
         for k in range(1, N+1):
             z += a[2*k-1] * x**k + a[2*k] * y**k
         return z
@@ -537,17 +549,17 @@ def gradfilter(A, x, y, genvec=False):
     dy = y[1]-y[0] # increment of N, S
     dxy = np.sqrt(dx**2 + dy**2) # increment of NW, NE, SW, SE
     
-    A_grad_N = ones_like(A)*norm
-    A_grad_S = ones_like(A)*norm
-    A_grad_W = ones_like(A)*norm
-    A_grad_E = ones_like(A)*norm
-    A_grad_NW = ones_like(A)*norm
-    A_grad_NE = ones_like(A)*norm
-    A_grad_SW = ones_like(A)*norm
-    A_grad_SE = ones_like(A)*norm
+    A_grad_N = np.ones_like(A)*norm
+    A_grad_S = np.ones_like(A)*norm
+    A_grad_W = np.ones_like(A)*norm
+    A_grad_E = np.ones_like(A)*norm
+    A_grad_NW = np.ones_like(A)*norm
+    A_grad_NE = np.ones_like(A)*norm
+    A_grad_SW = np.ones_like(A)*norm
+    A_grad_SE = np.ones_like(A)*norm
     
-    for i in arange(1,col-1):
-        for j in arange(1,row-1):
+    for i in np.arange(1,col-1):
+        for j in np.arange(1,row-1):
             A_grad_N[i, j] = (A[i, j] - A[i-1, j]) / dy
             A_grad_S[i, j] = (A[i, j] - A[i+1, j]) / dy
             A_grad_W[i, j] = (A[i, j] - A[i, j-1]) / dx
