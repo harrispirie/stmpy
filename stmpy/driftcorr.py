@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -331,7 +332,7 @@ def calctform(Br, s):
     yn = Br[:, 1]/c-1
     R = np.mean(np.sqrt(xn**2+yn**2))
     theta = np.arctan2(yn, xn)
-    theta_M = (np.arange(N)*2/N-1)*np.pi # Model angles of vertices, in rad, range (-pi, pi)
+    theta_M = (np.arange(N)*2./N-1)*np.pi # Model angles of vertices, in rad, range (-pi, pi)
     dtheta = np.mean(theta - theta_M)
     xn_M = R * np.cos(theta_M+dtheta) # Generate Model coordinates
     yn_M = R * np.sin(theta_M+dtheta) # based on first point

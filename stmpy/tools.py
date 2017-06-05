@@ -248,7 +248,7 @@ def foldLayerImage(layerImage,bpThetaInRadians=0,n=4):
     if n not in options.keys(): print('{:}-fold symmetrization not yet implemented'.format(n))
     return B
 
-def quickFT(data, n=None, zero_center=True):
+def quickFT(data, n=None, zero_center=True, flag=True):
     '''
     A hassle-free FFT for 2D or 3D data.  Useful for quickly computing the QPI
     patterns from a DOS map. Returns the absolute value of the FFT for each
@@ -266,7 +266,7 @@ def quickFT(data, n=None, zero_center=True):
         if n is None:
             return ft2(data)
         else:
-            return symmetrize(ft2(data), n)
+            return symmetrize(ft2(data), n, flag=flag)
     if len(data.shape) is 3:
         output = np.zeros_like(data)
         for ix, layer in enumerate(data):
@@ -274,17 +274,18 @@ def quickFT(data, n=None, zero_center=True):
         if n is None:
             return output
         else:
-            return symmetrize(output, n)
+            return symmetrize(output, n, flag=flag)
     else:
         print('ERR: Input must be 2D or 3D numpy array.')
 
 
-def symmetrize(F, n, p):
+def symmetrize(F, n, p=(1,1), flag=True):
     '''
     Applies n-fold symmetrization to the image by rotating clockwise and
     anticlockwise by an angle 2pi/n, then applying a mirror line.  Works on 2D
     and 3D data sets, in the case of 3D each layer is symmetrzed.
     p is the location of one Bragg peak
+    HP: Modified default P-value to be on diagonal
     
     Usage: A.sym = symmetrize(A.qpi, 4, (x1, y1))
     '''
@@ -298,22 +299,24 @@ def symmetrize(F, n, p):
         out /= 2*n
         return out
     
-    def linmirr(F, x1, y1):
-        
-        x0 = int(F.shape[0]/2)
-        y0 = int(F.shape[1]/2)
-        alpha = 3*np.pi/4-np.arctan((y1-y0)/(x1-x0)) # angle between mirror line and diagonal line, unit in rad
-        Fr = snd.rotate(F, -alpha/np.pi*180, reshape=False) # roatate the mirror line to be diagonal
-        Ff = Fr.T # diagnoal mirror
-        Ffr = snd.rotate(Ff, alpha/np.pi*180, reshape=False) # rotate back
-        return (Ffr+F)/2
+    def linmirr(F, x1, y1, flag=True):
+        if flag:
+            x0 = int(F.shape[0]/2)
+            y0 = int(F.shape[1]/2)
+            alpha = 3*np.pi/4-np.arctan((y1-y0)/(x1-x0)) # angle between mirror line and diagonal line, unit in rad
+            Fr = snd.rotate(F, -alpha/np.pi*180, reshape=False) # roatate the mirror line to be diagonal
+            Ff = Fr.T # diagnoal mirror
+            Ffr = snd.rotate(Ff, alpha/np.pi*180, reshape=False) # rotate back
+            return (Ffr+F)/2
+        else:
+            return F
     
     if len(F.shape) is 2:
-        return linmirr(sym2d(F, n), p[0], p[1])
+            return linmirr(sym2d(F, n), p[0], p[1], flag=flag)
     if len(F.shape) is 3:
         out = np.zeros_like(F)
         for ix, layer in enumerate(F):
-            out[ix] = linmirr(sym2d(layer, n), p[0], p[1])
+            out[ix] = linmirr(sym2d(layer, n), p[0], p[1], flag=flag)
         return out
     else:
         print('ERR: Input must be 2D or 3D numpy array.')
