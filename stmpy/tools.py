@@ -206,6 +206,18 @@ def findPeaks(x,y,n=1,nx=1e3):
     if yn == []: yn = [0] * n
     return xn, yn
 
+def locmax1d(x, min_distance=1, thres_rel=0):
+    '''Return indices of local maxima in an 1d array x'''
+    d = int(min_distance) # forced to be integer number of points
+    t = thres_rel * (x.max() - x.min()) + x.min() # absolute threshold
+    mask = np.full_like(x, False, dtype=bool) # mask array for output indices   
+    x2 = np.concatenate((np.repeat(x[0], d), x, np.repeat(x[-1], d))) # constant values added to the edge
+    for ix, value in enumerate(x):
+        if value > t: # condition 1: value exceeds threshold
+            x_seg = np.take(x2, range(ix, ix+2*d+1))
+            if value == x_seg.max(): # condition 2: x[ix] is maximum of x_seg
+                mask[ix] =  True
+    return np.where(mask == True)[0]
 
 def removeGaussian2d(image, x0, y0, sigma):
     '''Removes a isotropic gaussian of width sigma centered at x0,y0 from image.'''
