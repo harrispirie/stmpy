@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import print_function
 import numpy as np
 import matplotlib as mpl
 import scipy.interpolate as sin
@@ -7,7 +10,11 @@ from scipy.signal import butter, filtfilt
 
 def saturate(level_low=0, level_high=None, im=None):
     '''
-    Adjusts color axis of in current handle.  Calculates a probablility density function for the data in current axes handle.  Uses upper and lower thresholds to find sensible c-axis limits.  Thresholds are between 0 and 100.  If unspecified the upper threshold is assumed to be 100 - lower threshold.
+    Adjusts color axis of in current handle.  Calculates a probablility density
+    function for the data in current axes handle.  Uses upper and lower 
+    thresholds to find sensible c-axis limits.  Thresholds are between 0 and 
+    100.  If unspecified the upper threshold is assumed to be 100 - lower 
+    threshold.
     
     Usage:  pcolormesh(image)
             saturate(10)
@@ -302,7 +309,6 @@ def symmetrize(F, n, p=(1,1), flag=True):
     Usage: A.sym = symmetrize(A.qpi, 4, (x1, y1))
     '''
     def sym2d(F, n):
-
         angle = 360.0/n
         out = np.zeros_like(F)
         for ix in range(n):
@@ -531,7 +537,7 @@ def gradfilter(A, x, y, genvec=False):
             A_grad_SW[i, j] = (A[i, j] - A[i+1, j-1]) / dxy
             A_grad_SE[i, j] = (A[i, j] - A[i+1, j+1]) / dxy
     
-    A_grad_col = A_grad_W + (A_grad_NW + A_grad_SW) / np.sqrt(2) - A_grad_E - (A_grad_NE + A_grad_SE)/ np.sqrt(2)
+    A_grad_col = A_grad_W + (A_grad_NW + A_grad_SW) /np.sqrt(2) - A_grad_E - (A_grad_NE + A_grad_SE)/ np.sqrt(2)
     A_grad_row = A_grad_N + (A_grad_NW + A_grad_NE) / np.sqrt(2) - A_grad_S - (A_grad_SW + A_grad_SE)/ np.sqrt(2)
     A_grad_mod = np.sqrt(A_grad_N**2 + A_grad_S**2 + A_grad_W**2 + A_grad_E**2 + A_grad_NW**2 + A_grad_NE**2 \
                          + A_grad_SW**2 + A_grad_SE**2)
@@ -542,3 +548,111 @@ def gradfilter(A, x, y, genvec=False):
         return A_grad_filtered, A_grad_col, A_grad_row
     else:
         return A_grad_filtered
+
+def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1,
+        length = 60, fill = '█'):
+    """
+    Copied straight from stackoverflow:
+    Call in a loop to create terminal progress bar
+    Inputs:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    Outputs:
+        None
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+    if iteration == total: 
+        print()
+
+def nsigma_global(data, n=5):
+    '''
+    Removes bad pixels that have a value n-sigma greater than the mean.
+    Inputs:
+        data    - Required  :  A 2D or 3D numpy array containing bad pixels.
+        n       - Optional  :  Number of standard deviations away from mean for
+                               filter to identify bad pixels (default : 5).
+    Returns:
+        filteredData    :  Data with bad pixels set to the global average
+                           value. 
+
+    Usage:
+        filteredData = nsigma_global(data, n=5)   
+
+    '''
+    def filter_2D(layer, n):
+        filtered = layer.copy()
+        filtered[layer > np.mean(layer) + n*np.std(layer)] = np.mean(layer)
+        filtered[layer < np.mean(layer) - n*np.std(layer)] = np.mean(layer)
+        return filtered
+    
+    if len(data.shape) == 2:
+        return filter_2D(data, n)
+    elif len(data.shape) == 3:
+        filteredData = zeros_like(data)
+        for ix, layer in enumerate(data):
+            filteredData[ix] = filter_2D(layer, n)
+        return filteredData
+    else: 
+        print('ERR: Input must be 2D or 3D numpy array')
+
+def nsigmal_local(data, n=4, N=4, M=4, repeat=1):
+    '''
+    Removes bad pixels that have a value n-sigma greater than their neighbors.
+    Works computes sigma and replacement values locally.
+    Inputs:
+        data    - Required  :  A 2D or 3D numpy array containing bad pixels.
+        n       - Optional  :  Number of local standard deviations away from
+                               local mean for filter to identify bad pixels
+                               (default : 4).
+        N       - Optional  :  Size of local neighborhood for determining
+                               standard deviation and local mean (default : 4).
+        M       - Optional  :  Size of local neighborhood for determining
+                               replacement value.  The replacement is the mean
+                               of a (2M+1) x (2M+1) square that excludes the
+                               bad pixel (default : 4)
+        repeat  - Optional  :  Number of times to repeat the filter 
+                               (default : 1)
+    Returns:
+        filteredData    :  Data with bad pixels set to the average value of
+                           neighbors.
+        
+    Usage:
+        filteredData = nsigma_local(data, n=4, N=4, M=4, repeat=1)   
+    '''
+    def nsigma_local_2D(layer, n, N, M):
+        filtered = layer.copy()
+        for IY in range(N, layer.shape[0], 2*N+1):
+            for IX in range(N, layer.shape[1], 2*N+1):
+                local = filtered[max(0, IY-N) : min(layer.shape[0], IY+N+1), 
+                                 max(0, IX-N) : min(layer.shape[1], IX+N+1)]
+                badPixels = where((local > np.mean(local) + n*np.std(local)) | 
+                                  (local < np.mean(local) - n*np.std(local)) )
+                for ix, iy in zip(badPixels[1], badPixels[0]):
+                    neighbors = local[max(0, iy-M) : min(layer.shape[0], iy+M+1),
+                                      max(0, ix-M) : min(layer.shape[1], ix+M+1)]
+                    mask = (neighbors != local[iy,ix])
+                    replacement = np.sum(mask*neighbors) / (neighbors.size - 1.0)
+                    filtered[IY-N+iy, IX-N+ix] = replacement
+        return filtered
+    if len(data.shape) == 2:
+        filteredData = data.copy()
+        for iz in range(repeat):
+            filteredData = nsigma_local_2D(filteredData, n, N, M)
+        return filteredData
+    elif len(data.shape) == 3:
+        filteredData = data.copy()
+        for iz in range(repeat):
+            for ix, layer in enumerate(filteredData):
+                filteredData[ix] = nsigma_local_2D(layer, n, N, M)
+        return filteredData
+    else: 
+        print('ERR: Input must be 2D or 3D numpy array')
+

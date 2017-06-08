@@ -5,7 +5,8 @@ from matplotlib.animation import FuncAnimation
 from matplotlib import cm
 
 def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
-                    zoom=1, codec='prores', clims=(0,1), label_caption='meV'):
+                    zoom=1, codec='prores', clims=(0,1), label_caption='meV',
+                    **kwargs):
     '''
     Create a movie from a 3D data set and save it in the working directory.
     Intended for visualising DOS maps.
@@ -22,6 +23,9 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
     Usage: write_animation(data.LIY, 'MOV_DOSmap.mov', saturation=2,
     label=data.en, cmap=cm.bone_r, speed=8, zoom=1, codec='prores',
     label_caption='meV')
+
+    History: 
+        2017-06-08  -   HP  : Added **kwargs sent to pcolormesh   
     '''
 
     boxProperties1 = dict(boxstyle='square', facecolor='w', 
@@ -39,7 +43,7 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
     ax.set_yticks([])
     plt.xlim(-1.0/zoom, 1.0/zoom)
     plt.ylim(-1.0/zoom, 1.0/zoom)
-    im = plt.pcolormesh(y, x, F[0], cmap=cmap)
+    im = plt.pcolormesh(y, x, F[0], cmap=cmap, **kwargs)
     if saturation is not None:
         sp.saturate(saturation)
     else:
@@ -68,7 +72,8 @@ def write_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
 
 
 def imwrite_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
-                    zoom=1, codec='prores', clims=(0,1), label_caption='meV'):
+                    zoom=1, codec='prores', clims=(0,1), label_caption='meV',
+                    **kwargs):
     '''
     Same as 'write_animation' but uses imshow instead of pcolormesh for
     interpolated, rasterized plotting.
@@ -83,6 +88,9 @@ def imwrite_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
 
     Usage: write_animation(data.LIY, 'MOV_DOSmap.mov', saturation=2,
     label=data.en, cmap=cm.bone_r, speed=8, zoom=1, codec='prores')
+    
+    History: 
+        2017-06-08  -   HP  : Added **kwargs sent to imshow 
     '''
     boxProperties1 = dict(boxstyle='square', facecolor='w', alpha=0.8, linewidth=0.0)
     textOptions1 = dict(fontsize=14, color='k', bbox=boxProperties1, ha='right', va='center')
@@ -93,7 +101,8 @@ def imwrite_animation(F, fileName, saturation=2, label=None, cmap=None, speed=8,
     ax = plt.subplot(111)
     ax.set_xticks([])
     ax.set_yticks([])
-    im = plt.imshow(F[0], cmap=cmap, extent=[-1,1,-1,1], origin='lower')
+    im = plt.imshow(F[0], cmap=cmap, extent=[-1,1,-1,1], origin='lower',
+            **kwargs)
     plt.xlim(-1.0/zoom, 1.0/zoom)
     plt.ylim(-1.0/zoom, 1.0/zoom)
     if saturation is not None:
