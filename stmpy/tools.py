@@ -213,10 +213,11 @@ def findPeaks(x,y,n=1,nx=1e3):
     if yn == []: yn = [0] * n
     return xn, yn
 
-def locmax1d(x, min_distance=1, thres_rel=0):
+def locmax1d(x, min_distance=1, thres_rel=0, thres_abs=-np.inf):
     '''Return indices of local maxima in an 1d array x'''
     d = int(min_distance) # forced to be integer number of points
-    t = thres_rel * (x.max() - x.min()) + x.min() # absolute threshold
+    tr = thres_rel * (x.max() - x.min()) + x.min() # threshold
+    t = max(thres_abs, tr)
     mask = np.full_like(x, False, dtype=bool) # mask array for output indices   
     x2 = np.concatenate((np.repeat(x[0], d), x, np.repeat(x[-1], d))) # constant values added to the edge
     for ix, value in enumerate(x):
