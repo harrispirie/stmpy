@@ -5,28 +5,44 @@ import os
 import re
 from stmpy import matio
 from datetime import datetime, timedelta
+from scipy.optimize import minimize
 
 '''
 I think I should use more doc strings.
 '''
 
 
-def load(filePath, biasOffset=True):
+def load(filePath, biasOffset=True, niceUnits=False):
     '''
-Loads data into python.  Currently supports formats: 3ds, sxm, dat, nvi, nvl, mat.
-For 3ds and dat file types their is an optional flag to correct for bias offset
-that is true by default.  This does not correct for a current offset, and
-should not be used in cases where there is a significant current offset.
-Note: mat files are supported as exports from STMView only.
-Please include the file extension in the path, e.g. 'file.3ds'
+    Loads data into python. Please include the file extension in the path.
 
-Usage: data = load('file.3ds', biasOffset=True)
+    Currently supports formats: 3ds, sxm, dat, nvi, nvl, mat.
+
+    For .3ds and .dat file types there is an optional flag to correct for bias offset
+    that is true by default.  This does not correct for a current offset, and
+    should not be used in cases where there is a significant current offset.
+    Note: .mat files are supported as exports from STMView only.
+
+    Inputs:
+        filePath    - Required : Path to file including extension.
+        baisOffset  - Optional : Corrects didv data for bias offset by looking
+                                 for where the current is zero.
+        niceUnits   - Optional : Put lock-in channel units as nS (in future
+                                 will switch Z to pm, etc.)
+    Returns:
+        dataObject  - Custom object with attributes appropriate to the type of
+                      data and containing experiment parameters in a header.
+                      
+    Usage:
+        data = load('file.3ds', biasOffset=True, niceUnits=False)
     '''
     if filePath.endswith('.3ds'):
+        dataObject = Nanonis3ds(filePath)
         if biasOffset:
-            return _correct_bias_offset(Nanonis3ds(filePath), '.3ds')
-        else:
-            return Nanonis3ds(filePath)
+            dataObject = _correct_bias_offset(dataObject, '.3ds')
+        if niceUnits:
+            dataObject = _nice_units(dataObject)
+        return dataObject
 
     elif filePath.endswith('.sxm'):
         return NanonisSXM(filePath)
@@ -109,6 +125,25 @@ def _correct_bias_offset(data, fileType):
         print('ERR: File not in standard format for processing. Could not correct for Bias offset')
         return data
 
+def _nice_units(data):
+    '''
+    Switch to commonly used units.
+    fileType    - .3ds : Use nS for LIY and didv attribute
+    '''
+    def chi(X):
+        gFit = X * data.didv / lockInMod
+        err = np.absolute(gFit - didv)
+        return np.log(np.sum(err**2))
+    lockInMod = float(data.header['Lock-in>Amplitude'])
+    current = np.mean(np.mean(data.I, axis=1), axis=1)
+    didv = np.gradient(current) / np.gradient(data.en)
+    result = minimize(chi, 1)
+    data.to_nS = result.x / lockInMod * 1e9 
+    data.didv *= data.to_nS
+    data.LIY *= data.to_nS
+    phi = np.arccos(1.0/result.x)
+    print('Corrected for a lock-in phase error of {:2.1f} deg'.format(np.degrees(phi)[0]))
+    return data
 
 
 ####    ____CLASS DEFINITIONS____   ####

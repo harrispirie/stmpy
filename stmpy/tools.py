@@ -144,19 +144,34 @@ def removePolynomial1d(y, n, x=None, fitRange=None):
     polyBackgroundFunction = np.poly1d(polyCoeff)
     return y - polyBackgroundFunction(x)
 
-def lineSubtract(data, n):
+def lineSubtract(data, n=1, normalize=True):
     '''
     Remove a polynomial background from the data line-by-line.  If the data is
     3D (eg. 3ds) this does a 2D background subtract on each layer
     independently.  Input is a numpy array. 
     
-    Usage: A.z = lineSubtract(A.Z, 2)
+    Inputs:
+        data    -   Required : A 2D or 3D numpy array.
+        n       -   Optional : Degree of polynomial to subtract from each line.
+                               (default : 1).
+        normalize - Optional : Boolean flag to determine if the mean of a layer
+                               is set to zero (True) or preserved (False).
+                               (default : True)
+    Returns:
+        subtractedData  -   Data after removing an n-degree polynomial
+    
+    Usage:
+        dataObject.z = lineSubtract(dataObject.Z, n=1, normalize=True)
     '''
     def subtract_2D(data, n):
+        if normalize:
+            norm = 0
+        else: 
+            norm = np.mean(data)
         output = np.zeros_like(data)
         for ix, line in enumerate(data):
-            output[ix] = removePolynomial1d(line, n)
-        return output
+            output[ix] = removePolynomial1d(line, n) 
+        return output + norm
     if len(data.shape) is 3:
         output = np.zeros_like(data)
         for ix, layer in enumerate(data):
@@ -573,7 +588,8 @@ def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1
     if iteration == total: 
         print()
 
-def nsigma_global(data, n=5):
+
+def nsigma_global(data, n=5, M=2):
     '''
     Removes bad pixels that have a value n-sigma greater than the mean.
     Inputs:
@@ -581,30 +597,37 @@ def nsigma_global(data, n=5):
         n       - Optional  :  Number of standard deviations away from mean for
                                filter to identify bad pixels (default : 5).
     Returns:
-        filteredData    :  Data with bad pixels set to the global average
+        filteredData    :  Data with bad pixels set to the local average
                            value. 
 
     Usage:
         filteredData = nsigma_global(data, n=5)   
 
     '''
-    def filter_2D(layer, n):
+    def filter_2D(layer, n, M):
         filtered = layer.copy()
-        filtered[layer > np.mean(layer) + n*np.std(layer)] = np.mean(layer)
-        filtered[layer < np.mean(layer) - n*np.std(layer)] = np.mean(layer)
-        return filtered
+        badPixels = np.where((layer > np.mean(layer) + n*np.std(layer)) | 
+                             (layer < np.mean(layer) - n*np.std(layer)) )
+        for ix, iy in zip(badPixels[1], badPixels[0]):
+            neighbors = layer[max(0, iy-M) : min(layer.shape[0], iy+M+1),
+                              max(0, ix-M) : min(layer.shape[1], ix+M+1)]
+            mask = (neighbors != layer[iy,ix])
+            replacement = np.sum(mask*neighbors) / (neighbors.size - 1.0)
+            filtered[iy, ix] = replacement
+        return filtered 
     
     if len(data.shape) == 2:
-        return filter_2D(data, n)
+        return filter_2D(data, n, M)
     elif len(data.shape) == 3:
-        filteredData = zeros_like(data)
+        filteredData = np.zeros_like(data)
         for ix, layer in enumerate(data):
-            filteredData[ix] = filter_2D(layer, n)
+            filteredData[ix] = filter_2D(layer, n, M)
         return filteredData
     else: 
         print('ERR: Input must be 2D or 3D numpy array')
 
-def nsigmal_local(data, n=4, N=4, M=4, repeat=1):
+
+def nsigma_local(data, n=4, N=4, M=4, repeat=1):
     '''
     Removes bad pixels that have a value n-sigma greater than their neighbors.
     Works computes sigma and replacement values locally.
@@ -634,8 +657,8 @@ def nsigmal_local(data, n=4, N=4, M=4, repeat=1):
             for IX in range(N, layer.shape[1], 2*N+1):
                 local = filtered[max(0, IY-N) : min(layer.shape[0], IY+N+1), 
                                  max(0, IX-N) : min(layer.shape[1], IX+N+1)]
-                badPixels = where((local > np.mean(local) + n*np.std(local)) | 
-                                  (local < np.mean(local) - n*np.std(local)) )
+                badPixels = np.where((local > np.mean(local) + n*np.std(local)) | 
+                                     (local < np.mean(local) - n*np.std(local)) )
                 for ix, iy in zip(badPixels[1], badPixels[0]):
                     neighbors = local[max(0, iy-M) : min(layer.shape[0], iy+M+1),
                                       max(0, ix-M) : min(layer.shape[1], ix+M+1)]
