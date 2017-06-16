@@ -74,10 +74,10 @@ defect2 = _make_STMView_colormap('Defect2.mat')
 defect4 = _make_STMView_colormap('Defect4.mat')
 gray = _make_STMView_colormap('Gray.mat')
 sailingMod2 = _make_STMView_colormap('SailingMod2.mat')
-Jacky_YRK = _make_diverging_colormap([1, 1, 0], [0, 0, 0.5], m=[0.7, 0.2, 0])
-Jacky_Copper = _make_diverging_colormap([0.2, 0.1, 0], [1, 0.95, 0.6], m=[1, 0.65, 0.25])
-Jacky_RdGy = _make_diverging_colormap([0.2, 0.2, 0.2], [0.7, 0, 0], m=[0.95, 0.95, 0.95])
-cdict_PSD = {'red':   ((0.00, 0.00, 0.06),
+jackyYRK = _make_diverging_colormap([1, 1, 0], [0, 0, 0.5], m=[0.7, 0.2, 0])
+jackyCopper = _make_diverging_colormap([0.2, 0.1, 0], [1, 0.95, 0.6], m=[1, 0.65, 0.25])
+jackyRdGy = _make_diverging_colormap([0.2, 0.2, 0.2], [0.7, 0, 0], m=[0.95, 0.95, 0.95])
+cdictPSD = {'red':   ((0.00, 0.00, 0.06),
                        (0.25, 0.21, 0.21),
                        (0.45, 0.31, 0.31),
                        (0.65, 1.00, 1.00),
@@ -94,7 +94,7 @@ cdict_PSD = {'red':   ((0.00, 0.00, 0.06),
                        (0.50, 0.33, 0.33),
                        (0.75, 0.27, 0.27),
                        (1.00, 0.95, 1.00))}
-Jacky_PSD = _LSC('Jacky_PSD', cdict_PSD)
+jackyPSD = _LSC('jackyPSD', cdictPSD)
 
 BuGy_r = _reverse_LSC(BuGy)
 GnGy_r = _reverse_LSC(GnGy)
@@ -110,8 +110,8 @@ defect2_r = _reverse_LSC(defect2)
 defect4_r = _reverse_LSC(defect4)
 gray_r = _reverse_LSC(gray)
 sailingMod2_r = _reverse_LSC(sailingMod2)
-Jacky_YRK_r = _reverse_LSC(Jacky_YRK)
-Jacky_Copper_r = _reverse_LSC(Jacky_Copper)
-Jacky_RdGy_r = _reverse_LSC(Jacky_RdGy)
-Jacky_PSD_r = _reverse_LSC(Jacky_PSD)
+jackyYRK_r = _reverse_LSC(jackyYRK)
+jackyCopper_r = _reverse_LSC(jackyCopper)
+jackyRdGy_r = _reverse_LSC(jackyRdGy)
+jackyPSD_r = _reverse_LSC(jackyPSD)
 
