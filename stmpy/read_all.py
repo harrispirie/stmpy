@@ -381,6 +381,8 @@ class NanonisDat(object):
             print('WARNING:  Could not create standard attributes, look in channels instead.')
             try:
                 self.en = self.channels['Bias calc (V)']
+                self.didv = self.channels['LIY 1 omega [AVG] (A)']
+                self.I = self.channels['Current [AVG] (A)']
             except (KeyError):
                 print('WARNING:  Could not create standard attributes, look in channels instead.')
 
