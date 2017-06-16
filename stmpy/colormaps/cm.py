@@ -1,4 +1,3 @@
-from matplotlib.colors import ListedColormap as _ListedColormap
 from matplotlib.colors import LinearSegmentedColormap as _LSC
 from matplotlib.pylab import cm as _cm
 from scipy.io import loadmat as _loadmat
@@ -20,11 +19,12 @@ accompanied by a reversed verion with the same name but '_r' on the end.
 
 _path = _os.path.dirname(__file__) + '/' 
 
-def _make_STMView_colormap(fileName):
+def _make_STMView_colormap(fileName, name='my_cmap'):
     matFile = _loadmat(_path + fileName)
     for key in matFile:
         if key not in ['__version__', '__header__', '__globals__']:
-            return _ListedColormap(matFile[key])
+           return _LSC.from_list(name, matFile[key])
+
 
 def _reverse_LSC(cmap):     
     reverse = []
@@ -59,10 +59,10 @@ def _make_diverging_colormap(i, f, m=[1,1,1], name='my_cmap'):
               'blue':  ((0.0, i[2], i[2]), (0.5, m[2], m[2]), (1.0, f[2], f[2]))}
     return _LSC(name, _cdict)
 
-RdBu = _cm.RdBu
-RdGy = _cm.RdGy
 BuGy = _make_diverging_colormap(_cm.RdGy(0.99), _cm.RdBu(0.99))
 GnGy = _make_diverging_colormap(_cm.RdGy(0.99), _cm.BuGn(0.99))
+bluered = _make_diverging_colormap(i=(0.230, 0.299, 0.754), f=(0.706, 0.016,0.150), 
+                                   m=(0.865, 0.865, 0.865), name='bluered')
 yanghe = _make_STMView_colormap('YH.mat')
 autumn = _make_STMView_colormap('Autumn.mat')
 blue1 = _make_STMView_colormap('Blue1.mat')
@@ -75,19 +75,19 @@ defect4 = _make_STMView_colormap('Defect4.mat')
 gray = _make_STMView_colormap('Gray.mat')
 sailingMod2 = _make_STMView_colormap('SailingMod2.mat')
 
-RdBu_r = _cm.RdBu_r
-RdGy_r = _cm.RdGy_r
 BuGy_r = _reverse_LSC(BuGy)
 GnGy_r = _reverse_LSC(GnGy)
-yanghe_r =_ListedColormap(yanghe.colors[::-1])
-autumn_r =_ListedColormap(autumn.colors[::-1])
-blue1_r = _ListedColormap(blue1.colors[::-1])
-blue2_r = _ListedColormap(blue2.colors[::-1])
-blue3_r = _ListedColormap(blue3.colors[::-1])
-defect0_r = _ListedColormap(defect0.colors[::-1])
-defect1_r = _ListedColormap(defect1.colors[::-1])
-defect2_r = _ListedColormap(defect2.colors[::-1])
-defect4_r = _ListedColormap(defect4.colors[::-1])
-gray_r = _ListedColormap(gray.colors[::-1])
-sailingMod2_r = _ListedColormap(sailingMod2.colors[::-1])
+bluered_r = _reverse_LSC(bluered)
+yanghe_r =_reverse_LSC(yanghe)
+autumn_r =_reverse_LSC(autumn)
+blue1_r = _reverse_LSC(blue1)
+blue2_r = _reverse_LSC(blue2)
+blue3_r = _reverse_LSC(blue3)
+defect0_r = _reverse_LSC(defect0)
+defect1_r = _reverse_LSC(defect1)
+defect2_r = _reverse_LSC(defect2)
+defect4_r = _reverse_LSC(defect4)
+gray_r = _reverse_LSC(gray)
+sailingMod2_r = _reverse_LSC(sailingMod2)
+
 

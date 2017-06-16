@@ -707,8 +707,7 @@ def radial_linecut(data, length, angle, width, reshape=True):
         linecut = radial_linecut(data, length, angle, width, reshape=length)
 
     History:
-         2017-06-15  -   HP : Initial commit.
-
+         2017-06-15  - HP : Initial commit.
     '''
     def linecut2D(layer):
         layerRot = snd.rotate(layer, angle, reshape=reshape)
@@ -752,7 +751,7 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
                       beta=1.0)
 
     History:
-        2017-06-15  -   HP : Initial commit.
+        2017-06-15  - HP : Initial commit.
     '''
     def ft2(data):
         ftData = np.fft.fft2(data)
@@ -788,5 +787,36 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
     else: 
         print('ERR: Input must be 2D or 3D numpy array')
     return ftData
+
+
+def normalize(data, axis=0, condition='mean'):
+    '''
+    Normalize a 2D image line by line in the x or y direction.
+
+    Inputs:
+        data    - Required : A 2D numpy array to be normalized
+        axis    - Optional : The axis along which each line is normalized.
+        condition - Optional : Function to use for normalization.  The line is
+                               divided by the condition.  Options are: 'max',
+                               'min', 'mean'.
+
+    Returns:
+        normData - 2D array containing normalized data
+
+    Usage:
+        normData = normalize(data, axis=0, condition='mean')
+
+    History:
+        2017-06-16  - HP : Initial commit 
+    '''
+    conditionOptions = {'max':np.max, 'mean':np.mean,
+                        'min':np.min}
+    cond = conditionOptions[condition]
+    dataT = np.moveaxis(data, axis, 0)
+    outputT = np.zeros_like(dataT)
+    for ix, line in enumerate(dataT):
+        outputT[ix] = line/cond(line)
+    output = np.moveaxis(outputT, 0, axis)
+    return output
    
 
