@@ -566,7 +566,7 @@ def gradfilter(A, x, y, genvec=False):
         return A_grad_filtered
 
 def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1,
-        length = 60, fill = '█'):
+        length = 70, fill = '█'):
     """
     Copied straight from stackoverflow:
     Call in a loop to create terminal progress bar
@@ -586,16 +586,18 @@ def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1
     bar = fill * filledLength + '-' * (length - filledLength)
     print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
     if iteration == total: 
-        print()
+        print('\n Process completed!')
 
 
 def nsigma_global(data, n=5, M=2):
     '''
     Removes bad pixels that have a value n-sigma greater than the mean.
+
     Inputs:
         data    - Required  :  A 2D or 3D numpy array containing bad pixels.
         n       - Optional  :  Number of standard deviations away from mean for
                                filter to identify bad pixels (default : 5).
+    
     Returns:
         filteredData    :  Data with bad pixels set to the local average
                            value. 
@@ -631,6 +633,7 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
     '''
     Removes bad pixels that have a value n-sigma greater than their neighbors.
     Works computes sigma and replacement values locally.
+
     Inputs:
         data    - Required  :  A 2D or 3D numpy array containing bad pixels.
         n       - Optional  :  Number of local standard deviations away from
@@ -644,7 +647,8 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
                                bad pixel (default : 4)
         repeat  - Optional  :  Number of times to repeat the filter 
                                (default : 1)
-    Returns:
+   
+   Returns:
         filteredData    :  Data with bad pixels set to the average value of
                            neighbors.
         
@@ -679,4 +683,110 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
         return filteredData
     else: 
         print('ERR: Input must be 2D or 3D numpy array')
+
+def radial_linecut(data, length, angle, width, reshape=True):
+    '''
+    Computes a retangular linecut radially from the center of an image.
+    Designed for QPI linecuts.
+
+    Inputs:
+        data    - Required : A 2D or 3D numpy array.
+        length  - Required : Integer length of linecut in pixels.
+        angle   - Required : Float used to specify the angle in degrees
+                             relative to the x-axis for the linecut.
+        width   - Required : Integer (>0) that specified the perpendicular
+                             width to average over. 
+        reshape - Optional : Boolean to define whether to reshape the image
+                             during rotation. True seems better unless it cuts
+                             off.
+
+    Returns:
+        linecut - numpy array containing 1D or 2D linecut
+
+    Usage:
+        linecut = radial_linecut(data, length, angle, width, reshape=length)
+
+    History:
+         2017-06-15  -   HP : Initial commit.
+
+    '''
+    def linecut2D(layer):
+        layerRot = snd.rotate(layer, angle, reshape=reshape)
+        cen = np.array(layerRot.shape)/2 
+        layerCrop = layerRot[cen[1]-int(width) : cen[1]+int(width), 
+                             cen[0] : cen[0]+int(length)]
+        return np.mean(layerCrop, axis=0)
+    if len(data.shape) == 2:
+        return linecut2D(data)
+    elif len(data.shape) == 3:
+        linecut = np.zeros([data.shape[0], int(length)])
+        for ix, layer in enumerate(data):
+            linecut[ix] = linecut2D(layer)
+        return linecut
+    else: 
+        print('ERR: Input must be 2D or 3D numpy array')
+
+
+def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
+    '''
+    Compute the fast Frouier transform of a data set with the option to add
+    windowing. 
+   
+    Inputs:
+        data    - Required : A 2D or 3D numpy array
+        window  - Optional : String containing windowing function used to mask
+                             data.  The options are: 'None', 'bartlett',
+                             'blackman', 'hamming', 'hanning' and 'kaiser'.
+        output  - Optional : String containing desired form of output.  The
+                             options are: 'absolute', 'real', 'imag', 'phase'.
+        zeroDC  - Optional : Boolean indicated if the centeral pixel of the
+                                FFT will be set to zero.
+        beta    - Optional : Float used to specify the kaiser window.  Only
+                               used if window='kaiser'. 
+    
+    Returns:
+        fftData - numpy array containing FFT of data
+    
+    Usage:
+        fftData = fft(data, window='None', output='absolute', zeroDC=False, 
+                      beta=1.0)
+
+    History:
+        2017-06-15  -   HP : Initial commit.
+    '''
+    def ft2(data):
+        ftData = np.fft.fft2(data)
+        if zeroDC:
+            ftData[0,0] = 0
+        return np.fft.fftshift(ftData)
+    
+    outputFunctions = {'absolute':np.absolute, 'real':np.real, 
+                       'imag':np.imag, 'phase':np.angle }
+
+    windowFunctions = {'None':(lambda x:np.ones(x)), 'bartlett':np.bartlett,
+                       'blackman':np.blackman, 'hamming':np.hamming,
+                       'hanning':np.hanning, 'kaiser':np.kaiser }
+
+    outputFunction = outputFunctions[output]
+    windowFunction = windowFunctions[window]
+    if window == 'kaiser':
+        wX = windowFunction(data.shape[-2], beta)[:,None]
+        wY = windowFunction(data.shape[-1], beta)[None,:]
+    else:
+        wX = windowFunction(data.shape[-2])[:,None]
+        wY = windowFunction(data.shape[-1])[None,:]
+    W = wX * wY
+    if len(data.shape) == 2:
+        wData = data * W
+        ftData = outputFunction(ft2(wData))
+    elif len(data.shape) == 3:
+        wTile = np.tile(W, (data.shape[0],1,1))
+        wData = data * wTile
+        ftData = np.zeros_like(data)
+        for ix, layer in enumerate(wData):
+            ftData[ix] = outputFunction(ft2(layer))
+    else: 
+        print('ERR: Input must be 2D or 3D numpy array')
+    return ftData
+   
 
