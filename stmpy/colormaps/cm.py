@@ -1,6 +1,7 @@
 from matplotlib.colors import LinearSegmentedColormap as _LSC
 from matplotlib.pylab import cm as _cm
 from scipy.io import loadmat as _loadmat
+import numpy as _np
 import os as _os
 
 ''' Create STM colormaps.
@@ -20,10 +21,14 @@ accompanied by a reversed verion with the same name but '_r' on the end.
 _path = _os.path.dirname(__file__) + '/' 
 
 def _make_STMView_colormap(fileName, name='my_cmap'):
-    matFile = _loadmat(_path + fileName)
-    for key in matFile:
-        if key not in ['__version__', '__header__', '__globals__']:
-           return _LSC.from_list(name, matFile[key])
+    if fileName.endswith('.mat'):
+        matFile = _loadmat(_path + fileName)
+        for key in matFile:
+            if key not in ['__version__', '__header__', '__globals__']:
+                return _LSC.from_list(name, matFile[key])
+    elif fileName.endswith('.txt'):
+        txtFile = _np.loadtxt(_path + fileName)
+        return _LSC.from_list(name, txtFile)
 
 
 def _reverse_LSC(cmap):     
@@ -95,6 +100,7 @@ cdictPSD = {'red':   ((0.00, 0.00, 0.06),
                        (0.75, 0.27, 0.27),
                        (1.00, 0.95, 1.00))}
 jackyPSD = _LSC('jackyPSD', cdictPSD)
+jason = _make_STMView_colormap('Red_Blue.txt')
 
 BuGy_r = _reverse_LSC(BuGy)
 GnGy_r = _reverse_LSC(GnGy)
@@ -114,4 +120,5 @@ jackyYRK_r = _reverse_LSC(jackyYRK)
 jackyCopper_r = _reverse_LSC(jackyCopper)
 jackyRdGy_r = _reverse_LSC(jackyRdGy)
 jackyPSD_r = _reverse_LSC(jackyPSD)
+jason_r = _reverse_LSC(jason)
 
