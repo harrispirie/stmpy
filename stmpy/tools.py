@@ -590,22 +590,39 @@ def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1
 
 
 def nsigma_global(data, n=5, M=2):
-    '''
-    Removes bad pixels that have a value n-sigma greater than the mean.
+    '''Replace bad pixels that have a value n-sigma greater than the global
+    mean with the average of their neighbors. 
 
     Inputs:
-        data    - Required  :  A 2D or 3D numpy array containing bad pixels.
-        n       - Optional  :  Number of standard deviations away from mean for
-                               filter to identify bad pixels (default : 5).
+        data    - Required : 1D, 2D or 3D numpy array containing bad pixels.
+                             If 3D a 2D global filter is applied to each layer
+                             by iterating over the first index.
+        n       - Optional : Number of standard deviations away from mean for
+                             filter to identify bad pixels (default : 5).
+        M       - Optional : Size of box for calculating replacement value. 
     
     Returns:
         filteredData    :  Data with bad pixels set to the local average
                            value. 
 
     Usage:
-        filteredData = nsigma_global(data, n=5)   
+        filteredData = nsigma_global(data, n=5, M=2)
 
+    History:
+        2017-06-07  - HP : Initial commit
+        2017-06-18  - HP : Added support for 1D data. 
     '''
+    def filter_1D(line, n, M):
+        filtered = line.copy()
+        badPixels = np.where((line > np.mean(line) + n*np.std(line)) | 
+                             (line < np.mean(line) - n*np.std(line)) )
+        for ix in badPixels[0]:
+            neighbors = line[max(0, ix-M) : min(line.shape[0], ix+M+1)]
+            mask = (neighbors != line[ix])
+            replacement = np.sum(mask*neighbors) / (neighbors.size - 1.0)
+            filtered[ix] = replacement
+        return filtered
+
     def filter_2D(layer, n, M):
         filtered = layer.copy()
         badPixels = np.where((layer > np.mean(layer) + n*np.std(layer)) | 
@@ -618,8 +635,12 @@ def nsigma_global(data, n=5, M=2):
             filtered[iy, ix] = replacement
         return filtered 
     
-    if len(data.shape) == 2:
+    if len(data.shape) == 1:
+        return filter_1D(data, n, M)
+
+    elif len(data.shape) == 2:
         return filter_2D(data, n, M)
+
     elif len(data.shape) == 3:
         filteredData = np.zeros_like(data)
         for ix, layer in enumerate(data):
@@ -653,8 +674,26 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
                            neighbors.
         
     Usage:
-        filteredData = nsigma_local(data, n=4, N=4, M=4, repeat=1)   
+        filteredData = nsigma_local(data, n=4, N=4, M=4, repeat=1)
+    
+    History:
+        2017-06-07  - HP : Initial commit
+        2017-06-18  - HP : Added support for 1D data. 
+
     '''
+    def nsigma_local_1D(line, n, N, M):
+        filtered = line.copy()
+        for IX in range(N, line.shape[0], 2*N+1):
+                local = filtered[max(0, IX-N) : min(line.shape[0], IX+N+1)]
+                badPixels = np.where((local > np.mean(local) + n*np.std(local)) | 
+                                     (local < np.mean(local) - n*np.std(local)) )
+                for ix in badPixels[0]:
+                    neighbors = local[max(0, ix-M) : min(line.shape[0], ix+M+1)]
+                    mask = (neighbors != local[ix])
+                    replacement = np.sum(mask*neighbors) / (neighbors.size - 1.0)
+                    filtered[IX-N+ix] = replacement
+        return filtered
+
     def nsigma_local_2D(layer, n, N, M):
         filtered = layer.copy()
         for IY in range(N, layer.shape[0], 2*N+1):
@@ -670,17 +709,23 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
                     replacement = np.sum(mask*neighbors) / (neighbors.size - 1.0)
                     filtered[IY-N+iy, IX-N+ix] = replacement
         return filtered
-    if len(data.shape) == 2:
+    
+    if len(data.shape) == 1:
+        return nsigma_local_1D(data, n, N, M)
+
+    elif len(data.shape) == 2:
         filteredData = data.copy()
         for iz in range(repeat):
             filteredData = nsigma_local_2D(filteredData, n, N, M)
         return filteredData
+
     elif len(data.shape) == 3:
         filteredData = data.copy()
         for iz in range(repeat):
             for ix, layer in enumerate(filteredData):
                 filteredData[ix] = nsigma_local_2D(layer, n, N, M)
         return filteredData
+
     else: 
         print('ERR: Input must be 2D or 3D numpy array')
 

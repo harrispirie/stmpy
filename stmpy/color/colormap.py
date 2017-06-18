@@ -18,7 +18,7 @@ a single underscore. Additionally, all colormaps in the module should be
 accompanied by a reversed verion with the same name but '_r' on the end.
 '''
 
-_path = _os.path.dirname(__file__) + '/' 
+_path = _os.path.dirname(__file__) + '/maps/' 
 
 def _make_STMView_colormap(fileName, name='my_cmap'):
     if fileName.endswith('.mat'):
