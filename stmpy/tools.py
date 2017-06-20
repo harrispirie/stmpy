@@ -92,10 +92,14 @@ def binData(x,y,nBins):
     return X,Y  
 
 
-def linecut(F, x1, y1, x2, y2, n):
+def linecut_old(F, x1, y1, x2, y2, n):
     ''' Use linear interpolation on a 2D data set F, sample along a line from (x1,y1) to (x2,y2) in n points
 
 Usage:  x_linecut, y_linecut = linecut(image, x1, y1, x2, y2, n)
+
+History:
+    2017-06-19  - HP : Changed name to linecut_old (will be replaced by
+                       linecut)
     '''
     x = np.arange(F.shape[0])
     y =  np.arange(F.shape[1])
@@ -865,3 +869,90 @@ def normalize(data, axis=0, condition='mean'):
     return output
    
 
+def linecut(data, (x0,y0), (x1,y1), width=1, dl=0, dw=0,
+                show=False, ax=None, **kwarg):
+    '''Linecut tool for 2D or 3D data.
+
+    Inputs:
+        data    - Required : A 2D or 3D numpy array.
+        (x0,y0) - Required : A tuple containing indicies for the start of the
+                             linecut.
+        (x1,y0) - Required : A tuple containing indicies for the end of the
+                             linecut. 
+        width   - Optional : Float for perpendicular width to average over.
+        dl      - Optional : Extra pixels for interpolation in the linecut
+                             direction.
+        dw      - Optional : Extra pixels for interpolation in the
+                             perpendicular direction.
+        show    - Optional : Boolean determining whether to plot where the
+                             linecut was taken.
+        ax      - Optional : Matplotlib axes instance to plot where linecut is
+                             taken.  Note, if show=True you MUST provide and
+                             axes instance as plotting is done using ax.plot().
+        **kwarg - Optional : Additional keyword arguments passed to ax.plot().
+
+    Returns:
+        r   -   1D numpy array which goes from 0 to the length of the cut.
+        cut -   1D or 2D numpy array containg the linecut. 
+
+    Usage:
+        r, cut = linecut(data, (x0,y0), (x1,y1), width=1, dl=0, dw=0,
+                         show=False, ax=None, **kwarg)
+
+    History:
+        2017-06-19  - HP : Initial commit. 
+
+    '''
+    def calc_length((x0,y0), (x1,y1), dl):
+        dx = float(x1-x0)
+        dy = float(y1-y0)
+        l = np.sqrt(dy**2 + dx**2)
+        if dx == 0:
+            theta = np.pi/2
+        else:
+            theta = np.arctan(dy / dx)
+        xtot = np.linspace(x0, x1, int(np.ceil(l+dl)))
+        ytot = np.linspace(y0, y1, int(np.ceil(l+dl)))
+        return l, theta, xtot, ytot
+
+    def get_perp_line(x, y, theta, w):
+        wx0 = x - w/2.0*np.cos(np.pi/2 - theta)
+        wx1 = x + w/2.0*np.cos(np.pi/2 - theta)
+        wy0 = y + w/2.0*np.sin(np.pi/2 - theta)
+        wy1 = y - w/2.0*np.sin(np.pi/2 - theta)
+        return (wx0, wx1), (wy0, wy1)
+
+    def cutter(F, (x0,y0), (x1,y1), dw):
+        l, __, xtot, ytot = calc_length((x0,y0), (x1,y1), dw)    
+        cut = np.zeros(int(np.ceil(l+dw)))
+        for ix, (x,y) in enumerate(zip(xtot, ytot)):
+            cut[ix] = F(x,y)
+        return cut
+    
+    def linecut2D(layer, (x0,y0), (x1,y1), width, dl, dw):
+        xAll, yAll = np.arange(layer.shape[1]), np.arange(layer.shape[0])
+        F = sin.interp2d(xAll, yAll, layer)
+        l, theta, xtot, ytot = calc_length((x0,y0), (x1,y1), dl)
+        r = np.linspace(0, l, int(np.ceil(l+dl)))
+        cut = np.zeros(int(np.ceil(l+dl)))
+        for ix, (x,y) in enumerate(zip(xtot,ytot)):
+            (wx0, wx1), (wy0, wy1) = get_perp_line(x, y, theta, width)
+            wcut = cutter(F, (wx0,wy0), (wx1,wy1), dw)
+            cut[ix] = np.mean(wcut)
+        return r, cut
+    
+    if len(data.shape) == 2:
+        r, cut = linecut2D(data, (x0,y0), (x1,y1), width, dl, dw)
+    if len(data.shape) == 3:
+        l, __, __, __ = calc_length((x0,y0), (x1,y1), dl) 
+        cut = np.zeros([data.shape[0], int(np.ceil(l+dl))])
+        for ix, layer in enumerate(data):
+            r, cut[ix] = linecut2D(layer, (x0,y0), (x1,y1), width, dl, dw)
+    if show:
+        __, theta, __, __ = calc_length((x0,y0), (x1,y1), dl)
+        (wx00, wx01), (wy00, wy01) = get_perp_line(x0, y0, theta, width)
+        (wx10, wx11), (wy10, wy11) = get_perp_line(x1, y1, theta, width)
+        ax.plot([x0,x1], [y0,y1], 'k--', **kwarg)
+        ax.plot([wx00,wx01], [wy00,wy01], 'k:', **kwarg)
+        ax.plot([wx10,wx11], [wy10,wy11], 'k:', **kwarg)
+    return r, cut
