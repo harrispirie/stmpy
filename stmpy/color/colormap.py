@@ -30,6 +30,14 @@ def _make_STMView_colormap(fileName, name='my_cmap'):
         txtFile = _np.loadtxt(_path + fileName)
         return _LSC.from_list(name, txtFile)
 
+def _write_cmap_to_file(fileName, cmap):
+    with open(fileName, 'w') as fileID:
+        for ix in range(256):
+            val = cmap(ix/256.0)
+            for v in val[:-1]:
+                fileID.write(str(v))
+                fileID.write(', ')
+            fileID.write('\n ')
 
 def _reverse_LSC(cmap):     
     reverse = []
@@ -82,7 +90,7 @@ sailingMod2 = _make_STMView_colormap('SailingMod2.mat')
 jackyYRK = _make_diverging_colormap([1, 1, 0], [0, 0, 0.5], m=[0.7, 0.2, 0])
 jackyCopper = _make_diverging_colormap([0.2, 0.1, 0], [1, 0.95, 0.6], m=[1, 0.65, 0.25])
 jackyRdGy = _make_diverging_colormap([0.2, 0.2, 0.2], [0.7, 0, 0], m=[0.95, 0.95, 0.95])
-cdictPSD = {'red':   ((0.00, 0.00, 0.06),
+_cdictPSD = {'red':   ((0.00, 0.00, 0.06),
                        (0.25, 0.21, 0.21),
                        (0.45, 0.31, 0.31),
                        (0.65, 1.00, 1.00),
@@ -99,7 +107,7 @@ cdictPSD = {'red':   ((0.00, 0.00, 0.06),
                        (0.50, 0.33, 0.33),
                        (0.75, 0.27, 0.27),
                        (1.00, 0.95, 1.00))}
-jackyPSD = _LSC('jackyPSD', cdictPSD)
+jackyPSD = _LSC('jackyPSD', _cdictPSD)
 jason = _make_STMView_colormap('Red_Blue.txt')
 
 BuGy_r = _reverse_LSC(BuGy)

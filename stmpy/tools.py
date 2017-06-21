@@ -660,7 +660,7 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
     Works computes sigma and replacement values locally.
 
     Inputs:
-        data    - Required  :  A 2D or 3D numpy array containing bad pixels.
+        data    - Required  :  A 1D, 2D or 3D numpy array containing bad pixels.
         n       - Optional  :  Number of local standard deviations away from
                                local mean for filter to identify bad pixels
                                (default : 4).
