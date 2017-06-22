@@ -37,7 +37,8 @@ def _write_cmap_to_file(fileName, cmap):
             for v in val[:-1]:
                 fileID.write(str(v))
                 fileID.write(', ')
-            fileID.write('\n ')
+            if ix != 255:
+                fileID.write('\n ')
 
 def _reverse_LSC(cmap):     
     reverse = []

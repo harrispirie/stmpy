@@ -599,7 +599,7 @@ def nsigma_global(data, n=5, M=2):
 
     Inputs:
         data    - Required : 1D, 2D or 3D numpy array containing bad pixels.
-                             If 3D a 2D global filter is applied to each layer
+                             If 3D, a 2D global filter is applied to each layer
                              by iterating over the first index.
         n       - Optional : Number of standard deviations away from mean for
                              filter to identify bad pixels (default : 5).
@@ -651,7 +651,7 @@ def nsigma_global(data, n=5, M=2):
             filteredData[ix] = filter_2D(layer, n, M)
         return filteredData
     else: 
-        print('ERR: Input must be 2D or 3D numpy array')
+        print('ERR: Input must be 1D, 2D or 3D numpy array')
 
 
 def nsigma_local(data, n=4, N=4, M=4, repeat=1):
@@ -731,7 +731,7 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
         return filteredData
 
     else: 
-        print('ERR: Input must be 2D or 3D numpy array')
+        print('ERR: Input must be 1D, 2D or 3D numpy array')
 
 def radial_linecut(data, length, angle, width, reshape=True):
     '''
@@ -781,12 +781,13 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
     windowing. 
    
     Inputs:
-        data    - Required : A 2D or 3D numpy array
+        data    - Required : A 1D, 2D or 3D numpy array
         window  - Optional : String containing windowing function used to mask
-                             data.  The options are: 'None', 'bartlett',
+                             data.  The options are: 'None' (or 'none'), 'bartlett',
                              'blackman', 'hamming', 'hanning' and 'kaiser'.
         output  - Optional : String containing desired form of output.  The
-                             options are: 'absolute', 'real', 'imag', 'phase'.
+                             options are: 'absolute', 'real', 'imag', 'phase'
+                             or 'complex'.
         zeroDC  - Optional : Boolean indicated if the centeral pixel of the
                                 FFT will be set to zero.
         beta    - Optional : Float used to specify the kaiser window.  Only
@@ -801,6 +802,7 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
 
     History:
         2017-06-15  - HP : Initial commit.
+        2017-06-22  - HP : Added support for 1D data and complex output.
     '''
     def ft2(data):
         ftData = np.fft.fft2(data)
@@ -809,32 +811,49 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
         return np.fft.fftshift(ftData)
     
     outputFunctions = {'absolute':np.absolute, 'real':np.real, 
-                       'imag':np.imag, 'phase':np.angle }
-
-    windowFunctions = {'None':(lambda x:np.ones(x)), 'bartlett':np.bartlett,
-                       'blackman':np.blackman, 'hamming':np.hamming,
-                       'hanning':np.hanning, 'kaiser':np.kaiser }
+                       'imag':np.imag, 'phase':np.angle, 'complex':(lambda x:x) }
+    
+    windowFunctions = {'None':(lambda x:np.ones(x)), 'none':(lambda x:np.ones(x)),
+                       'bartlett':np.bartlett, 'blackman':np.blackman, 
+                       'hamming':np.hamming, 'hanning':np.hanning, 
+                       'kaiser':np.kaiser }
 
     outputFunction = outputFunctions[output]
     windowFunction = windowFunctions[window]
-    if window == 'kaiser':
-        wX = windowFunction(data.shape[-2], beta)[:,None]
-        wY = windowFunction(data.shape[-1], beta)[None,:]
+
+    if len(data.shape) != 1:
+        if window == 'kaiser':
+            wX = windowFunction(data.shape[-2], beta)[:,None]
+            wY = windowFunction(data.shape[-1], beta)[None,:]
+        else:
+            wX = windowFunction(data.shape[-2])[:,None]
+            wY = windowFunction(data.shape[-1])[None,:]
+        W = wX * wY
+        if len(data.shape) == 2:
+            wData = data * W
+            ftData = outputFunction(ft2(wData))
+        elif len(data.shape) == 3:
+            wTile = np.tile(W, (data.shape[0],1,1))
+            wData = data * wTile
+            if output == 'complex':
+                ftData = np.zeros_like(data, dtype=np.complex)
+            else: 
+                ftData = np.zeros_like(data)
+            for ix, layer in enumerate(wData):
+                ftData[ix] = outputFunction(ft2(layer))
+        else: 
+            print('ERR: Input must be 1D, 2D or 3D numpy array')
+
     else:
-        wX = windowFunction(data.shape[-2])[:,None]
-        wY = windowFunction(data.shape[-1])[None,:]
-    W = wX * wY
-    if len(data.shape) == 2:
+        if window == 'kaiser':
+            W = windowFunction(data.shape[0], beta)
+        else:
+            W = windowFunction(data.shape[0])
         wData = data * W
-        ftData = outputFunction(ft2(wData))
-    elif len(data.shape) == 3:
-        wTile = np.tile(W, (data.shape[0],1,1))
-        wData = data * wTile
-        ftData = np.zeros_like(data)
-        for ix, layer in enumerate(wData):
-            ftData[ix] = outputFunction(ft2(layer))
-    else: 
-        print('ERR: Input must be 2D or 3D numpy array')
+        ftD = np.fft.fft(wData)
+        if zeroDC :
+            ftD[0] = 0
+        ftData = outputFunction(np.fft.fftshift(ftD))
     return ftData
 
 
@@ -869,16 +888,16 @@ def normalize(data, axis=0, condition='mean'):
     return output
    
 
-def linecut(data, (x0,y0), (x1,y1), width=1, dl=0, dw=0,
+def linecut(data, p0, p1, width=1, dl=0, dw=0,
                 show=False, ax=None, **kwarg):
     '''Linecut tool for 2D or 3D data.
 
     Inputs:
         data    - Required : A 2D or 3D numpy array.
-        (x0,y0) - Required : A tuple containing indicies for the start of the
-                             linecut.
-        (x1,y0) - Required : A tuple containing indicies for the end of the
-                             linecut. 
+        p0      - Required : A tuple containing indicies for the start of the
+                             linecut: p0=(x0,y0)
+        p1       - Required : A tuple containing indicies for the end of the
+                             linecut: p1=(x1,y1)
         width   - Optional : Float for perpendicular width to average over.
         dl      - Optional : Extra pixels for interpolation in the linecut
                              direction.
@@ -901,18 +920,19 @@ def linecut(data, (x0,y0), (x1,y1), width=1, dl=0, dw=0,
 
     History:
         2017-06-19  - HP : Initial commit. 
+        2017-06-22  - HP : Python 3 compatible
 
     '''
-    def calc_length((x0,y0), (x1,y1), dl):
-        dx = float(x1-x0)
-        dy = float(y1-y0)
+    def calc_length(p0, p1, dl):
+        dx = float(p1[0]-p0[0])
+        dy = float(p1[1]-p0[1])
         l = np.sqrt(dy**2 + dx**2)
         if dx == 0:
             theta = np.pi/2
         else:
             theta = np.arctan(dy / dx)
-        xtot = np.linspace(x0, x1, int(np.ceil(l+dl)))
-        ytot = np.linspace(y0, y1, int(np.ceil(l+dl)))
+        xtot = np.linspace(p0[0], p1[0], int(np.ceil(l+dl)))
+        ytot = np.linspace(p0[1], p1[1], int(np.ceil(l+dl)))
         return l, theta, xtot, ytot
 
     def get_perp_line(x, y, theta, w):
@@ -922,17 +942,17 @@ def linecut(data, (x0,y0), (x1,y1), width=1, dl=0, dw=0,
         wy1 = y - w/2.0*np.sin(np.pi/2 - theta)
         return (wx0, wx1), (wy0, wy1)
 
-    def cutter(F, (x0,y0), (x1,y1), dw):
-        l, __, xtot, ytot = calc_length((x0,y0), (x1,y1), dw)    
+    def cutter(F, p0, p1, dw):
+        l, __, xtot, ytot = calc_length(p0, p1, dw)    
         cut = np.zeros(int(np.ceil(l+dw)))
         for ix, (x,y) in enumerate(zip(xtot, ytot)):
             cut[ix] = F(x,y)
         return cut
     
-    def linecut2D(layer, (x0,y0), (x1,y1), width, dl, dw):
+    def linecut2D(layer, p0, p1, width, dl, dw):
         xAll, yAll = np.arange(layer.shape[1]), np.arange(layer.shape[0])
         F = sin.interp2d(xAll, yAll, layer)
-        l, theta, xtot, ytot = calc_length((x0,y0), (x1,y1), dl)
+        l, theta, xtot, ytot = calc_length(p0, p1, dl)
         r = np.linspace(0, l, int(np.ceil(l+dl)))
         cut = np.zeros(int(np.ceil(l+dl)))
         for ix, (x,y) in enumerate(zip(xtot,ytot)):
@@ -942,17 +962,17 @@ def linecut(data, (x0,y0), (x1,y1), width=1, dl=0, dw=0,
         return r, cut
     
     if len(data.shape) == 2:
-        r, cut = linecut2D(data, (x0,y0), (x1,y1), width, dl, dw)
+        r, cut = linecut2D(data, p0, p1, width, dl, dw)
     if len(data.shape) == 3:
-        l, __, __, __ = calc_length((x0,y0), (x1,y1), dl) 
+        l, __, __, __ = calc_length(p0, p1, dl) 
         cut = np.zeros([data.shape[0], int(np.ceil(l+dl))])
         for ix, layer in enumerate(data):
-            r, cut[ix] = linecut2D(layer, (x0,y0), (x1,y1), width, dl, dw)
+            r, cut[ix] = linecut2D(layer, p0, p1, width, dl, dw)
     if show:
-        __, theta, __, __ = calc_length((x0,y0), (x1,y1), dl)
-        (wx00, wx01), (wy00, wy01) = get_perp_line(x0, y0, theta, width)
-        (wx10, wx11), (wy10, wy11) = get_perp_line(x1, y1, theta, width)
-        ax.plot([x0,x1], [y0,y1], 'k--', **kwarg)
+        __, theta, __, __ = calc_length(p0, p1, dl)
+        (wx00, wx01), (wy00, wy01) = get_perp_line(p0[0], p0[1], theta, width)
+        (wx10, wx11), (wy10, wy11) = get_perp_line(p1[0], p1[1], theta, width)
+        ax.plot([p0[0],p1[0]], [p0[1],p1[1]], 'k--', **kwarg)
         ax.plot([wx00,wx01], [wy00,wy01], 'k:', **kwarg)
         ax.plot([wx10,wx11], [wy10,wy11], 'k:', **kwarg)
     return r, cut
