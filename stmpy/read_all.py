@@ -3,6 +3,7 @@ import numpy as np
 import scipy.io as sio
 import os
 import re
+import stmpy
 from stmpy import matio
 from datetime import datetime, timedelta
 from scipy.optimize import minimize
@@ -130,19 +131,34 @@ def _nice_units(data):
     Switch to commonly used units.
     fileType    - .3ds : Use nS for LIY and didv attribute
     '''
-    def chi(X):
-        gFit = X * data.didv / lockInMod
-        err = np.absolute(gFit - didv)
-        return np.log(np.sum(err**2))
-    lockInMod = float(data.header['Lock-in>Amplitude'])
-    current = np.mean(np.mean(data.I, axis=1), axis=1)
-    didv = np.gradient(current) / np.gradient(data.en)
-    result = minimize(chi, 1)
-    data.to_nS = result.x / lockInMod * 1e9 
-    data.didv *= data.to_nS
-    data.LIY *= data.to_nS
-    phi = np.arccos(1.0/result.x)
-    print('Corrected for a lock-in phase error of {:2.1f} deg'.format(np.degrees(phi)[0]))
+    def use_nS(data):
+        def chi(X):
+            gFit = X * data.didv / lockInMod
+            err = np.absolute(gFit - didv)
+            return np.log(np.sum(err**2))
+        lockInMod = float(data.header['Lock-in>Amplitude'])
+        current = np.mean(np.mean(data.I, axis=1), axis=1)
+        didv = np.gradient(current) / np.gradient(data.en)
+        result = minimize(chi, 1)
+        data.to_nS = result.x / lockInMod * 1e9 
+        data.didv *= data.to_nS
+        data.LIY *= data.to_nS
+        phi = np.arccos(1.0/result.x)
+        print('Corrected for a lock-in phase error of {:2.1f} deg'.format(np.degrees(phi)[0]))
+    
+    def use_nm(data):
+        fov = [float(val) for val in data.header['Scan>Scanfield'].split(';')]
+        data.x = 1e9 * np.linspace(0, fov[2], data.Z.shape[1])
+        data.y = 1e9 * np.linspace(0, fov[3], data.Z.shape[0])
+        data.qx = stmpy.tools.fftfreq(len(data.x), data.x[-1])
+        data.qy = stmpy.tools.fftfreq(len(data.y), data.y[-1])
+        data.Z *= 1e9
+        data._pxToNm = data.x[-1]/len(data.x)
+        data._pxToInvNm = data.qx[-1]/len(data.qx)
+        print('WARNING: I am not 100% sure that the q scale is right...')
+    
+    use_nS(data)
+    use_nm(data)
     return data
 
 
