@@ -495,7 +495,7 @@ def gradfilter(A, x, y, genvec=False):
     
     # 8-component method
     col, row = A.shape
-    norm = np.sqrt(1/8) # normalize boundaries such that boundary values of modulus map are 1 to be divided.
+    norm = np.sqrt(1/8.) # normalize boundaries such that boundary values of modulus map are 1 to be divided.
     dx = x[1]-x[0] # increment of W, E
     dy = y[1]-y[0] # increment of N, S
     dxy = np.sqrt(dx**2 + dy**2) # increment of NW, NE, SW, SE
