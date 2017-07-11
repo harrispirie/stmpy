@@ -411,7 +411,7 @@ def track_peak(x, z, p0, **kwarg):
     return mu
 
 
-def planeSubtract(image, deg, X0=None):
+def plane_subtract(data, deg, X0=None):
     '''
     Subtracts a polynomial plane from an image. The polynomial does not keep
     any cross terms.
@@ -429,12 +429,20 @@ def planeSubtract(image, deg, X0=None):
         return err
     if X0 is None:
         X0 = np.zeros([2*deg+1])
-    vx = np.linspace(-1, 1, image.shape[0])
-    vy = np.linspace(-1, 1, image.shape[1])
-    x, y = vx[:, None], vy[None, :]
-    norm = (image-np.mean(image)) / np.max(image-np.mean(image))
-    result = opt.minimize(chi, X0)
-    return norm - chi.fit
+    def plane_subtract2D(layer):
+        vx = np.linspace(-1, 1, image.shape[0])
+        vy = np.linspace(-1, 1, image.shape[1])
+        x, y = vx[:, None], vy[None, :]
+        norm = (image-np.mean(image)) / np.max(image-np.mean(image))
+        result = opt.minimize(chi, X0)
+        return norm - chi.fit
+    if len(data.shape) == 2:
+        return plane_subtract2D(data)
+    elif len(data.shape) == 3:
+        output = np.zeros_like(data)
+        for ix, layer in enumerate(data):
+            output[ix] = plane_subtract2D(layer)
+        return output
 
 def butter_lowpass_filter(data, ncutoff=0.5, order=1):
     '''
@@ -865,7 +873,7 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0,
         data    - Required : A 2D or 3D numpy array.
         p0      - Required : A tuple containing indicies for the start of the
                              linecut: p0=(x0,y0)
-        p1       - Required : A tuple containing indicies for the end of the
+        p1      - Required : A tuple containing indicies for the end of the
                              linecut: p1=(x1,y1)
         width   - Optional : Float for perpendicular width to average over.
         dl      - Optional : Extra pixels for interpolation in the linecut
@@ -889,7 +897,7 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0,
 
     History:
         2017-06-19  - HP : Initial commit. 
-        2017-06-22  - HP : Python 3 compatible
+        2017-06-22  - HP : Python 3 compatible.
 
     '''
     def calc_length(p0, p1, dl):
@@ -945,3 +953,31 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0,
         ax.plot([wx00,wx01], [wy00,wy01], 'k:', **kwarg)
         ax.plot([wx10,wx11], [wy10,wy11], 'k:', **kwarg)
     return r, cut
+
+
+    def crop(data, cen, width=15):
+        '''Crops data to be square.
+
+        Inputs:
+            data    - Required : A 2D or 3D numpy array.
+            cen     - Required : A tuple containing location of the center
+                                 pixel.
+            width   - Optional : Integer containing the alf-width of the 
+                                 square to crop. 
+
+        Returns:
+            croppedData - A 2D or 3D numpy square array of specified width.
+
+        Usage:
+            croppedData = crop(data, cen, width=15)
+
+        History:
+            2017-07-11  - HP : Initial commit. 
+        '''
+        imcopy = data.copy()
+        if len(data.shape) == 2:
+            return imcopy[cen[1]-width : cen[1]+width,
+                        cen[0]-width : cen[0]+width]
+        elif len(data.shape) == 3:
+            return imcopy[:, cen[1]-width : cen[1]+width, 
+                        cen[0]-width : cen[0]+width]

@@ -1,5 +1,6 @@
 import numpy as np
 import pylab as plt
+import matplotlib as mpl
 from matplotlib.animation import FuncAnimation
 from matplotlib import cm
 
