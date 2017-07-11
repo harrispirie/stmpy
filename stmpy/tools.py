@@ -955,29 +955,29 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0,
     return r, cut
 
 
-    def crop(data, cen, width=15):
-        '''Crops data to be square.
+def crop(data, cen, width=15):
+    '''Crops data to be square.
 
-        Inputs:
-            data    - Required : A 2D or 3D numpy array.
-            cen     - Required : A tuple containing location of the center
-                                 pixel.
-            width   - Optional : Integer containing the alf-width of the 
-                                 square to crop. 
+    Inputs:
+        data    - Required : A 2D or 3D numpy array.
+        cen     - Required : A tuple containing location of the center
+                             pixel.
+        width   - Optional : Integer containing the alf-width of the 
+                             square to crop. 
 
-        Returns:
-            croppedData - A 2D or 3D numpy square array of specified width.
+    Returns:
+        croppedData - A 2D or 3D numpy square array of specified width.
 
-        Usage:
-            croppedData = crop(data, cen, width=15)
+    Usage:
+        croppedData = crop(data, cen, width=15)
 
-        History:
-            2017-07-11  - HP : Initial commit. 
-        '''
-        imcopy = data.copy()
-        if len(data.shape) == 2:
-            return imcopy[cen[1]-width : cen[1]+width,
-                        cen[0]-width : cen[0]+width]
-        elif len(data.shape) == 3:
-            return imcopy[:, cen[1]-width : cen[1]+width, 
-                        cen[0]-width : cen[0]+width]
+    History:
+        2017-07-11  - HP : Initial commit. 
+    '''
+    imcopy = data.copy()
+    if len(data.shape) == 2:
+        return imcopy[cen[1]-width : cen[1]+width,
+                      cen[0]-width : cen[0]+width]
+    elif len(data.shape) == 3:
+        return imcopy[:, cen[1]-width : cen[1]+width, 
+                      cen[0]-width : cen[0]+width]
