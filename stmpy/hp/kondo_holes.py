@@ -176,6 +176,9 @@ class KondoHole(object):
                  glob=True, butter=True, fano=False, cubic=False):
         self.en = data.en
         self.LIY = stmpy.tools.crop(data.LIY, cen, width)
+        self.g = data.LIY[:, cen[1], cen[0]]
+        res = fano_fit(self.en, self.g)
+        self.fit = stmpy.hp.kondo_holes.fano(self.en, *res.x)
         self.didv = np.mean(self.LIY, axis=(1,2))
         self.I = stmpy.tools.crop(data.I, cen, width)
         self.Z = stmpy.tools.crop(data.Z, cen, width)

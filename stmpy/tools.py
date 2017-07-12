@@ -564,7 +564,7 @@ def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1
         print('\n Process completed!')
 
 
-def nsigma_global(data, n=5, M=2):
+def nsigma_global(data, n=5, M=2, repeat=1):
     '''Replace bad pixels that have a value n-sigma greater than the global
     mean with the average of their neighbors. 
 
@@ -575,6 +575,7 @@ def nsigma_global(data, n=5, M=2):
         n       - Optional : Number of standard deviations away from mean for
                              filter to identify bad pixels (default : 5).
         M       - Optional : Size of box for calculating replacement value. 
+        repeat  - Optional : Number of times to repeat the filter.
     
     Returns:
         filteredData    :  Data with bad pixels set to the local average
@@ -586,6 +587,7 @@ def nsigma_global(data, n=5, M=2):
     History:
         2017-06-07  - HP : Initial commit
         2017-06-18  - HP : Added support for 1D data. 
+        2017-07-12  - HP : Added repeat flag.
     '''
     def filter_1D(line, n, M):
         filtered = line.copy()
@@ -610,19 +612,23 @@ def nsigma_global(data, n=5, M=2):
             filtered[iy, ix] = replacement
         return filtered 
     
+    filteredData = data.copy()
     if len(data.shape) == 1:
-        return filter_1D(data, n, M)
+        for iz in range(repeat):
+            filteredData = filter_1D(filteredData, n, M)
 
     elif len(data.shape) == 2:
-        return filter_2D(data, n, M)
+        for iz in range(repeat):
+            filteredData = filter_2D(filteredData, n, M)
 
     elif len(data.shape) == 3:
-        filteredData = np.zeros_like(data)
-        for ix, layer in enumerate(data):
-            filteredData[ix] = filter_2D(layer, n, M)
-        return filteredData
+        for iz in range(repeat):
+            for ix, layer in enumerate(filteredData):
+                filteredData[ix] = filter_2D(layer, n, M)
     else: 
         print('ERR: Input must be 1D, 2D or 3D numpy array')
+
+    return filteredData
 
 
 def nsigma_local(data, n=4, N=4, M=4, repeat=1):
@@ -653,7 +659,7 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
     
     History:
         2017-06-07  - HP : Initial commit
-        2017-06-18  - HP : Added support for 1D data. 
+        2017-06-18  - HP : Added support for 1D data.
 
     '''
     def nsigma_local_1D(line, n, N, M):
@@ -685,24 +691,23 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
                     filtered[IY-N+iy, IX-N+ix] = replacement
         return filtered
     
+    filteredData = data.copy()
     if len(data.shape) == 1:
-        return nsigma_local_1D(data, n, N, M)
+        for iz in range(repeat):
+            filteredData = nsigma_local_1D(filteredData, n, N, M)
 
     elif len(data.shape) == 2:
-        filteredData = data.copy()
         for iz in range(repeat):
             filteredData = nsigma_local_2D(filteredData, n, N, M)
-        return filteredData
 
     elif len(data.shape) == 3:
-        filteredData = data.copy()
         for iz in range(repeat):
             for ix, layer in enumerate(filteredData):
                 filteredData[ix] = nsigma_local_2D(layer, n, N, M)
-        return filteredData
-
     else: 
         print('ERR: Input must be 1D, 2D or 3D numpy array')
+    
+    return filteredData
 
 def radial_linecut(data, length, angle, width, reshape=True):
     '''
