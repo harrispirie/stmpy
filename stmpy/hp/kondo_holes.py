@@ -29,10 +29,10 @@ def cubic_gap(x, y, threshold=0):
         pFit = np.polyfit(x, y, deg)
         infl = -1.0/3 * pFit[1]/pFit[0]
         return infl
-    xLow = x[:argmax(y)-int(threshold)]
-    yLow = y[:argmax(y)-int(threshold)]
-    xHig = x[argmin(y)+int(threshold):]
-    yHig = y[argmin(y)+int(threshold):]
+    xLow = x[:np.argmax(y)-int(threshold)]
+    yLow = y[:np.argmax(y)-int(threshold)]
+    xHig = x[np.argmin(y)+int(threshold):]
+    yHig = y[np.argmin(y)+int(threshold):]
     return find_inflection(xHig, yHig, 3) - find_inflection(xLow, yLow, 3)
 
 
@@ -51,10 +51,10 @@ def cubic_gapmap(LIY, en, **kwarg):
     History:
         2017-06-18  - Initial commit.
     '''
-    gapmap = zeros([LIY.shape[1], LIY.shape[2]])
+    gapmap = np.zeros([LIY.shape[1], LIY.shape[2]])
     for iy in range(LIY.shape[1]):
         for ix in range(LIY.shape[2]):
-            gapmap[iy,ix] = inflection_gap(en, LIY[:,iy,ix], **kwarg)
+            gapmap[iy,ix] = cubic_gap(en, LIY[:,iy,ix], **kwarg)
         stmpy.tools.print_progress_bar(iy, LIY.shape[1]-1, fill='>')
     return gapmap
 
@@ -128,7 +128,7 @@ def fano_gapmap(LIY, en):
                  i.e. gapmap[0] is a spatial map of hybridization strength. 
     
     History:
-        2017-06-18  - Initial commit.
+        2017-06-18  - HP : Initial commit.
     '''
     gapmap = np.zeros([6, LIY.shape[1], LIY.shape[2]])
     for iy in range(LIY.shape[1]):
@@ -137,3 +137,76 @@ def fano_gapmap(LIY, en):
             gapmap[:,iy,ix] = result.x
         stmpy.tools.print_progress_bar(iy, LIY.shape[1]-1, fill='>')
     return gapmap
+
+
+
+#########################
+#   CLASS DEFINITIONS   #
+#########################
+
+class KondoHole(object):
+    '''A cropped DOS map for analysing Kondo holes:
+
+    Inputs:
+        data    - Required : A Nanonis3ds class containing the file to be
+                             cropped.
+        cen     - Required : Tuple containing (x,y) coordinates of the defect.
+        width   - Required : Integer describing the half-width of the cropped
+                             area.
+        z       - Optional : Boolean to create linesubtract z attribute
+        glob    - Optional : Boolean to create global 7-sigma filtered DOS map.
+        butter  - Optional : Boolean to create butterworth lowpass filtered DOS
+                             map.
+        fano    - Optional : Boolean to create Fano gap map.
+        cubic   - Optional : Boolean to create cubic inflection gapmap. 
+
+    Methods : 
+        process - Creates new attributes using boolean flags: z, glob, butter,
+                  fano, cubic.
+
+    Returns:
+        kondoHole - Cropped DOS map around defect location with built-in
+                    process method.
+
+    History:
+        2017-07-12  - HP : Initial commit.
+
+    '''
+    def __init__(self, data, cen, width=20, z=True, 
+                 glob=True, butter=True, fano=False, cubic=False):
+        self.en = data.en
+        self.LIY = stmpy.tools.crop(data.LIY, cen, width)
+        self.didv = np.mean(self.LIY, axis=(1,2))
+        self.I = stmpy.tools.crop(data.I, cen, width)
+        self.Z = stmpy.tools.crop(data.Z, cen, width)
+        self.header = data.header
+        self.process(z, glob, butter, fano, cubic)
+
+    def process(self, z=False, glob=False, butter=False, 
+                fano=False, cubic=False):
+        if z:
+            self.z = stmpy.tools.lineSubtract(self.Z, 2)
+        if glob:
+            self.glob = stmpy.tools.nsigma_global(self.LIY, n=7, M=1)
+            if butter:
+                self.butter = stmpy.tools.butter_lowpass_filter(
+                                self.glob, ncutoff=0.4, order=2)
+        elif butter:
+            self.butter = stmpy.tools.butter_lowpass_filter(
+                            self.glob, ncutoff=0.4, order=2)
+        if fano:
+            self.fano = fano_gapmap(self._best_LIY(), self.en)
+        if cubic:
+            self.cubic = cubic_gapmap(self._best_LIY(), self.en)
+        return 1
+
+    def _best_LIY(self):
+        if hasattr(self, 'butter'):
+            bestLIY = self.butter
+        elif hasattr(self, 'glob'):
+            bestLIY = self.glob
+        else:
+            bestLIY = self.LIY
+        return bestLIY
+
+
