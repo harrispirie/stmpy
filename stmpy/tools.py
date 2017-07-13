@@ -414,34 +414,51 @@ def track_peak(x, z, p0, **kwarg):
 def plane_subtract(data, deg, X0=None):
     '''
     Subtracts a polynomial plane from an image. The polynomial does not keep
-    any cross terms.
+    any cross terms, i.e. not xy, only x^2 and y*2.  I think this is fine and
+    just doesn't keep any hyperbolic-like terms.
+
+    Inputs: 
+        data    - Required : A 2D or 3D numpy array containing data
+        deg     - Required : Degree of polynomial to be removed.
+        X0      - Optional : Guess optimization parameters for
+                             scipy.optimize.minimize.
+
+    Returns:
+        subtractedData - Data with a polynomial plane removed.
+
+    History:
+        2017-07-13  - HP : Fixed so that it works up to at least 3rd order.  
     '''
     def plane(a):
-        z = np.zeros_like(image) + a[0]
+        x = np.arange(subtract2D.norm.shape[1])
+        y = np.arange(subtract2D.norm.shape[0])
+        x = x[None,:]
+        y = y[:,None]
+        z = np.zeros_like(subtract2D.norm) + a[0]
         N = int((len(a)-1)/2)
         for k in range(1, N+1):
             z += a[2*k-1] * x**k + a[2*k] * y**k
         return z
     def chi(X):
         chi.fit = plane(X)
-        res = norm - chi.fit
+        res = subtract2D.norm - chi.fit
         err = np.sum(np.absolute(res))
         return err
+    def subtract2D(layer):
+        vx = np.linspace(-1, 1, layer.shape[0])
+        vy = np.linspace(-1, 1, layer.shape[1])
+        x, y = vx[:, None], vy[None, :]
+        subtract2D.norm = (layer-np.mean(layer)) / np.max(layer-np.mean(layer))
+        result = opt.minimize(chi, X0)
+        return subtract2D.norm - chi.fit
     if X0 is None:
         X0 = np.zeros([2*deg+1])
-    def plane_subtract2D(layer):
-        vx = np.linspace(-1, 1, image.shape[0])
-        vy = np.linspace(-1, 1, image.shape[1])
-        x, y = vx[:, None], vy[None, :]
-        norm = (image-np.mean(image)) / np.max(image-np.mean(image))
-        result = opt.minimize(chi, X0)
-        return norm - chi.fit
     if len(data.shape) == 2:
-        return plane_subtract2D(data)
+        return subtract2D(data)
     elif len(data.shape) == 3:
         output = np.zeros_like(data)
         for ix, layer in enumerate(data):
-            output[ix] = plane_subtract2D(layer)
+            output[ix] = subtract2D(layer)
         return output
 
 def butter_lowpass_filter(data, ncutoff=0.5, order=1):
@@ -986,3 +1003,40 @@ def crop(data, cen, width=15):
     elif len(data.shape) == 3:
         return imcopy[:, cen[1]-width : cen[1]+width, 
                       cen[0]-width : cen[0]+width]
+
+
+def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
+    '''Fit a function to data allowing parameters to be fixed.
+
+    Inputs:
+        f       - Required : Fitting function callable as f(xData, *args).
+        xData   - Required : 1D array containing x values.
+        yData   - Required : 1D array containing y values.
+        p0      - Optional : Initial guess for parameter values, defauts to 1. 
+        vary    - Optional : List of booleans describing which parameters to
+                             vary (True) and which to keep fixed (False).
+        **kwarg - Optional : Passed to scipy.optimize.minimize().
+
+    Returns:
+        popt    - 1D array containing the optimal values.
+        The full result is accessible as curve_fit.result, which contains the
+        covariance matix and fitting details.
+
+    History:
+        2017-07-13  - HP : Initial commit.
+    '''
+    def chi(pv):
+        p0[vary == True] = pv
+        fit = f(xData, *p0)
+        err = np.absolute(yData - fit)
+        return np.log(np.sum(err**2))
+    nargs = f.func_code.co_argcount - 1
+    if vary is None:
+        vary = np.ones(nargs, dtype=bool)
+    if p0 is None:
+        p0 = np.ones(nargs)
+    p0 = np.array(p0)
+    vary = np.array(vary)
+    curve_fit.result = opt.minimize(chi, p0[vary == True], **kwarg)
+    p0[vary == True] =  curve_fit.result.x
+    return p0
