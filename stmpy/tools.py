@@ -1040,3 +1040,36 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
     curve_fit.result = opt.minimize(chi, p0[vary == True], **kwarg)
     p0[vary == True] =  curve_fit.result.x
     return p0
+
+
+def boxcar_average1D(data, N):
+    '''Averages 1D data in a moving retangular window.
+
+    Inputs:
+        data    - Required : A 1D or 3D numpy array.  If 3D the filter is
+                             applied along the first axis, e.g. the energy
+                             direction in a DOS map.
+        N       - Required : Integer describing the width of the boxcar window.
+    
+    Returns:
+        averagedData - Data with filter applied
+
+    History:
+        2017-07-14  - HP : Initial commit. 
+    '''
+    def running_mean(x, N):
+        cumsum = np.cumsum(np.insert(x, 0, 0)) 
+        return (cumsum[N:] - cumsum[:-N]) / N 
+    if type(N) != int:
+        raise TypeError('N must be an integer.')
+    if len(data.shape) == 1:
+        return running_mean(data, N)
+    elif len(data.shape) == 3: 
+        getShape = running_mean(data[:,0,0], N) 
+        output = np.zeros([data.shape[0] - N + 1, data.shape[1], data.shape[2]])
+        for ix in range(data.shape[2]):
+            for iy in range(data.shape[1]):
+                output[:,iy,ix] = running_mean(data[:,iy,ix], N)
+        return output
+    else:
+        print('ERR - Data must be 1D or 3D numpy array.')
