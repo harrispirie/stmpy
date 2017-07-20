@@ -118,7 +118,7 @@ def lineSubtract(data, n=1, normalize=True):
     independently.  Input is a numpy array. 
     
     Inputs:
-        data    -   Required : A 2D or 3D numpy array.
+        data    -   Required : A 1D, 2D or 3D numpy array.
         n       -   Optional : Degree of polynomial to subtract from each line.
                                (default : 1).
         normalize - Optional : Boolean flag to determine if the mean of a layer
@@ -129,7 +129,14 @@ def lineSubtract(data, n=1, normalize=True):
     
     Usage:
         dataObject.z = lineSubtract(dataObject.Z, n=1, normalize=True)
+
+    History:
+        2017-07-19  - HP : Updated to work for 1D data. 
     '''
+    def subtract_1D(data, n):
+        x = np.linspace(0,1,len(data))
+        popt = np.polyfit(x, data, n)
+        return data - np.polyval(popt, x)
     def subtract_2D(data, n):
         if normalize:
             norm = 0
@@ -137,16 +144,20 @@ def lineSubtract(data, n=1, normalize=True):
             norm = np.mean(data)
         output = np.zeros_like(data)
         for ix, line in enumerate(data):
-            output[ix] = removePolynomial1d(line, n) 
+            output[ix] = subtract_1D(line, n) 
         return output + norm
-    if len(data.shape) is 3:
+
+    if len(data.shape) == 3:
         output = np.zeros_like(data)
         for ix, layer in enumerate(data):
             output[ix] = subtract_2D(layer, n)
         return output
-    elif len(data.shape) is 2:
+    elif len(data.shape) == 2:
         return subtract_2D(data, n)
-
+    elif len(data.shape) == 1:
+        return subtract_1D(data, n)
+    else:
+        raise TypeError('Data must be 1D, 2D or 3D numpy array.')
 
 def fitGaussian2d(data, p0):
     ''' Fit a 2D gaussian to the data with initial parameters p0. '''
