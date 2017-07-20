@@ -2,7 +2,11 @@ import numpy as np
 import pylab as plt
 import matplotlib as mpl
 from matplotlib.animation import FuncAnimation
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import cm
+
+boxProperties = dict(boxstyle='square', facecolor='w', alpha=0.7, linewidth=0.0)
+textOptions = dict(fontsize=12, color = 'k', bbox=boxProperties, ha='right', va='top')
 
 def saturate(level_low=0, level_high=None, im=None):
     '''
@@ -129,6 +133,65 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
         ani.save(fileName, dpi=200, bitrate=1e5, fps=speed)
     else:
         print('ERR: fileName must end with .mov or .mp4')
+
+
+def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None):
+    '''Add a colorbar to the current axis.
+
+    Inputs:
+        loc     - Optional : Specify the location of the colorbar: 0 (bottom),
+                             1 (right), 2 (top) or 3 (left).
+        label   - Optional : String containing colorbar label 
+        fs      - Optional : Float for colorbar label fontsize
+        size    - Optional : String describing the width of the colorbar as a
+                             percentage fo the image.
+        pad     - Optional : Float for colorbar pad from image axes.
+        ax      - Optional : Axes to attach the colorbar to.  Uses gca() as
+                             default.
+        im      - Optional : Image used to get colormap and color limits.
+
+    Returns:
+        cbar    - matplotlib.colorbar.Colorbar instance.
+
+    History:
+        2017-07-20  - HP : Initial commit.                             
+    '''
+    if ax is None:
+        ax = mpl.pyplot.gca()
+    if im is None:
+        elements = ax.get_children()
+        for element in elements:
+            if isinstance(element, (mpl.image.AxesImage, mpl.collections.QuadMesh)):
+                im = element
+    divider = make_axes_locatable(ax)
+    fig = ax.get_figure()
+    if loc == 0:
+        cax = divider.new_vertical(size=size, pad=pad, pack_start=True)
+        fig.add_axes(cax)
+        cbar = fig.colorbar(im, cax=cax, orientation='horizontal')
+        cbar.set_label(label, fontsize=fs)
+    elif loc == 1:
+        cax = divider.new_horizontal(size=size, pad=pad, pack_start=False)
+        fig.add_axes(cax)
+        cbar = fig.colorbar(im, cax=cax, orientation='vertical')
+        cbar.set_label(label, fontsize=fs)
+    elif loc == 2:
+        cax = divider.new_vertical(size=size, pad=pad, pack_start=False)
+        fig.add_axes(cax)
+        cbar = fig.colorbar(im, cax=cax, orientation='horizontal')
+        cbar.set_label(label, fontsize=fs)
+        cbar.ax.xaxis.set_ticks_position('top')
+        cbar.ax.xaxis.set_label_position('top')
+    elif loc == 3:
+        cax = divider.new_horizontal(size=size, pad=pad, pack_start=True)
+        fig.add_axes(cax)
+        cbar = fig.colorbar(im, cax=cax, orientation='vertical')
+        cbar.set_label(label, fontsize=fs)
+        cbar.ax.yaxis.set_ticks_position('left')
+        cbar.ax.yaxis.set_label_position('left')       
+    else:
+        raise ValueError('loc must be 0 (bottom), 1 (right), 2 (top) or 3 (left).')
+    return cbar
 
 
 

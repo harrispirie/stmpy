@@ -16,7 +16,7 @@ def azimuthalAverage(F,x0,y0,r,theta = np.linspace(0,2*np.pi,500)):
     WARNING: This funciton is deprecated and will be removed in the next
     release.
     '''
-    print(' WARNING: This funciton is deprecated and will be removed in the next release.')
+    #print(' WARNING: This funciton is deprecated and will be removed in the next release.')
     f = sin.interp2d(np.arange(F.shape[1]), np.arange(F.shape[0]), F, kind='linear')
     Z = np.zeros_like(r); fTheta = np.zeros_like(theta)
     for ix, r0 in enumerate(r):
@@ -26,7 +26,6 @@ def azimuthalAverage(F,x0,y0,r,theta = np.linspace(0,2*np.pi,500)):
             fTheta[iy] = f(xn,yn)
         Z[ix] = np.mean(fTheta)
     return Z
-
 
 
 def azimuthalAverageRaw(F,x0,y0,rmax):
@@ -80,16 +79,16 @@ def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100,
     History:
         2017-07-20  - HP : Initial commit. 
     '''
-    theta = radians(andle)
-    dtheta = radians(width/2.0)
+    theta = np.radians(angle)
+    dtheta = np.radians(width/2.0)
     r = np.linspace(0, length, round(length+dl))
     t = np.linspace(theta-dtheta, theta+dtheta, round(dw))
     if len(data.shape) == 2:
-        cut = stmpy.tools.azimuthalAverage(data, p0[0], p0[1], r, t)
+        cut = azimuthalAverage(data, p0[0], p0[1], r, t)
     elif len(data.shape) == 3:
         cut = np.zeros([data.shape[0], len(r)])
         for ix, layer in enumerate(data):
-            cut[ix] = stmpy.tools.azimuthalAverage(layer, p0[0], p0[1], r, t)
+            cut[ix] = azimuthalAverage(layer, p0[0], p0[1], r, t)
     else:
         raise TypeError('Data must be 2D or 3D numpy array.')
     if show:  
