@@ -10,7 +10,13 @@ from scipy.signal import butter, filtfilt
 
 
 def azimuthalAverage(F,x0,y0,r,theta = np.linspace(0,2*np.pi,500)):
-    ''' Uses 2d interpolation to average F over an arc defined by theta for every r value starting from x0,y0. '''
+    ''' Uses 2d interpolation to average F over an arc defined by theta 
+    for every r value starting from x0,y0. 
+    
+    WARNING: This funciton is deprecated and will be removed in the next
+    release.
+    '''
+    print(' WARNING: This funciton is deprecated and will be removed in the next release.')
     f = sin.interp2d(np.arange(F.shape[1]), np.arange(F.shape[0]), F, kind='linear')
     Z = np.zeros_like(r); fTheta = np.zeros_like(theta)
     for ix, r0 in enumerate(r):
@@ -38,6 +44,60 @@ def azimuthalAverageRaw(F,x0,y0,rmax):
         FAvg.append(np.mean(allFVals))  
     R = np.array(R); ixSorted = R.argsort()  
     return R[ixSorted], np.array(FAvg)[ixSorted]
+
+
+def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100, 
+        show=False, ax=None, **kwarg):
+    '''A less cumbersome wrapper for stmpy.tools.azimuthalAverage.  Computes an
+    arc-averaged linecut on 2D data, or on each layer in 3D data.
+
+    Inputs:
+        data    - Required : A 2D or 3D numpy array.
+        p0      - Required : A tuple containing indicies for the start of the
+                             linecut: p0=(x0,y0)
+        length  - Required : Float containing length of linecut to compute.
+        angle   - Required : Angle (IN DEGREES) to take the linecut along.
+        width   - Optional : Angle (IN DEGREES) to average over.
+        dl      - Optional : Extra pixels for interpolation in the linecut
+                             direction.
+        dw      - Optional : Number of pixels for interpolation in the
+                             azimuthal direction: default 100.
+        show    - Optional : Boolean determining whether to plot where the
+                             linecut was taken.
+        ax      - Optional : Matplotlib axes instance to plot where linecut is
+                             taken.  Note, if show=True you MUST provide and
+                             axes instance as plotting is done using ax.plot().
+        **kwarg - Optional : Additional keyword arguments passed to ax.plot().
+
+    Returns:
+        r   -   1D numpy array which goes from 0 to the length of the cut.
+        cut -   1D or 2D numpy array containg the linecut. 
+
+    Usage:
+        r, cut = arc_linecut(data, cen, length, angle, width=20, dl=0, dw=100, 
+                             show=False, ax=None, **kwarg):
+
+    History:
+        2017-07-20  - HP : Initial commit. 
+    '''
+    theta = radians(andle)
+    dtheta = radians(width/2.0)
+    r = np.linspace(0, length, round(length+dl))
+    t = np.linspace(theta-dtheta, theta+dtheta, round(dw))
+    if len(data.shape) == 2:
+        cut = stmpy.tools.azimuthalAverage(data, p0[0], p0[1], r, t)
+    elif len(data.shape) == 3:
+        cut = np.zeros([data.shape[0], len(r)])
+        for ix, layer in enumerate(data):
+            cut[ix] = stmpy.tools.azimuthalAverage(layer, p0[0], p0[1], r, t)
+    else:
+        raise TypeError('Data must be 2D or 3D numpy array.')
+    if show:  
+        ax.plot([p0[0], p0[0]+length*np.cos(theta-dtheta)], 
+                [p0[1], p0[1]+length*np.sin(theta-dtheta)], 'k--', lw=1, **kwarg)
+        ax.plot([p0[0], p0[0]+length*np.cos(theta+dtheta)], 
+                [p0[1], p0[1]+length*np.sin(theta+dtheta)], 'k--', lw=1, **kwarg)
+    return r, cut
 
 
 def binData(x,y,nBins):
