@@ -105,6 +105,8 @@ def fano_fit(xData, yData, X0=[8.75,-3.6,-0.6,-5.6,0.04,10]):
 
     History:
         2017-06-18  - HP : Initial commit.
+
+    WARNING: Deprecated - Please use stmpy.tools.curve_fit instead.
     '''
     def chi(X):
         yFit = fano(xData, X[0], X[1], X[2], X[3], X[4], X[5])
@@ -114,13 +116,15 @@ def fano_fit(xData, yData, X0=[8.75,-3.6,-0.6,-5.6,0.04,10]):
     return result
 
 
-def fano_gapmap(LIY, en): 
+def fano_gapmap(LIY, en, **kwargs): 
     '''Computes a Fano fit to each dIdV measurement in a DOS-map.
     See help(stmpy.hp.kondo_holes.fano_fit) for details.
 
     Inputs:
         LIY - Required : 3D numpy array containing the data.
         en  - Required : 1D numpy array containing energy values. 
+        **kwargs - Optional : Passed to stmpy.tools.curve_fit.  e.g. you can
+                              specify the "vary" and "p0" parameters. 
 
     Returns:
         gapmap - A 3D numpy array containing the fit parameters at each spatial
@@ -129,12 +133,14 @@ def fano_gapmap(LIY, en):
     
     History:
         2017-06-18  - HP : Initial commit.
+        2017-07-21  - HP : Now uses stmpy.tools.curve_fit
     '''
     gapmap = np.zeros([6, LIY.shape[1], LIY.shape[2]])
     for iy in range(LIY.shape[1]):
         for ix in range(LIY.shape[2]):
             result = fano_fit(en, LIY[:,iy,ix])
-            gapmap[:,iy,ix] = result.x
+            gapmap[:,iy,ix] = stmpy.tools.curve_fit(
+                                    fano, en, LIY[:,iy,ix], **kwargs)
         stmpy.tools.print_progress_bar(iy, LIY.shape[1]-1, fill='>')
     return gapmap
 
@@ -211,5 +217,7 @@ class KondoHole(object):
         else:
             bestLIY = self.LIY
         return bestLIY
+
+
 
 
