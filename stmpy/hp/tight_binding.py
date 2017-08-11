@@ -494,3 +494,49 @@ def fitData(data, X0=None, bounds=None, nix=None, add_constant=True,
         fit = tight_binding_model_1D(p, data.en, anisotropy=anisotropy, antitunnel=antitunnel)
         data.ss = data.didv - fit * data.result.x[-2] - data.result.x[-1]*data.en
     data.bands = fbands_1D(data.result.x[:7], data.en, anisotropy=anisotropy)
+
+
+def plot_bands2(ax=None, bulk=False, xBand=True, gBand=True, bragg=False, 
+               c1='lime', c2='r', c3='b', p=None):
+    '''Add guidelines for the calculated electronic structure of SmB6.
+
+    Inputs:
+        ax      - Optional: Axis for plotting.  Default is gca().
+        bulk    - Optional: Boolean flag to add bulk band guidelines.
+        xBand   - Optional: Boolean flag to add x SS band guidelines.
+        gBand   - Optional: Boolean flag to add g SS band guidelines.
+        Bragg   - Optional: Boolean flag to add Bragg relection of x SS
+                            band guidelines.
+        c1      - Optional: String for x SS band color.
+        c2      - Optional: String for g SS band color.
+        c3      - Optional: String for bulk band color.
+        p       - Optional: parameters used for calculating bulk bands.
+
+    Returns:
+        None
+
+    History:
+        2017-08-06  - HP: Initial commit
+    '''
+    xx0 = np.linspace(0, 0.5, 10)
+    xx1 = np.linspace(-0.5, 0, 10)
+    xx2 = np.linspace(0.05, 0.15, 10)
+    d = np.array([[   9.98869445,   -4.38151444],
+                  [ 118.35067879,   -7.71964218]])
+    if p is None:
+        p = 16, 1, -9, -24.5, 0.54 , 45, 100
+    if ax is None:
+        ax = plt.gca()
+    bands = fbands_1D(p, 0, anisotropy=(True, False))
+    if bulk:
+        for band in bands:
+            ax.plot(k[::-1], band, '--', color=c2, lw=0.7, alpha=1)
+            ax.plot(k, band, '-', color=c2, lw=0.7, alpha=1)
+    if xBand:
+        ax.plot(xx0, np.polyval(d[0], xx0), '--', color=c1, lw=0.9)
+        ax.plot(-xx1, np.polyval(d[0], xx1), '--', color=c1, lw=0.9)
+    if gBand:
+        ax.plot(xx2, np.polyval(d[1], xx2), '--', color=c3, lw=0.9)
+    if bragg:
+        ax.plot(xx0+0.5, np.polyval(d[0], xx0), '--', color=c1, lw=0.7, alpha=0.5)
+        ax.plot(-xx1+0.5, np.polyval(d[0], xx1), '--', color=c1, lw=0.7, alpha=0.5)

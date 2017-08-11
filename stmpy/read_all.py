@@ -127,9 +127,13 @@ def _correct_bias_offset(data, fileType):
         return data
 
 def _nice_units(data):
-    '''
-    Switch to commonly used units.
+    '''Switch to commonly used units.
+
     fileType    - .3ds : Use nS for LIY and didv attribute
+
+    History:
+        2017-08-10  - HP : Comment: Missing a factor of 2, phase error not
+                           justified 
     '''
     def use_nS(data):
         def chi(X):
@@ -143,8 +147,9 @@ def _nice_units(data):
         data.to_nS = result.x / lockInMod * 1e9 
         data.didv *= data.to_nS
         data.LIY *= data.to_nS
+        data.didvStd *= data.to_nS
         phi = np.arccos(1.0/result.x)
-        print('Corrected for a lock-in phase error of {:2.1f} deg'.format(np.degrees(phi)[0]))
+        #print('Corrected for a lock-in phase error of {:2.1f} deg'.format(np.degrees(phi)[0]))
     
     def use_nm(data):
         fov = [float(val) for val in data.header['Scan>Scanfield'].split(';')]
@@ -165,73 +170,126 @@ def _nice_units(data):
 ####    ____CLASS DEFINITIONS____   ####
 
 class Nanonis3ds(object):
-    def __init__(self,filePath):
-        if self._load3ds(filePath):
-            try:
-                self.LIY = self.data['LIY 1 omega (A)']
-                self.didv = [np.mean(layer) for layer in self.LIY]
-            except (KeyError):
-                print('Does not have channel called LIY 1 omega (A).  Looking for average channel instead...')
-                try:
-                    self.LIY = self.data['LIY 1 omega [AVG] (A)']
-                    self.didv = [np.mean(layer) for layer in self.LIY]
-                    print('Found it!')
-                except (KeyError):
-                    print('ERR: Average channel not found, resort to manual definitions.  Found channels:\n {:}'.format(self.data.keys()))
-            try: self.I   = self.data['Current (A)']
-            except (KeyError): self.I = self.data['Current [AVG] (A)']
-            self.Z   = self.parameters['Scan:Z (m)']
-        else: raise NameError('File not found.')
+    '''Data structure for Nanonis DOS maps.
 
-    def _load3ds(self,filePath):
-        try: fileObj = open(filePath,'rb')
-        except: return 0
+    Attributes:
+        self.Z      - 2D numpy array containing topography channel.
+        self.I      - 3D numpy array for current at each poont.
+        self.LIY    - 3D numpy array containing lock-in Y channel.
+        self.didv   - 1D numpy array for average LIY
+        self.didvStd - 1D numpy array for standard deviation in dIdV.
+        self.en     - 1D numpy array for energies used in bias sweep. 
+        self.header - Dictionary of all recorded experimental parameters.
+        self.grid   - Dictionary of all grid spectroscopy data (individual sweeps, etc.)
+        self.scan   - Dictionary with all scan data.
+
+    Methods:
+        None
+
+    History:
+        2017-08-06  - HP : Added support for recangular maps by changing the
+                           order in which data points are read.
+        2017-08-10  - HP : Added support for non-linear spaced energies.
+    '''
+    def __init__(self, filePath):
+        if self._load3ds(filePath):
+            LIYNames =  ['LIY 1 omega (A)', 'LIY 1 omega [AVG] (A)']
+            if self._make_attr('LIY', LIYNames, 'grid'):
+                self.didv = np.mean(self.LIY, axis=(1,2))
+                self.didvStd = np.std(self.LIY, axis=(1,2))
+            else:
+                print('ERR: LIY AVG channel not found, resort to manual ' + 
+                      'definitions.  Found channels:\n {:}'.format(self.data.keys()))
+            
+            self._make_attr('I',  ['Current (A)', 'Current [AVG] (A)'], 'grid')
+            self._make_attr('Z', ['Scan:Z (m)'], 'scan')
+            try:     
+                self.en = np.mean(self.grid['Bias [AVG] (V)'], axis=(1,2))
+            except KeyError:
+                print('WARNING: Assuming energy layers are evenly spaced.')
+                self.en = np.linspace(self.scan['Sweep Start'].flatten()[0],
+                                      self.scan['Sweep End'].flatten()[0],
+                                      self._info['points'])
+        else: 
+            raise NameError('File not found.')
+
+    def _make_attr(self, attr, names, data):
+        '''
+        Trys to give object an attribute from self.data by looking through
+        each key in names.  It will add only the fist match, so the order of
+        names dictates the preferences.
+
+        Inputs:
+            attr    - Required : Name of new attribute
+            names   - Required : List of names to search for
+            data    - Required : Name of a current attribute in which the new
+                                 attribute is stored.
+
+        Returns:
+            1   - If successfully added the attribute
+            0   - If name is not found.
+
+        History:
+            2017-08-11  - HP : Initial commit.
+        '''
+        dat = getattr(self, data)
+        for name in names:
+            if name in dat.keys():
+                setattr(self, attr, dat[name])
+                return 1
+        return 0
+
+    def _load3ds(self, filePath):
+        try: 
+            fileObj = open(filePath, 'rb')
+        except: 
+            return 0
         self.header={}
         while True:
             line = fileObj.readline().strip().decode('utf-8')
-            if line == ':HEADER_END:': break
+            if line == ':HEADER_END:': 
+                break
             splitLine = line.split('=')
             self.header[splitLine[0]] = splitLine[1]
 
-        self.info={	'params'	:	int(self.header['# Parameters (4 byte)']),
-                    'paramName'	:	self.header['Fixed parameters'][1:-1].split(';') +
-                                    self.header['Experiment parameters'][1:-1].split(';'),
-                    'channels'	:	self.header['Channels'][1:-1].split(';'),
-                    'points'	:	int(self.header['Points']),
-                    'sizex'		:	int(self.header['Grid dim'][1:-1].split(' x ')[0]),
-                    'sizey'		:	int(self.header['Grid dim'][1:-1].split(' x ')[1]),
-                    'dataStart'	:	fileObj.tell()
-                    }
+        self._info = {'params'	: int(self.header['# Parameters (4 byte)']),
+                    'paramName'	: self.header['Fixed parameters'][1:-1].split(';') +
+                                  self.header['Experiment parameters'][1:-1].split(';'),
+                    'channels'	: self.header['Channels'][1:-1].split(';'),
+                    'points'	: int(self.header['Points']),
+                    'sizex' 	: int(self.header['Grid dim'][1:-1].split(' x ')[0]),
+                    'sizey'	: int(self.header['Grid dim'][1:-1].split(' x ')[1]),
+                    'dataStart'	: fileObj.tell()
+                     }
 
-        self.data = {}; self.parameters = {}
-        for channel in self.info['channels']:
-            self.data[channel] = np.zeros([self.info['points'],self.info['sizex'],self.info['sizey']])
-        for name in self.info['paramName']:
-            self.parameters[name] = np.zeros([self.info['sizex'],self.info['sizey']])
+        self.grid = {}; self.scan = {}
+        for channel in self._info['channels']:
+            self.grid[channel] = np.zeros(
+                    [self._info['points'], self._info['sizey'], self._info['sizex']])
+        for channel in self._info['paramName']:
+            self.scan[channel] = np.zeros([self._info['sizey'], self._info['sizex']])
 
         try:
-            for ix in range(self.info['sizex']):
-                for iy in range(self.info['sizey']):
-                    for name in self.info['paramName']:
+            for iy in range(self._info['sizey']):
+                for ix in range(self._info['sizex']):
+                    for channel in self._info['paramName']:
                         value = unpack('>f',fileObj.read(4))[0]
-                        self.parameters[name][ix,iy] = value
+                        self.scan[channel][iy,ix] = value
 
-                    for channel in self.info['channels']:
-                        for ie in range(self.info['points']):
+                    for channel in self._info['channels']:
+                        for ie in range(self._info['points']):
                             value = unpack('>f',fileObj.read(4))[0]
-                            self.data[channel][ie,ix,iy] =value
+                            self.grid[channel][ie,iy,ix] = value
         except:
-            print('WARNING - Data set is not complete.')
-
-        self.en = np.linspace(self.parameters['Sweep Start'].flatten()[0],
-                              self.parameters['Sweep End'].flatten()[0],
-                              self.info['points'])
+            print('WARNING: Data set is not complete.')
 
         dataRead = fileObj.tell()
         fileObj.read()
         allData = fileObj.tell()
-        if dataRead == allData: print('File import successful.')
-        else: print('ERR: Did not reach end of file.')
+        if dataRead == allData: 
+            print('File import successful.')
+        else: 
+            print('ERR: Did not reach end of file.')
         fileObj.close()
         return 1
 

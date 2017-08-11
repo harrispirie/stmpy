@@ -135,7 +135,8 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
         print('ERR: fileName must end with .mov or .mp4')
 
 
-def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None):
+def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None,
+        ticks=True):
     '''Add a colorbar to the current axis.
 
     Inputs:
@@ -154,7 +155,8 @@ def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None):
         cbar    - matplotlib.colorbar.Colorbar instance.
 
     History:
-        2017-07-20  - HP : Initial commit.                             
+        2017-07-20  - HP : Initial commit.
+        2017-08-06  - HP : Added flag for removing ticks.
     '''
     if ax is None:
         ax = mpl.pyplot.gca()
@@ -191,6 +193,8 @@ def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None):
         cbar.ax.yaxis.set_label_position('left')       
     else:
         raise ValueError('loc must be 0 (bottom), 1 (right), 2 (top) or 3 (left).')
+    if ticks is False:
+        cbar.set_ticks([])
     return cbar
 
 
