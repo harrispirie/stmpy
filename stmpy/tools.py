@@ -1143,3 +1143,154 @@ def boxcar_average1D(data, N):
         return output
     else:
         print('ERR - Data must be 1D or 3D numpy array.')
+
+
+def gaussn(x, p):
+    '''Return a linear combination of n gaussians.
+
+    Inputs:
+        x   - Required : A 1D numpy array of x values.
+        p   - Required : A list of parameters for the n gaussians in the form:
+                         [amplitude_1, mu_1, sigma_1, amplitude_2, mu_2, ...].
+                         The amplitudes are taken as |amplitude| and cannot be
+                         negative.
+
+    Returns:
+        g(x) - A 1D numpy array
+
+    History:
+        2017-08-14  - HP : Initial commit.
+    '''
+    g = np.zeros_like(x, dtype=np.float64)
+    for i in range(0, len(p), 3):
+        amp = abs(float(p[i]))
+        mu = float(p[i+1])
+        sigma = float(p[i+2])
+        g += amp * np.exp(-(x-mu)**2 / (2.0*sigma**2))
+    return g
+
+
+def find_extrema(data, n=(1,0), minDist=10, thres=(0.01,0.01), 
+                 exclBorder=False, **kwarg):
+    '''
+    Get the coordinates of n local maxima and minima in a 2D image, or in each
+    layer in a 3D map. 
+    Note: this function requires the package `skimage` to be installed.
+    Run `pip install -U scikit-image` in terminal, or see scikit-image.org for 
+    details.
+
+    Inputs:
+        data    - Required : A 2D or 3D numpy array.
+        n       - Optional : A tuple containing the number of maxima and minima
+                             to find in the form: (nMax, nMin).
+        minDist - Optional : Float to describe the minimum distance between
+                             maxima or minima.
+        thres   - Optional : Tuple describing the relative theshold for maxima
+                             and minima in the form: (thresMax, thresMin).
+        exclBorder - Optional : Boolean dictating whether to exclude points at
+                                the boundary.
+
+    Returns:
+        coords - A 2D or 3D numpy array containng the coordinates of the
+                 extrema.  Note: this uses the numpy convention [y,x].
+
+    History:
+        2017-08-14  - HP : Initial commit.
+    '''
+    try:
+        from skimage.feature import peak_local_max
+    except ImportError:
+        raise ImportError('This function needs the package `skimage` to be installed.\n' +
+                  'Run `pip install -U scikit-image` in terminal, or see scikit-'+
+                  'image.org for details.')
+
+    def find_extrema2D(layer, n=(1, 0), minDist=10, thres=(0.01, 0.01), 
+                       exclBorder=False, **kwarg):
+        cmax = np.array([[np.nan, np.nan]])
+        cmin = np.array([[np.nan, np.nan]])
+        if n[0] is not 0:
+            cmax = peak_local_max(layer, min_distance=minDist, threshold_rel=thres[0], 
+                              num_peaks=n[0], exclude_border=exclBorder, **kwarg)
+        if n[1] is not 0:
+            cmin = peak_local_max(np.max(layer)-layer, min_distance=minDist,
+                              threshold_rel=thres[1], num_peaks=n[1], 
+                              exclude_border=exclBorder, **kwarg)
+        coords = np.concatenate([cmax, cmin])
+        mask = ~np.isnan(coords)[:,0]
+        return coords[mask]
+    
+    if len(data.shape) == 3:
+        output = np.zeros([data.shape[0], n[0]+n[1], 2])
+        output.fill(np.nan)
+        for ix, layer in enumerate(data):
+            coords = find_extrema2D(layer, n=n, minDist=minDist, thres=thres, 
+                                    exclBorder=exclBorder, **kwarg)
+            output[ix, :coords.shape[0]] = coords
+    elif len(data.shape) == 2:
+        output = find_extrema2D(data, n=n, minDist=minDist, thres=thres, 
+                                    exclBorder=exclBorder, **kwarg)
+    else:
+        raise ValueError('Data must be 2D or 3D numpy array')
+    return output
+
+
+def remove_extrema(data, coords=None, sigma=4, replSigma=None, replDist=None,
+        **kwarg):
+    '''Remove extrema by gaussian-smearing to a local backgound value.
+
+    Inputs:
+        data    - Required : A 2D or 3D numpy array.
+        coords  - Optional : A 2D or 3D numpy array containing the coordinates
+                             of the extrema to be removed. The list is given in
+                             numpy convention: [(ie), iy, ix].  Note: if not
+                             provided coordinates are found automatically using
+                             stmpy.tools.find_extrema(data, **kwarg), see docs
+                             for infomation. 
+        sigma   - Optional : Float for the FWHM value of the gaussian area
+                            replaced.
+        replSigma - Optional : Float for the FWHM of the weighting gaussian for
+                               finding the replacement value. 
+        replDist - Optional : Float for the distance away from the defect to
+                              average over when finding a replacement value. 
+        **kwarg - Optional : Sent to stmpy.tools.find_extrema() if coords is
+                             not provided
+
+    Returns:
+        output  -   A 2D or 3D numpy array containg data with gaussian removed
+                    extrema
+
+    History:
+        2017-08-14  - HP : Initial commit.
+    '''
+    def remove_peak2D(layer, coords):
+        output = layer.copy()
+        for (IY, IX) in coords:
+            r, cut = arc_linecut(layer, (IX,IY), replDist, 0, width=360)
+            g = 1 - gaussn(r, (1, 0, replSigma))
+            x = np.arange(layer.shape[1])[None, :]
+            y = np.arange(layer.shape[0])[:, None]
+            gx = gaussn(x, (1,IX,sigma))
+            gy = gaussn(y, (1,IY,sigma))
+            G = gx * gy
+            fill = G * np.average(cut, weights=g)
+            output = output * (1-G) + fill
+        return output
+    if coords is None:
+        coords = find_extrema(data, **kwarg)
+    if replSigma is None:
+        replSigma = sigma
+    if replDist is None:
+        replDist = 5*replSigma 
+    out = np.zeros_like(data)
+    if len(data.shape) == 3:
+        if len(coords.shape) == 3:
+            for ix, (layer, coord) in enumerate(zip(data, coords)):
+                out[ix] = remove_peak2D(layer, coord)
+        else:
+            for ix, layer in enumerate(data):
+                out[ix] = remove_peak2D(layer, coords)
+    elif len(data.shape) ==2:
+        out = remove_peak2D(data, coords)
+    else:
+        raise ValueError('Data must be 2D or 3D numpy array')
+    return out
