@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
+import sys
 import numpy as np
 import matplotlib as mpl
 import scipy.interpolate as sin
@@ -1054,7 +1055,7 @@ def crop(data, cen, width=15):
         data    - Required : A 2D or 3D numpy array.
         cen     - Required : A tuple containing location of the center
                              pixel.
-        width   - Optional : Integer containing the alf-width of the 
+        width   - Optional : Integer containing the half-width of the 
                              square to crop. 
 
     Returns:
@@ -1094,13 +1095,19 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
 
     History:
         2017-07-13  - HP : Initial commit.
+        2017-08-14  - HP : Added python 3 compatibility.
     '''
     def chi(pv):
         p0[vary == True] = pv
         fit = f(xData, *p0)
         err = np.absolute(yData - fit)
         return np.log(np.sum(err**2))
-    nargs = f.func_code.co_argcount - 1
+    if sys.version_info[0] == 2:
+        nargs = f.func_code.co_argcount - 1
+    elif sys.version_info[0] == 3:
+        from inspect import signature
+        sig = signature(f)
+        nargs = len(sig.parameters) - 1
     if vary is None:
         vary = np.ones(nargs, dtype=bool)
     if p0 is None:

@@ -198,4 +198,27 @@ def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None,
     return cbar
 
 
+def add_label(label, loc=0, ax=None):
+    '''Quick function to add labels to images. 
+
+    Inputs:
+        label   - Required : String (or formatted string) with contents of
+                             label.
+        loc     - Optional : Integer to describe location of label. Currently
+                             only works for top-right.
+        ax      - Optional : Axes to place the label.  Uses mpl.pyplot.gca() if
+                             not provided. 
+
+    Returns:
+        tx  -   mpl.pyplot.text opbject.
+
+    History:
+        2017-08-15  - HP : Initial commit.
+    '''
+    if ax is None:
+        ax = mpl.pyplot.gca()
+    tx = ax.text(0.95,0.95, label, transform=ax.transAxes, **textOptions)
+    return tx
+
+
 
