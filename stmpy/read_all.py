@@ -101,7 +101,33 @@ Usage: save(filePath, data)
             mappyObject.savemat(filePath)
     else: raise IOError('ERR - File format not supported.')
 
-
+def qkrdasciifile(filename, delimiter='\t', returnheader=False):
+    '''
+    Read formatted data in a general ascii file (no specific extension) with header optionally returned.
+    Data is read when a line starts with a digit (leading spaces and tabs skipped), above which all saved as header and printed.
+    Usage: data, header = qkrdasciifile('filename.txt', delimiter='\t', returnheader=True)
+    '''
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+    header = []
+    ih = 0
+    while not lines[ih].lstrip(' \t')[0].isdigit():
+        header.append(lines[ih])
+        ih = ih + 1
+    print('Header:')
+    for headerline in header:
+        print(headerline)
+    rows = len(lines) - ih
+    cols = len(lines[ih].split(delimiter))
+    data = np.zeros((cols, rows))
+    for ir in range(rows):
+        tmp = lines[ir+ih].split(delimiter)
+        for ic in range(cols):
+            data[ic, ir] = float(tmp[ic])
+    if returnheader:
+        return data, header
+    else:
+        return data
 
 ####    ____HIDDEN METHODS____    ####
 
