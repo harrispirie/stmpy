@@ -4,21 +4,67 @@ from __future__ import print_function
 import sys
 import numpy as np
 import matplotlib as mpl
-import scipy.interpolate as sin
+import scipy.interpolate as sin  #this is a stupid name for this package...
 import scipy.optimize as opt
 import scipy.ndimage as snd
 from scipy.signal import butter, filtfilt
 
 
-def azimuthalAverage(F,x0,y0,r,theta = np.linspace(0,2*np.pi,500)):
-    ''' Uses 2d interpolation to average F over an arc defined by theta 
-    for every r value starting from x0,y0. 
-    
-    WARNING: This funciton is deprecated and will be removed in the next
-    release.
+def interp2d(x, y, z, kind='nearest', **kwargs):
     '''
-    #print(' WARNING: This funciton is deprecated and will be removed in the next release.')
-    f = sin.interp2d(np.arange(F.shape[1]), np.arange(F.shape[0]), F, kind='linear')
+    An extension for scipy.interpolate.interp2d() which adds a 'nearest'
+    neighbor interpolation. 
+
+    See help(scipy.interpolate.interp2d) for details. 
+
+    Inputs:
+        x       - Required : Array contining x values for data points. 
+        y       - Required : Array contining y values for data points.
+        z       - Required : Array contining z values for data points. 
+        kind    - Optional : Sting for interpolation scheme. Options are:
+                             'nearest', 'linear', 'cubic', 'quintic'.  Note
+                             that 'linear', 'cubic', 'quintic' use spline. 
+        **kwargs - Optional : Keyword arguments passed to
+                              scipy.interpolate.interp2d
+
+    Returns: 
+        f(x,y) - Callable function which will return interpolated values. 
+
+    History:
+        2017-08-24  - HP : Initial commit.
+    '''
+    if kind is 'nearest':
+        X, Y = np.meshgrid(x ,y)
+        points = np.array([X.flatten(), Y.flatten()]).T
+        values = z.flatten()
+        fActual = sin.NearestNDInterpolator(points, values)
+        def fCall(x, y):
+            if type(x) is not np.ndarray:
+                lx = 1
+            else:
+                lx = x.shape[0]
+            if type(y) is not np.ndarray:
+                ly = 1
+            else:
+                ly = y.shape[0]    
+            X, Y = np.meshgrid(x ,y)
+            points = np.array([X.flatten(), Y.flatten()]).T
+            values = fActual(points)
+            return values.reshape(lx, ly)
+        return fCall
+    else:
+        return sin.interp2d(x, y, z, kind=kind, **kwargs)
+
+
+def azimuthalAverage(F, x0, y0, r, theta=np.linspace(0,2*np.pi,500), 
+        kind='linear'):
+    ''' Uses 2D interpolation to average F over an arc defined by theta 
+    for every r value starting from x0,y0. 
+
+    History:
+        2017-08-24  - HP : Modified to use stmpy.tools.interp2d().
+    '''
+    f = interp2d(np.arange(F.shape[1]), np.arange(F.shape[0]), F, kind=kind)
     Z = np.zeros_like(r); fTheta = np.zeros_like(theta)
     for ix, r0 in enumerate(r):
         x = r0*np.cos(theta) + x0
@@ -46,7 +92,7 @@ def azimuthalAverageRaw(F,x0,y0,rmax):
     return R[ixSorted], np.array(FAvg)[ixSorted]
 
 
-def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100, 
+def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100, kind='linear',  
         show=False, ax=None, **kwarg):
     '''A less cumbersome wrapper for stmpy.tools.azimuthalAverage.  Computes an
     arc-averaged linecut on 2D data, or on each layer in 3D data.
@@ -62,6 +108,9 @@ def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100,
                              direction.
         dw      - Optional : Number of pixels for interpolation in the
                              azimuthal direction: default 100.
+        kind    - Optional : Sting for interpolation scheme. Options are:
+                             'nearest', 'linear', 'cubic', 'quintic'.  Note
+                             that 'linear', 'cubic', 'quintic' use spline. 
         show    - Optional : Boolean determining whether to plot where the
                              linecut was taken.
         ax      - Optional : Matplotlib axes instance to plot where linecut is
@@ -79,17 +128,19 @@ def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100,
 
     History:
         2017-07-20  - HP : Initial commit. 
+        2017-08-24  - HP : Modified to use stmpy.tools.interp2d() for
+                           interpolation, which allows for 'nearest'. 
     '''
     theta = np.radians(angle)
     dtheta = np.radians(width/2.0)
     r = np.linspace(0, length, round(length+dl))
     t = np.linspace(theta-dtheta, theta+dtheta, round(dw))
     if len(data.shape) == 2:
-        cut = azimuthalAverage(data, p0[0], p0[1], r, t)
+        cut = azimuthalAverage(data, p0[0], p0[1], r, t, kind=kind)
     elif len(data.shape) == 3:
         cut = np.zeros([data.shape[0], len(r)])
         for ix, layer in enumerate(data):
-            cut[ix] = azimuthalAverage(layer, p0[0], p0[1], r, t)
+            cut[ix] = azimuthalAverage(layer, p0[0], p0[1], r, t, kind=kind)
     else:
         raise TypeError('Data must be 2D or 3D numpy array.')
     if show:  
@@ -977,7 +1028,7 @@ def normalize(data, axis=0, condition='mean'):
     return output
    
 
-def linecut(data, p0, p1, width=1, dl=0, dw=0,
+def linecut(data, p0, p1, width=1, dl=0, dw=0, kind='linear',
                 show=False, ax=None, **kwarg):
     '''Linecut tool for 2D or 3D data.
 
@@ -992,6 +1043,9 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0,
                              direction.
         dw      - Optional : Extra pixels for interpolation in the
                              perpendicular direction.
+        kind    - Optional : Sting for interpolation scheme. Options are:
+                             'nearest', 'linear', 'cubic', 'quintic'.  Note
+                             that 'linear', 'cubic', 'quintic' use spline. 
         show    - Optional : Boolean determining whether to plot where the
                              linecut was taken.
         ax      - Optional : Matplotlib axes instance to plot where linecut is
@@ -1010,7 +1064,7 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0,
     History:
         2017-06-19  - HP : Initial commit. 
         2017-06-22  - HP : Python 3 compatible.
-
+        2017-08-24  - HP : Modified to use stmpy.tools.interp2d()
     '''
     def calc_length(p0, p1, dl):
         dx = float(p1[0]-p0[0])
@@ -1040,7 +1094,7 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0,
     
     def linecut2D(layer, p0, p1, width, dl, dw):
         xAll, yAll = np.arange(layer.shape[1]), np.arange(layer.shape[0])
-        F = sin.interp2d(xAll, yAll, layer)
+        F = interp2d(xAll, yAll, layer, kind=kind)
         l, theta, xtot, ytot = calc_length(p0, p1, dl)
         r = np.linspace(0, l, int(np.ceil(l+dl)))
         cut = np.zeros(int(np.ceil(l+dl)))

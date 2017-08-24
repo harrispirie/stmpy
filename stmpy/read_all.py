@@ -199,7 +199,10 @@ class Nanonis3ds(object):
     '''Data structure for Nanonis DOS maps.
 
     Attributes:
-        self.Z      - 2D numpy array containing topography channel.
+        self.Z      - 2D numpy array containing topography channel. Looks for
+                      the 'setup Z' recored simultaneously with the DOS map, if
+                      not found it will resort to the 'scan Z' measured when
+                      moving between lines. 
         self.I      - 3D numpy array for current at each poont.
         self.LIY    - 3D numpy array containing lock-in Y channel.
         self.didv   - 1D numpy array for average LIY
@@ -228,7 +231,11 @@ class Nanonis3ds(object):
                       'definitions.  Found channels:\n {:}'.format(self.data.keys()))
             
             self._make_attr('I',  ['Current (A)', 'Current [AVG] (A)'], 'grid')
-            self._make_attr('Z', ['Scan:Z (m)'], 'scan')
+            if self._make_attr('Z',  ['Z (m)', 'Z [AVG] (m)'], 'grid'):
+                self.Z = self.Z[0]
+            else:
+                self._make_attr('Z', ['Scan:Z (m)'], 'scan')
+                print('WARNING: Using scan channel for Z attribute.')
             try:     
                 self.en = np.mean(self.grid['Bias [AVG] (V)'], axis=(1,2))
             except KeyError:
@@ -257,6 +264,7 @@ class Nanonis3ds(object):
 
         History:
             2017-08-11  - HP : Initial commit.
+            2017-08-24  - HP : Now uses grid z value for Z attribute.
         '''
         dat = getattr(self, data)
         for name in names:
