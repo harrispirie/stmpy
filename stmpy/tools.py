@@ -352,16 +352,30 @@ def quickFT(data, n=None, zero_center=True, flag=True):
         print('ERR: Input must be 2D or 3D numpy array.')
 
 
-def symmetrize(F, n, p=(1,1), flag=True):
+def symmetrize(data, n, bp=(1.,1.), diag=False):
     '''
     Applies n-fold symmetrization to the image by rotating clockwise and
     anticlockwise by an angle 2pi/n, then applying a mirror line.  Works on 2D
     and 3D data sets, in the case of 3D each layer is symmetrzed.
-    p is the location of one Bragg peak
-    HP: Modified default P-value to be on diagonal
+    p is the location of one Bragg peak.
+
+    Inputs:
+        data    - Required : A 2D or 3D numpy array.
+        n       - Required : Integer describing the degree of symmetrization.
+        bp      - Optional : Pixel coordinates of the Bragg peak to define the
+                             mirror line.
+        diag    - Optional : Boolean to assert whether the mirror line is left
+                             on the diagonal.
     
-    Usage: A.sym = symmetrize(A.qpi, 4, (x1, y1))
-    '''
+    Returns:
+        dataSymm - A 2D or 3D numpy array containing symmetrized data.
+
+    History:
+        2017-05-04  - JG : Initial commit.
+        2017-06-05  - HP : Modified default bp-value to be on diagonal.
+        2017-08-15  - HP : Added flag to leave mirror line on the diagonal. 
+                           Code will not line mirror unsquare data.  
+     '''
     def sym2d(F, n):
         angle = 360.0/n
         out = np.zeros_like(F)
@@ -371,24 +385,29 @@ def symmetrize(F, n, p=(1,1), flag=True):
         out /= 2*n
         return out
     
-    def linmirr(F, x1, y1, flag=True):
-        if flag:
-            x0 = int(F.shape[0]/2)
-            y0 = int(F.shape[1]/2)
-            alpha = 3*np.pi/4-np.arctan((y1-y0)/(x1-x0)) # angle between mirror line and diagonal line, unit in rad
-            Fr = snd.rotate(F, -alpha/np.pi*180, reshape=False) # roatate the mirror line to be diagonal
+    def linmirr(F, x1, y1):
+        x0 = int(F.shape[0]/2.)
+        y0 = int(F.shape[1]/2.)
+        if x0 == y0:
+            # angle between mirror line and diagonal line, unit in rad
+            alpha = 3*np.pi/4-np.arctan((y1-y0)/(x1-x0)) 
+            # rotate the mirror line to be diagonal
+            Fr = snd.rotate(F, -alpha/np.pi*180, reshape=False) 
             Ff = Fr.T # diagnoal mirror
-            Ffr = snd.rotate(Ff, alpha/np.pi*180, reshape=False) # rotate back
-            return (Ffr+F)/2
+            if diag:
+                return (Ff+Fr)/2.0
+            else:
+                Ffr = snd.rotate(Ff, alpha/np.pi*180, reshape=False) # rotate back
+                return (Ffr+F)/2.0
         else:
             return F
-    
-    if len(F.shape) is 2:
-            return linmirr(sym2d(F, n), p[0], p[1], flag=flag)
-    if len(F.shape) is 3:
-        out = np.zeros_like(F)
-        for ix, layer in enumerate(F):
-            out[ix] = linmirr(sym2d(layer, n), p[0], p[1], flag=flag)
+    p = np.array(bp, dtype=np.float64)
+    if len(data.shape) is 2:
+            return linmirr(sym2d(data, n), p[0], p[1])
+    if len(data.shape) is 3:
+        out = np.zeros_like(data)
+        for ix, layer in enumerate(data):
+            out[ix] = linmirr(sym2d(layer, n), p[0], p[1])
         return out
     else:
         print('ERR: Input must be 2D or 3D numpy array.')
@@ -1096,7 +1115,11 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
     History:
         2017-07-13  - HP : Initial commit.
         2017-08-14  - HP : Added python 3 compatibility.
+        2017-08-27  - HP : Set default method to 'Powell'
+                           Will print warning if no iterations are evalued.
     '''
+    if 'method' not in kwarg.keys():
+        kwarg['method'] = 'Powell'
     def chi(pv):
         p0[vary == True] = pv
         fit = f(xData, *p0)
@@ -1115,6 +1138,9 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
     p0 = np.array(p0)
     vary = np.array(vary)
     curve_fit.result = opt.minimize(chi, p0[vary == True], **kwarg)
+    if curve_fit.result.nit == 0:
+        print('WARNING - Optimization did not iterate, check for failure:\n' +
+                'Try a different starting guess.')
     p0[vary == True] =  curve_fit.result.x
     return p0
 
@@ -1215,6 +1241,7 @@ def find_extrema(data, n=(1,0), minDist=10, thres=(0.01,0.01),
                        exclBorder=False, **kwarg):
         cmax = np.array([[np.nan, np.nan]])
         cmin = np.array([[np.nan, np.nan]])
+        n = [int(val) for val in n]
         if n[0] is not 0:
             cmax = peak_local_max(layer, min_distance=minDist, threshold_rel=thres[0], 
                               num_peaks=n[0], exclude_border=exclBorder, **kwarg)

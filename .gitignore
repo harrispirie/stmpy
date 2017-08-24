@@ -10,3 +10,5 @@
 *.aux
 
 *.synctex.gz
+
+stmpy/.tools.py.swo
