@@ -4,7 +4,8 @@ from __future__ import print_function
 import sys
 import numpy as np
 import matplotlib as mpl
-import scipy.interpolate as sin  #this is a stupid name for this package...
+#import scipy.interpolate as sin  #this is a stupid name for this package...
+from scipy.interpolate import interp1d
 import scipy.optimize as opt
 import scipy.ndimage as snd
 from scipy.signal import butter, filtfilt
@@ -33,11 +34,12 @@ def interp2d(x, y, z, kind='nearest', **kwargs):
     History:
         2017-08-24  - HP : Initial commit.
     '''
+    from scipy.interpolate import NearestNDInterpolator
     if kind is 'nearest':
         X, Y = np.meshgrid(x ,y)
         points = np.array([X.flatten(), Y.flatten()]).T
         values = z.flatten()
-        fActual = sin.NearestNDInterpolator(points, values)
+        fActual = NearestNDInterpolator(points, values)
         def fCall(x, y):
             if type(x) is not np.ndarray:
                 lx = 1
@@ -53,7 +55,8 @@ def interp2d(x, y, z, kind='nearest', **kwargs):
             return values.reshape(lx, ly)
         return fCall
     else:
-        return sin.interp2d(x, y, z, kind=kind, **kwargs)
+        from scipy.interpolate import interp2d as scinterp2d
+        return scinterp2d(x, y, z, kind=kind, **kwargs)
 
 
 def azimuthalAverage(F, x0, y0, r, theta=np.linspace(0,2*np.pi,500), 
@@ -179,7 +182,7 @@ History:
     y =  np.arange(F.shape[1])
     cen = np.sqrt((x1-x2)**2 + (y1-y2)**2) / 2.0
     r = np.linspace(-1*cen, cen, n)
-    f = sin.interp2d(x, y, F, kind = 'linear')
+    f = interp2d(x, y, F, kind = 'linear')
     xval = np.linspace(x1, x2, n)
     yval = np.linspace(y1, y2, n)
     z = [f(xval[ix],yval[ix])[0] for ix in range(n)]
@@ -302,7 +305,7 @@ def findOtherBraggPeaks(FT, bpx, bpy, n = 1):
 
 def findPeaks(x,y,n=1,nx=1e3):
     ''' Finds n peaks in a given 1D-line by finding where the derivative crosses zero. '''
-    f = sin.interp1d(x,y,kind='linear')
+    f = interp1d(x,y,kind='linear')
     xx = np.linspace(x[0],x[-1],nx); fx = f(xx)
     df = np.gradient(fx)
     x0=[]; y0=[]
@@ -1169,11 +1172,11 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
     History:
         2017-07-13  - HP : Initial commit.
         2017-08-14  - HP : Added python 3 compatibility.
-        2017-08-27  - HP : Set default method to 'Powell'
+        2017-08-27  - HP : Set default method to 'SLSQP'
                            Will print warning if no iterations are evalued.
     '''
     if 'method' not in kwarg.keys():
-        kwarg['method'] = 'Powell'
+        kwarg['method'] = 'SLSQP'
     def chi(pv):
         p0[vary == True] = pv
         fit = f(xData, *p0)
@@ -1194,7 +1197,8 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
     curve_fit.result = opt.minimize(chi, p0[vary == True], **kwarg)
     if curve_fit.result.nit == 0:
         print('WARNING - Optimization did not iterate, check for failure:\n' +
-                'Try a different starting guess.')
+                'Try a different starting guess, or method (Powell can work' +
+                ' well).')
     p0[vary == True] =  curve_fit.result.x
     return p0
 
@@ -1382,3 +1386,38 @@ def remove_extrema(data, coords=None, sigma=4, replSigma=None, replDist=None,
     else:
         raise ValueError('Data must be 2D or 3D numpy array')
     return out
+
+
+def shift_DOS_en(en, LIY, shift, enNew=None, **kwargs):
+    '''Resample LIY data at shifted energy values.
+
+    Inputs:
+        en      - Required : 1D array containing measured energies.
+        LIY     - Required : 3D array containing measured DOS.
+        shift   - Required : Float, or 2D array containing amount to shift
+                             energies before resampling.  If 2D array, it must
+                             have the same xy shape as LIY.
+        eNew    - Optional : Resampled energy values, if not provided en will
+                             be used.  Note that energy values outside the
+                             original range will have a NaN value.
+        **kwargs - Optional : Passed to scipy.interpolate.interp1d(), e.g.
+                              kind='linear'.
+
+    Returns:
+        LIYshift - 3D array contining the LIY values once the shift has been
+                   applied.
+
+    History:
+        2017-08-24  - HP : Initial commit.
+    '''
+    if type(shift) is not np.ndarray:
+        shift = np.zeros_like(LIY[0]) + shift
+    if enNew is None:
+        enNew = en.copy()
+    output = np.zeros([len(enNew), LIY.shape[1], LIY.shape[2]])
+    for ix in range(LIY.shape[2]):
+        for iy in range(LIY.shape[1]):
+            f = interp1d(en-shift[iy,ix], LIY[:,iy,ix], bounds_error=False,
+                    **kwargs)
+            output[:, iy, ix] = f(enNew)
+    return output
