@@ -1162,7 +1162,7 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
         p0      - Optional : Initial guess for parameter values, defauts to 1. 
         vary    - Optional : List of booleans describing which parameters to
                              vary (True) and which to keep fixed (False).
-        **kwarg - Optional : Passed to scipy.optimize.minimize().
+        **kwarg - Optional : Passed to scipy.optimize.minimize(). Example: option={'disp':True} to display convergence messages.
 
     Returns:
         popt    - 1D array containing the optimal values.
@@ -1174,6 +1174,7 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
         2017-08-14  - HP : Added python 3 compatibility.
         2017-08-27  - HP : Set default method to 'SLSQP'
                            Will print warning if no iterations are evalued.
+        2017-09-06  - JG : Set dtype of p0 to be float
     '''
     if 'method' not in kwarg.keys():
         kwarg['method'] = 'SLSQP'
@@ -1192,7 +1193,7 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
         vary = np.ones(nargs, dtype=bool)
     if p0 is None:
         p0 = np.ones(nargs)
-    p0 = np.array(p0)
+    p0 = np.array(p0, dtype=float)
     vary = np.array(vary)
     curve_fit.result = opt.minimize(chi, p0[vary == True], **kwarg)
     if curve_fit.result.nit == 0:
