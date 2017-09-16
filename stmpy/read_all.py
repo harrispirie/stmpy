@@ -114,12 +114,11 @@ def qkrdasciifile(filename, delimiter='\t', returnnotes=False):
     while not lines[ih].lstrip(' \t')[0].isdigit():
         ih = ih + 1
     header = lines[:ih]
-    idt = 1
+    idt = 0
     while lines[ih+idt].lstrip(' \t')[0].isdigit():
-        if ih+idt+1 == len(lines):
+        idt = idt + 1
+        if ih+idt == len(lines):
             break
-        else:
-            idt = idt + 1
     endnote = lines[(ih+idt):]
     rows = idt
     cols = len(lines[ih].lstrip('\t').split(delimiter))
