@@ -605,7 +605,7 @@ def plane_subtract(data, deg, X0=None):
             output[ix] = subtract2D(layer)
         return output
 
-def butter_lowpass_filter(data, ncutoff=0.5, order=1):
+def butter_lowpass_filter(data, ncutoff=0.5, order=1, method='pad', padtype='odd', irlen=None):
     '''
     Low-pass filter applied for an individual spectrum (.dat) or every spectrum in a DOS map (.3ds)
     
@@ -614,6 +614,9 @@ def butter_lowpass_filter(data, ncutoff=0.5, order=1):
     ncutoff: unitless cutoff frequency normaled by Nyquist frequency (half of sampling frequency),
     note that ncutoff <=1, i.e., real cutoff frequency should be less than Nyquist frequency
     order: degree of high frequency attenuation, see Wikipedia item "Butterworth filter".
+    method : “pad” or “gust”. When method is “pad”, the signal is padded. When method is “gust”, Gustafsson’s method is used. [F. Gustaffson, “Determining the initial states in forward-backward filtering”, Transactions on Signal Processing, Vol. 46, pp. 988-992, 1996.]
+    padtype : ‘odd’, ‘even’, ‘constant’, or None. This determines the type of extension to use for the padded signal to which the filter is applied. If padtype is None, no padding is used. The default is ‘odd’.
+    irlen : When method is “gust”, irlen specifies the length of the impulse response of the filter. If irlen is None, no part of the impulse response is ignored. For a long signal, specifying irlen can significantly improve the performance of the filter.
     
     Usage: A_didv_filt = butter_lowpass_filter(A.didv, ncutoff=0.5, order=1)
            A_LIY_filt = butter_lowpass_filter(A.LIY, ncutoff=0.5, order=1)
@@ -622,13 +625,13 @@ def butter_lowpass_filter(data, ncutoff=0.5, order=1):
     b, a = butter(order, ncutoff, btype='low', analog=False)
     y = np.zeros_like(data)
     if len(data.shape) is 1:
-        y = filtfilt(b, a, data)
+        y = filtfilt(b, a, data, method=method, padtype=padtype, irlen=irlen)
         return y
     elif len(data.shape) is 3:
         for ic in np.arange(data.shape[1]):
             for ir in np.arange(data.shape[2]):
                 didv = data[:, ic, ir]
-                y[:, ic, ir] = filtfilt(b, a, didv)
+                y[:, ic, ir] = filtfilt(b, a, didv, method=method, padtype=padtype, irlen=irlen)
         return y
     else:
         print('ERR: Input must be 1D or 3D numpy array.')
