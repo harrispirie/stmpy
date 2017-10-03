@@ -442,6 +442,7 @@ def plot_band_character(k, v, label=False):
         plt.plot(-10, -10, color=my_cmap(255), label='5d')
     return u 
 
+
 def fitData(data, X0=None, bounds=None, nix=None, add_constant=True,
         anisotropy=(True, False), antitunnel=False):
     if nix is None:

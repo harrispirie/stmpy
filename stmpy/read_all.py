@@ -177,7 +177,7 @@ def _nice_units(data):
             err = np.absolute(gFit - didv)
             return np.log(np.sum(err**2))
         lockInMod = float(data.header['Lock-in>Amplitude'])
-        current = np.mean(np.mean(data.I, axis=1), axis=1)
+        current = np.mean(data.I, axis=(1,2))
         didv = np.gradient(current) / np.gradient(data.en)
         result = minimize(chi, 1)
         data.to_nS = result.x / lockInMod * 1e9 
@@ -185,7 +185,6 @@ def _nice_units(data):
         data.LIY *= data.to_nS
         data.didvStd *= data.to_nS
         phi = np.arccos(1.0/result.x)
-        #print('Corrected for a lock-in phase error of {:2.1f} deg'.format(np.degrees(phi)[0]))
     
     def use_nm(data):
         fov = [float(val) for val in data.header['Scan>Scanfield'].split(';')]
@@ -468,41 +467,80 @@ class NanonisSXM(object):
 
 
 class NanonisDat(object):
-    def __init__(self,filename):
+    def __init__(self,filePath):
+        if self._loadDat(filePath):
+            self._make_attr('didv', 
+                    ['LIY 1 omega (A)', 'LIY 1 omega [AVG] (A)'], 'channels')
+            self._make_attr('I', ['Current (A)', 'Current [AVG] (A)'],
+            'channels')
+            self._make_attr('en', ['Bias (V)', 'Bias calc (V)'], 'channels')
+            if 'LIY 1 omega [00001] (A)' in self.channels.keys():
+                sweeps = int(self.header['Bias Spectroscopy>Number of sweeps'])
+                self.LIY = np.zeros([len(self.en), sweeps])
+                for ix in range(1, sweeps+1):
+                    s = str(ix).zfill(5)
+                    self.LIY[:,ix-1] = self.channels['LIY 1 omega [' + s + '] (A)']
+                self.didvStd = np.std(self.LIY, axis=1)
+
+    def _make_attr(self, attr, names, data):
+        '''
+        Trys to give object an attribute from self.data by looking through
+        each key in names.  It will add only the fist match, so the order of
+        names dictates the preferences.
+
+        Inputs:
+            attr    - Required : Name of new attribute
+            names   - Required : List of names to search for
+            data    - Required : Name of a current attribute in which the new
+                                 attribute is stored.
+
+        Returns:
+            1   - If successfully added the attribute
+            0   - If name is not found.
+
+        History:
+            2017-08-29  - HP : Initial commit (copied from Nanonis3ds)
+        '''
+        dat = getattr(self, data)
+        for name in names:
+            if name in dat.keys():
+                setattr(self, attr, dat[name])
+                return 1
+        return 0
+
+    def _loadDat(self, filePath):
         self.channels = {}
         self.header = {}
-        self.header['filename'] = filename
-        self._open()
-    def _open(self):
-        self._file = open(self.header['filename'],'r')
+        fileObj = open(filePath,'r')
         while True:
-            line = self._file.readline()
+            line = fileObj.readline()
             splitLine = line.split('\t')
             if line[0:6] == '[DATA]': 
                 break
             elif line.rstrip() != '': 
                 self.header[splitLine[0]] = splitLine[1]
-        channels = self._file.readline().rstrip().split('\t')
-        allData=[]
-        for line in self._file:
+        channels = fileObj.readline().rstrip().split('\t')
+        allData = []
+        for line in fileObj:
             line = line.rstrip().split('\t')
             allData.append(np.array(line, dtype = float))
         allData = np.array(allData)
-        for ix,channel in enumerate(channels):
+        for ix, channel in enumerate(channels):
             self.channels[channel] = allData[:,ix]
-        self._file.close()
-        try:
-            self.didv = self.channels['LIY 1 omega (A)']
-            self.I = self.channels['Current (A)']
-            self.en = self.channels['Bias (V)']
-        except (KeyError):
-            print('WARNING:  Could not create standard attributes, look in channels instead.')
-            try:
-                self.en = self.channels['Bias calc (V)']
-                self.didv = self.channels['LIY 1 omega [AVG] (A)']
-                self.I = self.channels['Current [AVG] (A)']
-            except (KeyError):
-                print('WARNING:  Could not create standard attributes, look in channels instead.')
+        dataRead = fileObj.tell()
+        fileObj.read()
+        finalRead = fileObj.tell()
+        if dataRead == finalRead: 
+            print('File import successful.')
+            fileObj.close()
+            return 1
+        else: 
+            print('ERR: Did not reach end of file.')
+            fileObj.close()
+            return 0
+
+        
+        
 
 class NISTnvi(object):
     def __init__(self,nviData):

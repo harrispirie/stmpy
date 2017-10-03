@@ -145,6 +145,29 @@ def fano_gapmap(LIY, en, **kwargs):
     return gapmap
 
 
+def gapmap(f, en, LIY, **kwargs): 
+    '''Simple tool to iterate a function over all spectra in a map.
+
+    Inputs:
+        f   - Required : Function to be called at each point. Should be in the
+                         form: f(en, LIY, **kwargs).
+        en  - Required : 1D array for energies.
+        LIY - Required : 3D array containing LIY data.
+        **kwargs - Optional : Passed to f.
+
+    Returns:
+        gmap - 2D numpy containing the value of f at each point.
+
+    History:
+        2017-08-26  - HP : Initial commit.
+    '''
+    gmap = np.zeros([LIY.shape[1], LIY.shape[2]])
+    for iy in range(LIY.shape[1]):
+        for ix in range(LIY.shape[2]):
+            gmap[iy,ix] = f(en, LIY[:,iy,ix], **kwargs)
+        stmpy.tools.print_progress_bar(iy, LIY.shape[1]-1, fill='>')
+    return gmap
+
 
 #########################
 #   CLASS DEFINITIONS   #
