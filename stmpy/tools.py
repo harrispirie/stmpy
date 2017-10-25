@@ -1425,3 +1425,48 @@ def shift_DOS_en(en, LIY, shift, enNew=None, **kwargs):
                     **kwargs)
             output[:, iy, ix] = f(enNew)
     return output
+
+
+def get_qscale(data,  isReal=True, n=(3,0), thres=(1e-10,1)):
+    '''
+    Find the radial coordinate of the Bragg peak in a 2D FFT. This defines
+    the scale in q-space. 
+
+    Inputs:
+        data    - Required : a 2D numpy array containing the real-space data,
+                             can be the topography or an LIY layer. 
+        isReal  - Optional : Boolean to specify is data is in real-space
+                             (default) or in q-space. 
+        n       - Optional : Tuple of integers that defines the number of peaks
+                             and dipe to find in q-space as: (nPeaks, nDips)
+        thres   - Optional : Tuple for relative threshold to search for peaks.
+                             See help(stmpy.tools.find_extrema) for more details.
+
+    Returns:
+        r, phi - Floats containing the angular coordinates of a Bragg peak
+                 (usually lower left in q-space). 
+                 Note: The angle is in degrees. 
+
+    History:
+        2017-10-20  - HP : Initial commit.
+    '''
+    if len(data.shape) != 2:
+        raise ValueError('Data must be 2D numpy array')
+
+    if isReal:
+        f = fft(data, window='none')
+        ftData = f/np.max(f)
+    else:
+        ftData = data/np.max(data)
+    cen = np.array(ftData.shape)/2.0
+    coords = find_extrema(ftData, n=n, thres=thres)
+    for coord in coords:
+        if (coord != cen).all():
+            bp = coord
+            break
+    r = np.linalg.norm(cen-bp, 2)
+    if cen[1]-bp[1] != 0:
+        phi = np.arctan((cen[0]-bp[0]) / float(cen[1]-bp[1]))
+    else:
+        phi = 90.0
+    return r, np.degrees(phi)

@@ -1,5 +1,8 @@
 setup.py
 stmpy/__init__.py
+stmpy/cv.py
+stmpy/driftcorr.py
+stmpy/image.py
 stmpy/matio.py
 stmpy/read_STMView.py
 stmpy/read_all.py
