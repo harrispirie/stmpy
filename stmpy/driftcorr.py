@@ -473,3 +473,31 @@ def spiralroll(B, orient=1):
         if orient is 0:
             A = A.T
         return A
+def findBZvertices(A, Br):
+    '''
+    Find vertices of Brillouin zone (BZ) based on coordinates of Bragg peaks in Fourier space image.
+    
+    A: 2-D array, Fourier transformed image
+    Br: (N, 2) array, coordinates of all Bragg peaks
+    output: coordinates of BZ vertices
+    usage: K = findBZvertices(FT, Br)
+    plot together with FT image: imshow(FT, origin='lower left'); gca().add_patch(Polygon(V, fill=None, color='b'))
+    '''
+    def findV(C, B1, B2):
+        C = np.array(C)
+        B1 = np.array(B1-C)
+        B2 = np.array(B2-C)
+        theta1 = np.arctan2(B1[1], B1[0]) + np.pi/2.
+        theta2 = np.arctan2(B2[1], B2[0]) + np.pi/2.
+        V = np.linalg.solve(np.array([[-np.tan(theta1), 1], [-np.tan(theta2), 1]]), np.array([B1[1]/2.-np.tan(theta1)*B1[0]/2., B2[1]/2.-np.tan(theta2)*B2[0]/2.]))
+        return C + V
+
+    C = np.array(A.shape[-2:])/2.
+    Br = np.array(Br)
+    Br = sortBraggs(Br, A.shape[0])
+    N = Br.shape[0]
+    V = np.zeros_like(Br)
+    for ix in range(N-1):
+        V[ix] = findV(C, Br[ix], Br[ix+1])
+    V[-1] = findV(C, Br[-1], Br[0])
+    return V
