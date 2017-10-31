@@ -155,8 +155,8 @@ remove = ['colors', 'absolute_import', 'cmaps_listed', 'cmapname', 'cmap_d', 'da
           'division', 'get_cmap', 'LUTSIZE', 'ma', 'mpl', 'np', 'print_function', 'os', 
           'register_cmap', 'revcmap', 'six', 'unicode_literals', 'cbook']
 
-for name in remove:
-    delattr(cm, name)
+#for name in remove:
+#    delattr(cm, name)
 
 
-# Add invert_cmap
+
