@@ -1,24 +1,43 @@
 from matplotlib.colors import LinearSegmentedColormap as _LSC
-from matplotlib.pylab import cm as _cm
+from matplotlib.pylab import cm
 from scipy.io import loadmat as _loadmat
 import numpy as _np
 import os as _os
 
-''' Create STM colormaps.
-HP 11/10/2016
+''' 
+A collection of nice colormaps combining those from stmview, the default
+matplotlib ones and custom stmpy colormaps. 
 
-Colormaps created here can be called from within stmpy as
-stmpy.cm.name_of_colormap. Primarily the colormaps are created from STMView
-.mat files. 
+Usage:
+    When making a colormap, ensure it is correcly named (i.e. it must have a
+    cmap.name attrubute), then add it to the list at the bottom of the file to
+    create the reversed colormap. 
 
-One goal of this module is to only make colormaps accessible so that when a
-user uses tab auto-completion they are presented with a list of colormaps and
-NOTHING ELSE.  For this reason all other vairables are 'hidden' and begin with
-a single underscore. Additionally, all colormaps in the module should be
-accompanied by a reversed verion with the same name but '_r' on the end.
+History:
+    2016-11-10  - HP : Initial commit.
+    2017-10-31  - HP : Incorporated all matplotlib colormaps. 
 '''
 
 _path = _os.path.dirname(__file__) + '/maps/' 
+
+def invert_cmap(cmap, name='my_cmap'):
+    '''
+    Creates a new colormap from an existing Listed Colormap by implementing the
+    mapping:
+        (R, G, B, alpha)   -->     (1-R, 1-G, 1-B, alpha)
+
+    Inputs:
+        cmap    - Required : Must be a Listed Colormap.
+
+    Returns:
+        newCmap - Inverse colormap of cmap.
+
+    History:
+        2017-10-31  - HP : Initial commit.
+    '''
+    colors = cmap(_np.arange(cmap.N))
+    colors[:,:3] = 1 - colors[:,:3]
+    return cmap.from_list(name, colors, cmap.N)
 
 def _make_STMView_colormap(fileName, name='my_cmap'):
     if fileName.endswith('.mat'):
@@ -73,24 +92,26 @@ def _make_diverging_colormap(i, f, m=[1,1,1], name='my_cmap'):
               'blue':  ((0.0, i[2], i[2]), (0.5, m[2], m[2]), (1.0, f[2], f[2]))}
     return _LSC(name, _cdict)
 
-BuGy = _make_diverging_colormap(_cm.RdGy(0.99), _cm.RdBu(0.99))
-GnGy = _make_diverging_colormap(_cm.RdGy(0.99), _cm.BuGn(0.99))
-bluered = _make_diverging_colormap(i=(0.230, 0.299, 0.754), f=(0.706, 0.016,0.150), 
-                                   m=(0.865, 0.865, 0.865), name='bluered')
-yanghe = _make_STMView_colormap('YH.mat')
-autumn = _make_STMView_colormap('Autumn.mat')
-blue1 = _make_STMView_colormap('Blue1.mat')
-blue2 = _make_STMView_colormap('Blue2.mat')
-blue3 = _make_STMView_colormap('Blue3.mat')
-defect0 = _make_STMView_colormap('Defect0.mat')
-defect1 = _make_STMView_colormap('Defect1.mat')
-defect2 = _make_STMView_colormap('Defect2.mat')
-defect4 = _make_STMView_colormap('Defect4.mat')
-gray = _make_STMView_colormap('Gray.mat')
-sailingMod2 = _make_STMView_colormap('SailingMod2.mat')
-jackyYRK = _make_diverging_colormap([1, 1, 0], [0, 0, 0.5], m=[0.7, 0.2, 0])
-jackyCopper = _make_diverging_colormap([0.2, 0.1, 0], [1, 0.95, 0.6], m=[1, 0.65, 0.25])
-jackyRdGy = _make_diverging_colormap([0.2, 0.2, 0.2], [0.7, 0, 0], m=[0.95, 0.95, 0.95])
+cm.BuGy = _make_diverging_colormap(cm.RdGy(0.99), cm.RdBu(0.99), name='BuGy')
+cm.GnGy = _make_diverging_colormap(cm.RdGy(0.99), cm.BuGn(0.99), name='GnGy')
+cm.redblue = _make_diverging_colormap(i=(0.230, 0.299, 0.754), f=(0.706, 0.016,0.150), 
+                                      m=(0.865, 0.865, 0.865), name='redblue')
+cm.autumn = _make_STMView_colormap('Autumn.mat', name='autumn')
+cm.blue1 = _make_STMView_colormap('Blue1.mat', name='blue1')
+cm.blue2 = _make_STMView_colormap('Blue2.mat', name='blue2')
+cm.blue3 = _make_STMView_colormap('Blue3.mat', name='blue3')
+cm.defect0 = _make_STMView_colormap('Defect0.mat', name='defect0')
+cm.defect1 = _make_STMView_colormap('Defect1.mat', name='defect1')
+cm.defect2 = _make_STMView_colormap('Defect2.mat', name='defect2')
+cm.defect4 = _make_STMView_colormap('Defect4.mat', name='defect4')
+cm.gray = _make_STMView_colormap('Gray.mat', name='gray')
+cm.sailingMod2 = _make_STMView_colormap('SailingMod2.mat', name='sailingMod2')
+cm.jackyYRK = _make_diverging_colormap([1, 1, 0], [0, 0, 0.5], 
+                                        m=[0.7, 0.2, 0], name='jackyYRK')
+cm.jackyCopper = _make_diverging_colormap([0.2, 0.1, 0], [1, 0.95, 0.6],
+                                        m=[1, 0.65, 0.25], name='jackyCopper')
+cm.jackyRdGy = _make_diverging_colormap([0.2, 0.2, 0.2], [0.7, 0, 0],
+                                        m=[0.95,0.95, 0.95], name='jackyRdGy')
 _cdictPSD = {'red':   ((0.00, 0.00, 0.06),
                        (0.25, 0.21, 0.21),
                        (0.45, 0.31, 0.31),
@@ -108,26 +129,34 @@ _cdictPSD = {'red':   ((0.00, 0.00, 0.06),
                        (0.50, 0.33, 0.33),
                        (0.75, 0.27, 0.27),
                        (1.00, 0.95, 1.00))}
-jackyPSD = _LSC('jackyPSD', _cdictPSD)
-jason = _make_STMView_colormap('Red_Blue.txt')
+cm.jackyPSD = _LSC('jackyPSD', _cdictPSD)
+cm.jason = _make_STMView_colormap('Red_Blue.txt', name='jason')
+cm.yanghe = invert_cmap(cm.defect0, name='yanghe')
+cm.helix = invert_cmap(cm.cubehelix_r, name='helix')
 
-BuGy_r = _reverse_LSC(BuGy)
-GnGy_r = _reverse_LSC(GnGy)
-bluered_r = _reverse_LSC(bluered)
-yanghe_r =_reverse_LSC(yanghe)
-autumn_r =_reverse_LSC(autumn)
-blue1_r = _reverse_LSC(blue1)
-blue2_r = _reverse_LSC(blue2)
-blue3_r = _reverse_LSC(blue3)
-defect0_r = _reverse_LSC(defect0)
-defect1_r = _reverse_LSC(defect1)
-defect2_r = _reverse_LSC(defect2)
-defect4_r = _reverse_LSC(defect4)
-gray_r = _reverse_LSC(gray)
-sailingMod2_r = _reverse_LSC(sailingMod2)
-jackyYRK_r = _reverse_LSC(jackyYRK)
-jackyCopper_r = _reverse_LSC(jackyCopper)
-jackyRdGy_r = _reverse_LSC(jackyRdGy)
-jackyPSD_r = _reverse_LSC(jackyPSD)
-jason_r = _reverse_LSC(jason)
 
+# Reverse Cmaps: Add new cmap name to the list. 
+cmaps = [cm.BuGy, cm.GnGy, cm.redblue, cm.autumn, cm.blue1, cm.blue2, cm.blue3,
+         cm.defect0, cm.defect1, cm.defect2, cm.defect4, cm.gray,
+         cm.sailingMod2, cm.jackyYRK, cm.jackyCopper, cm.jackyRdGy,
+         cm.jackyPSD, cm.jason, cm.helix, cm.yanghe]
+
+for cmap in cmaps:
+    rev = _reverse_LSC(cmap)
+    setattr(cm, cmap.name + '_r', rev)
+
+
+# Remove non-cmap attributes and methods from cm
+removeall = ['colors', 'absolute_import', 'cmaps_listed', 'cmapname', 'cmap_d', 'datad', 
+          'division', 'get_cmap', 'LUTSIZE', 'ma', 'mpl', 'np', 'print_function', 'os', 
+          'register_cmap', 'revcmap', 'ScalarMappable', 'six', 'unicode_literals', 'cbook']
+
+remove = ['colors', 'absolute_import', 'cmaps_listed', 'cmapname', 'cmap_d', 'datad', 
+          'division', 'get_cmap', 'LUTSIZE', 'ma', 'mpl', 'np', 'print_function', 'os', 
+          'register_cmap', 'revcmap', 'six', 'unicode_literals', 'cbook']
+
+for name in remove:
+    delattr(cm, name)
+
+
+# Add invert_cmap

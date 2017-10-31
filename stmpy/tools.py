@@ -1427,7 +1427,7 @@ def shift_DOS_en(en, LIY, shift, enNew=None, **kwargs):
     return output
 
 
-def get_qscale(data,  isReal=True, n=(3,0), thres=(1e-10,1)):
+def get_qscale(data, isReal=True, n=(3,0), thres=(1e-10,1), **kwarg):
     '''
     Find the radial coordinate of the Bragg peak in a 2D FFT. This defines
     the scale in q-space. 
@@ -1441,6 +1441,7 @@ def get_qscale(data,  isReal=True, n=(3,0), thres=(1e-10,1)):
                              and dipe to find in q-space as: (nPeaks, nDips)
         thres   - Optional : Tuple for relative threshold to search for peaks.
                              See help(stmpy.tools.find_extrema) for more details.
+        **kwarg - Optional : Passed to stmpy.tools.find_extrema
 
     Returns:
         r, phi - Floats containing the angular coordinates of a Bragg peak
@@ -1459,8 +1460,8 @@ def get_qscale(data,  isReal=True, n=(3,0), thres=(1e-10,1)):
     else:
         ftData = data/np.max(data)
     cen = np.array(ftData.shape)/2.0
-    coords = find_extrema(ftData, n=n, thres=thres)
-    for coord in coords:
+    coords = find_extrema(ftData, n=n, thres=thres, **kwarg)
+    for coord in coords[::-1]:
         if (coord != cen).all():
             bp = coord
             break
