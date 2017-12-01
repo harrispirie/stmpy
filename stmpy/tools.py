@@ -915,13 +915,13 @@ def radial_linecut(data, length, angle, width, reshape=True):
         print('ERR: Input must be 2D or 3D numpy array')
 
 
-def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
+def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
     '''
     Compute the fast Frouier transform of a data set with the option to add
     windowing. 
    
     Inputs:
-        dataIn  - Required : A 1D, 2D or 3D numpy array
+        data    - Required : A 1D, 2D or 3D numpy array
         window  - Optional : String containing windowing function used to mask
                              data.  The options are: 'None' (or 'none'), 'bartlett',
                              'blackman', 'hamming', 'hanning' and 'kaiser'.
@@ -943,10 +943,11 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
     History:
         2017-06-15  - HP : Initial commit.
         2017-06-22  - HP : Added support for 1D data and complex output.
-        2017-10-31  - HP : Improved zeroDC to subtact the mean before FFT.
     '''
     def ft2(data):
         ftData = np.fft.fft2(data)
+        if zeroDC:
+            ftData[0,0] = 0
         return np.fft.fftshift(ftData)
     
     outputFunctions = {'absolute':np.absolute, 'real':np.real, 
@@ -959,10 +960,6 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
 
     outputFunction = outputFunctions[output]
     windowFunction = windowFunctions[window]
-    
-    data = dataIn.copy()
-    if zeroDC:
-        data -= np.mean(data)
 
     if len(data.shape) != 1:
         if window == 'kaiser':
@@ -994,6 +991,8 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
             W = windowFunction(data.shape[0])
         wData = data * W
         ftD = np.fft.fft(wData)
+        if zeroDC :
+            ftD[0] = 0
         ftData = outputFunction(np.fft.fftshift(ftD))
     return ftData
 
@@ -1428,7 +1427,7 @@ def shift_DOS_en(en, LIY, shift, enNew=None, **kwargs):
     return output
 
 
-def get_qscale(data, isReal=True, n=(3,0), thres=(1e-10,1), **kwarg):
+def get_qscale(data,  isReal=True, n=(3,0), thres=(1e-10,1)):
     '''
     Find the radial coordinate of the Bragg peak in a 2D FFT. This defines
     the scale in q-space. 
@@ -1442,7 +1441,6 @@ def get_qscale(data, isReal=True, n=(3,0), thres=(1e-10,1), **kwarg):
                              and dipe to find in q-space as: (nPeaks, nDips)
         thres   - Optional : Tuple for relative threshold to search for peaks.
                              See help(stmpy.tools.find_extrema) for more details.
-        **kwarg - Optional : Passed to stmpy.tools.find_extrema
 
     Returns:
         r, phi - Floats containing the angular coordinates of a Bragg peak
@@ -1461,8 +1459,8 @@ def get_qscale(data, isReal=True, n=(3,0), thres=(1e-10,1), **kwarg):
     else:
         ftData = data/np.max(data)
     cen = np.array(ftData.shape)/2.0
-    coords = find_extrema(ftData, n=n, thres=thres, **kwarg)
-    for coord in coords[::-1]:
+    coords = find_extrema(ftData, n=n, thres=thres)
+    for coord in coords:
         if (coord != cen).all():
             bp = coord
             break
@@ -1472,27 +1470,3 @@ def get_qscale(data, isReal=True, n=(3,0), thres=(1e-10,1), **kwarg):
     else:
         phi = 90.0
     return r, np.degrees(phi)
-
-
-def find_intersect(x, y1, y2):
-    '''
-    Find the intersection between two curves. Note that the curves must be of
-    the form y1(x), y2(x), that is, they must share the same x values.  
-    
-    Inputs: 
-        x   - Required : 1D array containing shared x values.
-        y1  - Required : 1D array containing y values of the first curve.
-        y2  - Required : 1D array containing y values of the second curve.
-
-    Returns:
-        intersect - Float for the intersection of the two curves.
-
-    History:
-        2017-10-31  - HP : Initial commit.
-    '''
-    diff = y1 - y2
-    for ix, (yL, yH) in enumerate(zip(diff[:-1], diff[1:])):
-        if np.sign(yL) != np.sign(yH):
-            xL, xH = x[ix], x[ix+1]
-            intersect = xH - yH * (xH-xL) / float(yH - yL)
-    return intersect
