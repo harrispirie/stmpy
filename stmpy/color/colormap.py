@@ -133,13 +133,14 @@ cm.jackyPSD = _LSC('jackyPSD', _cdictPSD)
 cm.jason = _make_STMView_colormap('Red_Blue.txt', name='jason')
 cm.yanghe = invert_cmap(cm.defect0, name='yanghe')
 cm.helix = invert_cmap(cm.cubehelix_r, name='helix')
+cm.gold = invert_cmap(cm.bone_r, name='gold')
 
 
 # Reverse Cmaps: Add new cmap name to the list. 
 cmaps = [cm.BuGy, cm.GnGy, cm.redblue, cm.autumn, cm.blue1, cm.blue2, cm.blue3,
          cm.defect0, cm.defect1, cm.defect2, cm.defect4, cm.gray,
          cm.sailingMod2, cm.jackyYRK, cm.jackyCopper, cm.jackyRdGy,
-         cm.jackyPSD, cm.jason, cm.helix, cm.yanghe]
+         cm.jackyPSD, cm.jason, cm.helix, cm.yanghe, cm.gold]
 
 for cmap in cmaps:
     rev = _reverse_LSC(cmap)
