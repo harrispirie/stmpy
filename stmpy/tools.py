@@ -915,13 +915,13 @@ def radial_linecut(data, length, angle, width, reshape=True):
         print('ERR: Input must be 2D or 3D numpy array')
 
 
-def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
+def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
     '''
     Compute the fast Frouier transform of a data set with the option to add
     windowing. 
    
     Inputs:
-        data    - Required : A 1D, 2D or 3D numpy array
+        dataIn    - Required : A 1D, 2D or 3D numpy array
         window  - Optional : String containing windowing function used to mask
                              data.  The options are: 'None' (or 'none'), 'bartlett',
                              'blackman', 'hamming', 'hanning' and 'kaiser'.
@@ -1001,8 +1001,6 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
             W = windowFunction(data.shape[0])
         wData = data * W
         ftD = np.fft.fft(wData)
-        if zeroDC :
-            ftD[0] = 0
         ftData = outputFunction(np.fft.fftshift(ftD))
     return ftData
 
@@ -1497,3 +1495,27 @@ def get_qscale(data, isReal=True, cix=1, n=(3,0), thres=(1e-10,1), show=False,
                 ax.plot(coord[1], coord[0], 'x', ms=8, mew=1, label=label)
         ax.legend()
     return r, np.degrees(phi)
+
+
+def find_intersect(x, y1, y2):
+    '''
+    Find the intersection between two curves. Note that the curves must be of
+    the form y1(x), y2(x), that is, they must share the same x values.  
+    
+    Inputs: 
+        x   - Required : 1D array containing shared x values.
+        y1  - Required : 1D array containing y values of the first curve.
+        y2  - Required : 1D array containing y values of the second curve.
+
+    Returns:
+        intersect - Float for the intersection of the two curves.
+
+    History:
+        2017-10-31  - HP : Initial commit.
+    '''
+    diff = y1 - y2
+    for ix, (yL, yH) in enumerate(zip(diff[:-1], diff[1:])):
+        if np.sign(yL) != np.sign(yH):
+            xL, xH = x[ix], x[ix+1]
+            intersect = xH - yH * (xH-xL) / float(yH - yL)
+    return intersect
