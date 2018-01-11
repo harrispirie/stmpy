@@ -943,11 +943,8 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
     History:
         2017-06-15  - HP : Initial commit.
         2017-06-22  - HP : Added support for 1D data and complex output.
-<<<<<<< HEAD
         2017-10-31  - HP : Improved zeroDC to subtact the mean before FFT.
         2017-11-19  - HP : Fixed a bug in calculating the mean of 3D data. 
-=======
->>>>>>> origin/master
     '''
     def ft2(data):
         ftData = np.fft.fft2(data)
@@ -965,7 +962,6 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
 
     outputFunction = outputFunctions[output]
     windowFunction = windowFunctions[window]
-<<<<<<< HEAD
     
     data = dataIn.copy()
     if zeroDC:
@@ -974,8 +970,6 @@ def fft(data, window='None', output='absolute', zeroDC=False, beta=1.0):
                 data[ix] -= np.mean(layer)
         else:
             data -= np.mean(data)
-=======
->>>>>>> origin/master
 
     if len(data.shape) != 1:
         if window == 'kaiser':
@@ -1443,12 +1437,8 @@ def shift_DOS_en(en, LIY, shift, enNew=None, **kwargs):
     return output
 
 
-<<<<<<< HEAD
 def get_qscale(data, isReal=True, cix=1, n=(3,0), thres=(1e-10,1), show=False,
         ax=None, **kwarg):
-=======
-def get_qscale(data,  isReal=True, n=(3,0), thres=(1e-10,1)):
->>>>>>> origin/master
     '''
     Find the radial coordinate of the Bragg peak in a 2D FFT. This defines
     the scale in q-space. 
@@ -1464,14 +1454,11 @@ def get_qscale(data,  isReal=True, n=(3,0), thres=(1e-10,1)):
                              and dipe to find in q-space as: (nPeaks, nDips)
         thres   - Optional : Tuple for relative threshold to search for peaks.
                              See help(stmpy.tools.find_extrema) for more details.
-<<<<<<< HEAD
         show    - Optional : Boolean. If true will plot the detected peaks and
                              circle the one being used. Must supply ax.
         ax      - Optional : Matplotlib axes instance.  Must be supplied if
                              show=True.
         **kwarg - Optional : Passed to stmpy.tools.find_extrema
-=======
->>>>>>> origin/master
 
     Returns:
         r, phi - Floats containing the angular coordinates of a Bragg peak
@@ -1492,16 +1479,8 @@ def get_qscale(data,  isReal=True, n=(3,0), thres=(1e-10,1)):
     else:
         ftData = data/np.max(data)
     cen = np.array(ftData.shape)/2.0
-<<<<<<< HEAD
     coords = find_extrema(ftData, n=n, thres=thres, **kwarg)
     bp = coords[cix]
-=======
-    coords = find_extrema(ftData, n=n, thres=thres)
-    for coord in coords:
-        if (coord != cen).all():
-            bp = coord
-            break
->>>>>>> origin/master
     r = np.linalg.norm(cen-bp, 2)
     if cen[1]-bp[1] != 0:
         phi = np.arctan((cen[0]-bp[0]) / float(cen[1]-bp[1]))

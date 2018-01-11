@@ -108,7 +108,7 @@ _cdictPSD = {'red':   ((0.00, 0.00, 0.06),
                        (0.50, 0.33, 0.33),
                        (0.75, 0.27, 0.27),
                        (1.00, 0.95, 1.00))}
-<<<<<<< HEAD
+
 cm.jackyPSD = _LSC('jackyPSD', _cdictPSD)
 cm.jason = _make_STMView_colormap('Red_Blue.txt', name='jason')
 cm.yanghe = invert_cmap(cm.defect0, name='yanghe')
@@ -140,28 +140,4 @@ remove = ['colors', 'absolute_import', 'cmaps_listed', 'cmapname', 'cmap_d', 'da
 #    delattr(cm, name)
 
 
-=======
-jackyPSD = _LSC('jackyPSD', _cdictPSD)
-jason = _make_STMView_colormap('Red_Blue.txt')
-
-BuGy_r = _reverse_LSC(BuGy)
-GnGy_r = _reverse_LSC(GnGy)
-bluered_r = _reverse_LSC(bluered)
-yanghe_r =_reverse_LSC(yanghe)
-autumn_r =_reverse_LSC(autumn)
-blue1_r = _reverse_LSC(blue1)
-blue2_r = _reverse_LSC(blue2)
-blue3_r = _reverse_LSC(blue3)
-defect0_r = _reverse_LSC(defect0)
-defect1_r = _reverse_LSC(defect1)
-defect2_r = _reverse_LSC(defect2)
-defect4_r = _reverse_LSC(defect4)
-gray_r = _reverse_LSC(gray)
-sailingMod2_r = _reverse_LSC(sailingMod2)
-jackyYRK_r = _reverse_LSC(jackyYRK)
-jackyCopper_r = _reverse_LSC(jackyCopper)
-jackyRdGy_r = _reverse_LSC(jackyRdGy)
-jackyPSD_r = _reverse_LSC(jackyPSD)
-jason_r = _reverse_LSC(jason)
->>>>>>> origin/master
 
