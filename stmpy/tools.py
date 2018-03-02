@@ -8,7 +8,7 @@ import matplotlib as mpl
 from scipy.interpolate import interp1d
 import scipy.optimize as opt
 import scipy.ndimage as snd
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt, fftconvolve
 
 
 def interp2d(x, y, z, kind='nearest', **kwargs):
@@ -1519,3 +1519,79 @@ def find_intersect(x, y1, y2):
             xL, xH = x[ix], x[ix+1]
             intersect = xH - yH * (xH-xL) / float(yH - yL)
     return intersect
+
+
+def thermal_broaden(en, didv, T, N=10000, mode='reflect', offset=None):
+    '''
+    Temperature causes spectral features to become broader.  This function
+    mimiks the effect of higher temperatures by convoluting a didv data 
+    with the derivatice of the Fermi-Dirac distribution. This function works to
+    temperatures as low as 1mK.  To go lower in temperature is risky, because
+    the kernel become sharply peaked and requires and extremely dense set of
+    data points to accurately compute it.  To avoid long computation times this
+    function refuses to use more than 1e7 points, though you're welcome to try
+    and trick it by reducing 'N'. I wouldn't recommend ridiculously high (>300)
+    temperatures either. 
+    
+    To smooth edge effects, the data is reflected onto itself at both ends.
+
+    Inputs:
+        en      - Required : Array containing energy values.
+        didv    - Required : 1D array with the spectrum to be smeared.
+        T       - Required : Float for temperature (in Kelvin) to smear to. 
+        N       - Optional : Integer for number of points for temperatures
+                             greater than 1K.  Temperature less than 1K will
+                             use N*1/T points.
+        mode    - Optional : String describing mode of convolution. Only option
+                             available is 'reflect'. 
+        offset  - Optional : Integer to shift the convoluted spectra to the
+                             left or right. No, I do not know why you need to
+                             do that, but you do. 
+
+    Returns:
+        smearedData - Array same size as didv containing broadened data.
+
+    History:
+        2018-02-01  - HP : Initial commit. 
+        
+    
+    '''
+    
+    def fermi_derivative(en, T):
+        '''This is the Kernel for thermal smearing.'''
+        kT = 8.617330350e-5 * T * 1e3 # in meV
+        y = (1 - np.tanh((en/(2*kT)))**2) / (4*kT)
+        return y * (en[1]-en[0])
+    
+    if mode == 'reflect':
+        dv =  np.concatenate([didv[::-1][:-1], didv, didv[::-1][1:]])
+        De = en[-1]-en[0]
+        ev = np.linspace(en[0]-De, en[-1]+De, 3*len(en)-2)
+    else:
+        raise(ValueError('Mode must be reflect. (I have not coded any others).'))
+    
+    if offset is None:
+        if len(en)%2 == 0:
+            offset = -1
+        else:
+            offset = 1
+            
+    n = int(N*max(1/T, 1))
+    if n>1e7:
+        raise(ValueError('Too many points for interpolation.  Probably caused by '
+                        + 'the temperature being too extreme. '))
+    
+    x = np.linspace(ev[0], ev[-1], n) 
+    dx = x[1] - x[0]
+    f = fermi_derivative(x, T)
+    norm = sum(f)
+    if norm < 0.99:
+        print('Warning: The Kernal is not normalized, which may cause the calculation '
+              + 'to be inaccurate. This is probably because the temperature is too '
+             + 'high for the input energy range.  Norm = {:2.2f}'.format(norm))
+
+    g = interp1d(ev, dv, kind='linear')
+    fg = fftconvolve(f, g(x), 'same')
+    y = interp1d(x, fg, kind='linear')
+    sampled = y(ev) 
+    return sampled[len(en)+offset:2*len(en)+offset]
