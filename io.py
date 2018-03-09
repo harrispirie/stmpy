@@ -1,23 +1,3 @@
-'''
-STMPY I/O Version 1.0
-
-Read and write common file types.
-
-Contents:
-    load()  -   Load supported data into python
-    save()  -   Save python data to disk. 
-
-Version history:
-    1.0     2018-03-02  - HP : Initial release.  
-
-TO DO: 
-    - Add support for .mat files
-    - Rewrite load_3ds() to buffer data and improve efficiency.
-'''
-
-__version__ = 1.0
-
-
 import stmpy
 from stmpy import matio
 import numpy as np
@@ -30,21 +10,42 @@ from datetime import datetime, timedelta
 from scipy.optimize import minimize
 
 
+'''
+STMPY I/O Version 1.0.1
+
+Read and write common file types. 
+
+
+Supported inputs:
+    .spy    -   STMPY data file.
+    .3ds
+    .sxm
+    .dat
+    .nsp
+    .nvi
+    .nvl
+    .asc
+
+Supported ouputs:
+    .spy
+
+
+TO DO: 
+    - Add support for .mat files
+    - Rewrite load_3ds() to buffer data and improve efficiency.
+
+History:
+    2018-03-02:     HP  -   Initial commit. 
+    2018-03-08:     HP  -   Added better saving for numpy data types.
+'''
+
+version = 1.0
 
 def load(filePath, biasOffset=True, niceUnits=False):
     '''
     Loads data into python. Please include the file extension in the path.
 
-    Supported extensions: 
-        .spy    -   STMPY generic data format. 
-        .3ds    -   NANONIS grid data. Commonly used for DOS maps.
-        .sxm    -   NANONIS scan data. Commonly used for topographys. 
-        .dat    -   NANONIS data file. Commonly used for bias spectroscopy. 
-        .nsp    -   NANONIS long term spectum data type. 
-        .nvi    -   NISTview image data, used for topography data.  
-        .nvl    -   NISTview layer data, used for 3D DOS maps. 
-        .asc    -   ASCII file type. 
-
+    Currently supports formats: spy, 3ds, sxm, dat, nsp, nvi, nvl, asc. 
 
     For .3ds and .dat file types there is an optional flag to correct for bias offset
     that is true by default.  This does not correct for a current offset, and
@@ -58,26 +59,8 @@ def load(filePath, biasOffset=True, niceUnits=False):
         niceUnits   - Optional : Put lock-in channel units as nS (in future
                                  will switch Z to pm, etc.)
     Returns:
-        spyObject  - Custom object with attributes appropriate to the type of
+        dataObject  - Custom object with attributes appropriate to the type of
                       data and containing experiment parameters in a header.
-
-    History: 
-        2016-07-14  - HP : Initial commit. 
-        2016-07-15  - HP : Added support for NVL and NVI files.
-        2016-07-29  - HP : Added support for rectangular DOS maps.
-        2016-08-02  - HP : Added support for single line DOS maps.
-        2016-08-09  - HP : Added bias offset for DAT files. 
-        2016-09-14  - HP : Added compatibility for incomplete data sets. 
-        2016-11-01  - HP : Added support for specific ASCII files. 
-        2017-01-13  - HP : Improved loading of DAT files.
-        2017-03-27  - RL : Added support for NSP files. 
-        2017-06-08  - HP : Use sensible units when loading data.
-        2017-06-16  - JG : Improve handling of multi-sweep DAT files.
-        2017-08-11  - HP : Added support for non-linear bias sweep. 
-        2017-08-17  - JG : Added support for general ASCII files. 
-        2017-08-24  - HP : Better searching for Z attribute in DOS maps. 
-        2017-10-03  - HP : Improved reading of DAT files
-        2018-03-02  - HP : VERSION  1.0 - Unified to a single SPY class. 
     '''
     try:
         extension = filePath.split('.')[1]
@@ -113,26 +96,11 @@ def load(filePath, biasOffset=True, niceUnits=False):
     else: 
         raise IOError('ERR - File type {:} not supported.'.format(extension))
 
-
-def save(data, filePath, objects=[]):
-    '''
-    Save python data to file. Please include the file extension in the path.
+def save(data, filePath, precision=None, objects=[]):
+    '''Save data to file. Please include the file extension in the path.
 
     Currently supports: 
-        .spy    -   STMPY generic data format. 
-
-    Inputs: 
-        data        - Required : Any python data/object/list/...
-        filePath    - Required : str. Path where the file will be saved.
-        objects     - Optional : lst. Only objects with a __class__ in this 
-                                 list (and Spy objects) can be saved.  
-
-    Returns: 
-        None
-
-    History: 
-        2018-03-02  - HP : Initial commit. 
-        2018-03-08  - HP : Added support for multi-line strings. 
+        .spy - STMPY generic data format. 
     '''
     try:
         extension = filePath.split('.')[1]
@@ -140,7 +108,7 @@ def save(data, filePath, objects=[]):
         raise IOError('Please include file extension in path.')
     saveFn = 'save_' + extension
     if extension in ['spy']:
-        eval(saveFn)(data, filePath, objects)        
+        eval(saveFn)(data, filePath, precision, objects)        
     else: 
         raise IOError('ERR - File type {:} not supported.'.format(extension))
 
@@ -238,18 +206,15 @@ def _make_attr(self, attr, names, data):
 
 ####    ____SAVE FUNCTIONS____    ####
 
-def save_spy(data, filePath, objects=[]):
-    '''Save python data to file'''
-    def write_npy(name, npy):
-        if npy.dtype.name == 'object':
-            fileObj.write('OAR=' + name + '\n')
-            fileObj.write(str(npy.shape) + '\n')
-            for obj in npy:
-                write_obj('unnamed', obj)
-        else:
-            fileObj.write('NPY=' + name + '\n')
-            np.save(fileObj, npy)
-
+def save_spy(data, filePath, precision=None, objects=[]):
+    def write_arr(name, arr):
+        if precision is not None:
+            dt = arr.dtype.str
+            arr = arr.astype(dt[:2] + str(precision))
+        fileObj.write('ARR=' + name + '\n')
+        fileObj.write(str(arr.shape) +';' + str(arr.dtype) + '\n')
+        fileObj.write(bytearray(arr))
+    
     def write_obj(name, obj):
         fileObj.write('OBJ=' + name + '\n')
         for name, item in obj.__dict__.items():
@@ -271,7 +236,6 @@ def save_spy(data, filePath, objects=[]):
     def write_str(name, val):
         fileObj.write('STR=' + name + '\n')
         fileObj.write(bytearray(val.encode('utf-8')) + '\n')
-        fileObj.write(':STR_END:\n')
     
     def write_num(name, val):
         fileObj.write('NUM=' + name + '\n')
@@ -287,13 +251,9 @@ def save_spy(data, filePath, objects=[]):
         fileObj.write('CPX=' + name + '\n')
         fileObj.write(pack('>f', val.real) + pack('>f', val.imag))
 
-    def write_bol(name, val):
-        fileObj.write('BOL=' + name + '\n')
-        fileObj.write('NOTWORKING')
-
     def write_item(name, item):        
-        if type(item).__module__ == np.__name__:
-            write_npy(name, item)
+        if isinstance(item, np.ndarray):
+            write_arr(name, item)
         elif isinstance(item, dict):
             write_dic(name, item)
         elif isinstance(item, list):
@@ -327,27 +287,19 @@ def save_spy(data, filePath, objects=[]):
 
 def load_spy(filePath):
     ''' Load .spy files into python''' 
-    def read_npy(fileObj):
-        npy = np.load(fileObj)
-        if npy.shape == ():
-            npy = npy.flatten()[0]
-        return npy
-    
-    def read_oar(fileObj):
+    def read_arr(fileObj):
         line = fileObj.readline().strip().decode('utf-8')
-        shape = eval(line)
-        oar = np.empty(shape=shape, dtype=object).flatten()
-        for ix, __ in enumerate(oar):
-            line = fileObj.readline().strip().decode('utf-8')
-            oar[ix] = read_obj(fileObj)
-        return oar.reshape(shape)
+        shapeStr, dtypeStr = line.split(';')
+        shape = eval(shapeStr)
+        dtype = np.dtype(dtypeStr)
+        arr = np.fromfile(fileObj, dtype=dtype, count=np.prod(shape))
+        return arr.reshape(shape)
     
     def read_obj(fileObj):
         obj = Spy()
         while True:
             line = fileObj.readline().strip().decode('utf-8')
             if line == ':OBJ_END:':
-                'finished'
                 break
             key, val = line.split('=')
             setattr(obj, val, read_item(fileObj, key))
@@ -374,17 +326,8 @@ def load_spy(filePath):
         return lst
     
     def read_str(fileObj):
-        st = ''
-        while True:
-            line = fileObj.readline()
-            if line.strip().decode('utf-8') == ':STR_END:':
-                break
-            st += line
-        return st
-
-    #def read_str(fileObj):
-    #    return fileObj.readline().strip().decode('utf-8')
-
+        return fileObj.readline().strip().decode('utf-8')
+    
     def read_num(fileObj):
         fmt = fileObj.read(2)
         num = unpack(fmt, fileObj.read(calcsize(fmt)))[0]
@@ -396,10 +339,8 @@ def load_spy(filePath):
         return complex(real, imag)
     
     def read_item(fileObj, key):
-        if   key == 'NPY':
-            item = read_npy(fileObj)
-        elif key == 'OAR':
-            item = read_oar(fileObj)
+        if key == 'ARR':
+            item = read_arr(fileObj)
         elif key == 'OBJ':
             item = read_obj(fileObj)
         elif key == 'DIC': 
@@ -422,7 +363,7 @@ def load_spy(filePath):
     fileSize = fileObj.tell()
     fileObj.seek(0)
     name, version = fileObj.readline().strip().decode('utf-8').split('=')
-    if float(version) < 1.0:
+    if version < 1.0:
         raise(TypeError('Version {:} files not supported'.format(version)))
     while fileObj.tell() < fileSize:
         line = fileObj.readline().strip().decode('utf-8')
