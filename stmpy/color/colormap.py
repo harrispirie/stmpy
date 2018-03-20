@@ -139,13 +139,16 @@ cm.gold = invert_cmap(cm.bone_r, name='gold')
 cm.als = _make_STMView_colormap('ALS.txt', name='als')
 cm.hpblue = _make_diverging_colormap([0,0,0],
         [0.14901960784313725, 0.5450980392156862, 0.9176470588235294])
+cm.mhblue = _make_STMView_colormap('mhblue.mat', name='mhblue')
+
 
 
 # Reverse Cmaps: Add new cmap name to the list. 
 cmaps = [cm.BuGy, cm.GnGy, cm.redblue, cm.autumn, cm.blue1, cm.blue2, cm.blue3,
          cm.defect0, cm.defect1, cm.defect2, cm.defect4, cm.gray,
          cm.sailingMod2, cm.jackyYRK, cm.jackyCopper, cm.jackyRdGy,
-         cm.jackyPSD, cm.jason, cm.helix, cm.yanghe, cm.gold, cm.als, cm.hpblue]
+         cm.jackyPSD, cm.jason, cm.helix, cm.yanghe, cm.gold, cm.als,
+         cm.hpblue, cm.mhblue]
 
 for cmap in cmaps:
     rev = _reverse_LSC(cmap)

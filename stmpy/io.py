@@ -316,7 +316,7 @@ def save_spy(data, filePath, objects=[]):
             raise(TypeError('Item {:} {:} not supported.'.format(name, type(item))))
     
     fileObj = open(filePath, 'wb')
-    fileObj.write('SPY: Stmpy I/O, Version=' + str(version) + '\n')
+    fileObj.write('SPY: Stmpy I/O, Version=' + str(__version__) + '\n')
     objects.append(Spy)
     write_item('MAIN', data)
     fileObj.close()
