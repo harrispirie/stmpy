@@ -1702,6 +1702,7 @@ def thermal_broaden(en, didv, T, N=10000, mode='reflect', offset=None):
     return sampled[len(en)+offset:2*len(en)+offset]
 
 
+
 def find_edges(img, sigma=1, mult=1, thresL=None, thresH=None, ax=None):
     from skimage import feature
     data = img - np.mean(img)
@@ -1724,3 +1725,49 @@ def remove_edges(data, edges=None, sigmaRemove=2.0, sigmaFind=2.0, **kwargs):
         out = (1-edgeSmooth)*data + edgeSmooth*np.mean(data)
 
     return out
+
+
+def narrow2oct(freq, asd, n=3, fbase=1.0):
+    '''
+    narrow band ASD data to 3rd octave ASD data
+    
+    Input: 
+    freq, asd - frequency and amplitude spectral density data, e.g. in Hz and V/sqrt(Hz)
+    n - order of octave band, e.g. n=1 octave bands; n=3 one-third octave bands
+    fbase - reference frequency, default is 1.0 Hz
+    
+    Output:
+    f_center - center frequency of nth octave bands
+    asd_oct - amplitude spectral density array in each octave bands, in e.g. V/sqrt(Hz) 
+    [you need to integrate to get band RMS by sum(asd_oct**2 * bw)]
+    bw - width array of each octave band
+    
+    Usage:
+    f_center, V_octave, bw = narrow2oct(freq, asd, n=3, fbase=1.0)
+    plot(freq, asd, 'b.')
+    bar(f_center, V_octave, bw, color='r', edgecolor='k')
+    xscale('log', basex=2) # show it in 2-base log spacing so you can tell n th order from plot
+    yscale('log')
+
+    History:
+    2018-05-08 - Jacky: initial commit
+    '''
+    N = int(np.log(max(freq))/np.log(2)*3)+1 # number of bands available
+    df = np.diff(freq)[0] # narrow band width
+    f_center = fbase * np.power(2, np.arange(N)/n)
+    f_lower = f_center * np.power(2, -1/n/2)
+    f_upper = f_center * np.power(2, 1/n/2)
+    bw = f_upper - f_lower
+    asd_oct = np.zeros(N, dtype='float')
+    for ix, low in enumerate(f_lower):
+        up = low * np.power(2, 1/3)
+        u, ru = int(up/df), np.mod(up, df)
+        l, rl = int(low/df), np.mod(low, df)
+        # assuming asd constant in each narrow band
+        if u == l: # leading octave bands may fall inside a narraow band
+            asd_oct[ix] = np.sqrt(asd[l]**2 * (up - low))
+        else:
+            asd_oct[ix] = np.sqrt(asd[l]**2 * (df-rl) + sum(asd[l+1:u]**2) * df + asd[u]**2 * ru)
+    asd_oct = asd_oct/np.sqrt(bw)
+    return f_center, asd_oct, bw
+

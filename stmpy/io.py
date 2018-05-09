@@ -1,3 +1,4 @@
+from __future__ import print_function  # python v2.6 and higher
 '''
 STMPY I/O Version 1.0
 
@@ -299,7 +300,7 @@ def save_spy(data, filePath, objects=[]):
         elif isinstance(item, list):
             write_lst(name, item)
         elif isinstance(item, tuple):
-            print 'Tuples present...'
+            print('Tuples present...')
         elif isinstance(item, file): 
             pass
         elif isinstance(item, str) or isinstance(item, unicode):
