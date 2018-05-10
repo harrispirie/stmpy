@@ -505,7 +505,7 @@ def gauss2d(x, y, p, symmetric=False):
         G += A*np.exp( -(a*(X-x1)**2 + 2*b*(X-x1)*(Y-y1) + c*(Y-y1)**2))
     return G
 
-def gauss_ring(x, y, sigma, major, minor=None, theta=0):
+def gauss_ring(x, y, major, sigma, minor=None, theta=0, x0=None, y0=None):
     '''
     Create a 2D ring with a gaussian cross section. 
 
@@ -514,25 +514,81 @@ def gauss_ring(x, y, sigma, major, minor=None, theta=0):
         y   - Required : 1D array containing y values.  The funciton will
                          create a meshgrid from x and y, but should be called
                          like f(x, y, *args). 
-        sigma   - Required : Float. Width of gaussian cross section
         major   - Required : Float. Radius of ring or major axis of ellipse. 
+        sigma   - Required : Float. Width of gaussian cross section
         minor   - Optional : Float. Radius of minor axis of ellipse
                              (default: major)
-        theta   - Optional : Float. Angle in degrees to rotate ring. 
+        theta   - Optional : Float. Angle in degrees to rotate ring.
+        x0      - Optional : Float. Center point of ring (default: center of x)
+        y0      - Optional : Float. Center point of ring (default: center of y)
+
 
     Returns:
         G   -   2D array containing Gaussian ring.
 
     History: 
         2018-05-09  - HP : Initial commit. 
+        2018-05-10  - HP : Added center point. 
     '''
     if minor is None:
-        minor = major
+        minor = 1
+    if x0 is None:
+        x0 = (x[-1] + x[0])/2.0
+    if y0 is None:
+        y0 = (y[-1] + y[0])/2.0
     x, y = x[:,None], y[None,:]
-    r = np.sqrt(x**2+y**2)
-    phi = np.arctan2(x,y) - np.radians(theta)
-    R = major*minor / np.sqrt((minor*np.cos(phi))**2 + (major*np.sin(phi))**2)
+    r = np.sqrt((x-x0)**2+(y-y0)**2)
+    T = np.arctan2(x-x0,y-x0) - np.radians(theta)
+    R = major*minor / np.sqrt((minor*np.cos(T))**2 + (major*np.sin(T))**2)
     return np.exp(-(r-R)**2 / (2*sigma**2))
+
+
+def gauss_theta(x, y, theta, sigma, x0=None, y0=None, symmetric=1):
+    '''
+    Create a radial wedge with a gaussian profile. For theta-dependent
+    amplitude modulation of a signal. 
+
+    Inputs:
+        x   - Required : 1D array containing x values
+        y   - Required : 1D array containing y values.  The funciton will
+                         create a meshgrid from x and y, but should be called
+                         like f(x, y, *args).
+        theta   - Required : Float. Angle in degrees for center of wedge.
+        sigma   - Required : Float. Width of gaussian cross section.
+        x0      - Optional : Float. Center point of arc wedge (default: center of x)
+        y0      - Optional : Float. Center point of arc wedge (default: center of y)
+        symmetric - Optional : Integer.  Gives the wedge n-fold rotational
+                               symmetry (default:1).
+
+
+    Returns:
+        G   -   2D array containing Gaussian wedge.
+
+    History: 
+        2018-05-10  - HP : Initial commit. 
+        
+    '''
+    def reduce_angle(theta):
+        '''Maps any angle in degrees to the interval -180 to 180'''
+        t =  theta % 360
+        if t > 180:
+            t -= 360
+        return t   
+    
+    if x0 is None:
+        x0 = (x[-1] + x[0])/2.0
+    if y0 is None:
+        y0 = (y[-1] + y[0])/2.0
+    t = np.radians(reduce_angle(theta))
+    sig = np.radians(reduce_angle(sigma))
+    T = np.arctan2(x[:,None]-x0, y[None,:]-y0)
+    if -np.pi/2.0 < t <= np.pi/2.0:
+        amp = np.exp(-(T-t)**2/(2*sig**2))
+    else: 
+        amp = np.exp(-(T-(np.sign(t)*np.pi-t))**2/(2*sig**2))[:,::-1]
+    for deg in np.linspace(360.0/symmetric, 360, int(symmetric)-1, endpoint=False):
+        amp += gauss_theta(x, y, np.degrees(t)+deg, sigma, x0=x0, y0=y0, symmetric=1)
+    return amp
 
 
 class ngauss1d(object):
