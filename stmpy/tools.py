@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
+import stmpy
 import sys
 import numpy as np
 import matplotlib as mpl
@@ -8,7 +9,7 @@ import matplotlib as mpl
 from scipy.interpolate import interp1d
 import scipy.optimize as opt
 import scipy.ndimage as snd
-from scipy.signal import butter, filtfilt, fftconvolve
+from scipy.signal import butter, filtfilt, fftconvolve, hilbert
 
 
 def interp2d(x, y, z, kind='nearest', **kwargs):
@@ -225,6 +226,7 @@ def removePolynomial1d(y, n, x=None, fitRange=None):
     polyBackgroundFunction = np.poly1d(polyCoeff)
     return y - polyBackgroundFunction(x)
 
+
 def lineSubtract(data, n=1, normalize=True):
     '''
     Remove a polynomial background from the data line-by-line.  If the data is
@@ -320,6 +322,7 @@ def findPeaks(x,y,n=1,nx=1e3):
     if yn == []: yn = [0] * n
     return xn, yn
 
+
 def locmax1d(x, min_distance=1, thres_rel=0, thres_abs=-np.inf):
     '''Return indices of local maxima in an 1d array x'''
     d = int(min_distance) # forced to be integer number of points
@@ -333,6 +336,7 @@ def locmax1d(x, min_distance=1, thres_rel=0, thres_abs=-np.inf):
             if value == x_seg.max(): # condition 2: x[ix] is maximum of x_seg
                 mask[ix] =  True
     return np.where(mask == True)[0]
+
 
 def removeGaussian2d(image, x0, y0, sigma):
     '''Removes a isotropic gaussian of width sigma centered at x0,y0 from image.'''
@@ -374,6 +378,7 @@ def foldLayerImage(layerImage,bpThetaInRadians=0,n=4):
         if bpTheta != 0: B[ix] = snd.interpolation.rotate(B[ix],-bpTheta,reshape = False)
     if n not in options.keys(): print('{:}-fold symmetrization not yet implemented'.format(n))
     return B
+
 
 def quickFT(data, n=None, zero_center=True, flag=True):
     '''
@@ -466,6 +471,126 @@ def symmetrize(data, n, bp=(1.,1.), diag=False):
     else:
         print('ERR: Input must be 2D or 3D numpy array.')
 
+
+def gauss2d(x, y, p, symmetric=False):
+    '''Create a two dimensional Gaussian.
+
+    Inputs: 
+        x   - Required : 1D array containing x values
+        y   - Required : 1D array containing y values.  The funciton will
+                         create a meshgrid from x and y, but should be called
+                         like f(x, y, *args). 
+        p   - Required : List of parameters that define the gaussian, in the
+                         following order: [x0, y0, sigmax, sigmay, Amp, theta]
+        symmetric   - Optional : Boolean, if True this will add another
+                                 Gaussian at (cenx - x0, ceny - y0), which is
+                                 useful in frequency space. 
+
+    Returns:
+        G   -   2D array containing Gaussian. 
+
+    History:
+        2018-03-30  - HP : Initial commit.
+    '''
+    x0, y0, sx, sy, A, theta = [float(val) for val in p]
+    X, Y = np.meshgrid(x, y);
+    theta = np.radians(theta)
+    a = np.cos(theta)**2/(2*sx**2) + np.sin(theta)**2/(2*sy**2)
+    b = -np.sin(2*theta)/(4*sx**2) + np.sin(2*theta)/(4*sy**2)
+    c = np.sin(theta)**2/(2*sx**2) + np.cos(theta)**2/(2*sy**2)
+    G = A*np.exp( - (a*(X-x0)**2 + 2*b*(X-x0)*(Y-y0) + c*(Y-y0)**2))
+    if symmetric:
+        x1 = x[-1] + x[0] - x0
+        y1 = y[-1] + y[0] - y0
+        G += A*np.exp( -(a*(X-x1)**2 + 2*b*(X-x1)*(Y-y1) + c*(Y-y1)**2))
+    return G
+
+def gauss_ring(x, y, major, sigma, minor=None, theta=0, x0=None, y0=None):
+    '''
+    Create a 2D ring with a gaussian cross section. 
+
+    Inputs:
+        x   - Required : 1D array containing x values
+        y   - Required : 1D array containing y values.  The funciton will
+                         create a meshgrid from x and y, but should be called
+                         like f(x, y, *args). 
+        major   - Required : Float. Radius of ring or major axis of ellipse. 
+        sigma   - Required : Float. Width of gaussian cross section
+        minor   - Optional : Float. Radius of minor axis of ellipse
+                             (default: major)
+        theta   - Optional : Float. Angle in degrees to rotate ring.
+        x0      - Optional : Float. Center point of ring (default: center of x)
+        y0      - Optional : Float. Center point of ring (default: center of y)
+
+
+    Returns:
+        G   -   2D array containing Gaussian ring.
+
+    History: 
+        2018-05-09  - HP : Initial commit. 
+        2018-05-10  - HP : Added center point. 
+    '''
+    if minor is None:
+        minor = 1
+    if x0 is None:
+        x0 = (x[-1] + x[0])/2.0
+    if y0 is None:
+        y0 = (y[-1] + y[0])/2.0
+    x, y = x[:,None], y[None,:]
+    r = np.sqrt((x-x0)**2+(y-y0)**2)
+    T = np.arctan2(x-x0,y-x0) - np.radians(theta)
+    R = major*minor / np.sqrt((minor*np.cos(T))**2 + (major*np.sin(T))**2)
+    return np.exp(-(r-R)**2 / (2*sigma**2))
+
+
+def gauss_theta(x, y, theta, sigma, x0=None, y0=None, symmetric=1):
+    '''
+    Create a radial wedge with a gaussian profile. For theta-dependent
+    amplitude modulation of a signal. 
+
+    Inputs:
+        x   - Required : 1D array containing x values
+        y   - Required : 1D array containing y values.  The funciton will
+                         create a meshgrid from x and y, but should be called
+                         like f(x, y, *args).
+        theta   - Required : Float. Angle in degrees for center of wedge.
+        sigma   - Required : Float. Width of gaussian cross section.
+        x0      - Optional : Float. Center point of arc wedge (default: center of x)
+        y0      - Optional : Float. Center point of arc wedge (default: center of y)
+        symmetric - Optional : Integer.  Gives the wedge n-fold rotational
+                               symmetry (default:1).
+
+
+    Returns:
+        G   -   2D array containing Gaussian wedge.
+
+    History: 
+        2018-05-10  - HP : Initial commit. 
+        
+    '''
+    def reduce_angle(theta):
+        '''Maps any angle in degrees to the interval -180 to 180'''
+        t =  theta % 360
+        if t > 180:
+            t -= 360
+        return t   
+    
+    if x0 is None:
+        x0 = (x[-1] + x[0])/2.0
+    if y0 is None:
+        y0 = (y[-1] + y[0])/2.0
+    t = np.radians(reduce_angle(theta))
+    sig = np.radians(reduce_angle(sigma))
+    T = np.arctan2(x[:,None]-x0, y[None,:]-y0)
+    if -np.pi/2.0 < t <= np.pi/2.0:
+        amp = np.exp(-(T-t)**2/(2*sig**2))
+    else: 
+        amp = np.exp(-(T-(np.sign(t)*np.pi-t))**2/(2*sig**2))[:,::-1]
+    for deg in np.linspace(360.0/symmetric, 360, int(symmetric)-1, endpoint=False):
+        amp += gauss_theta(x, y, np.degrees(t)+deg, sigma, x0=x0, y0=y0, symmetric=1)
+    return amp
+
+
 class ngauss1d(object):
     '''
     Fits a combination of n gaussians to 1d data. Output is an object
@@ -532,6 +657,7 @@ class ngauss1d(object):
         gf = self.gaussn(*p)
         err = np.abs(gf - self._yf)
         return np.log(sum(err**2))
+
 
 def track_peak(x, z, p0, **kwarg):
     '''
@@ -1003,6 +1129,41 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
         ftD = np.fft.fft(wData)
         ftData = outputFunction(np.fft.fftshift(ftD))
     return ftData
+
+
+def ifft(data, output='real', envelope=False):
+    '''
+    Compute the inverse Fourier transform with the option to detect envelope. 
+
+    Inputs:
+        data    - Required : A 1D or 2D numpy array. (3D not yet supported)
+        output  - Optional : String containing desired form of output.  The
+                             options are: 'absolute', 'real', 'imag', 'phase'
+                             or 'complex'.
+        envelope - Optional : Boolen, when True applies the Hilbert transform
+                              to detect the envelope of the IFT, which is the
+                              absolute values.  
+        **kwarg - Optional : Passed to scipy.signal.hilbert()
+
+    See docs.scipy.org/doc/scipy/reference/generated/scipy.signal.hilbert.html
+    for more information about envelope function. 
+
+    Outputs:
+        ift - A numpy array containing inverse Fourier transform. 
+
+    History:
+        2018-03-30  - HP : Initial commit. 
+    '''
+    outputFunctions = {'absolute':np.absolute, 'real':np.real, 
+                       'imag':np.imag, 'phase':np.angle, 'complex':(lambda x:x)}
+    out = outputFunctions[output]
+    if len(data.shape) == 2:
+        ift = np.fft.ifft2(np.fft.ifftshift(data))
+    elif len(data.shape) == 1:
+        ift = np.fft.ifft(np.fft.ifftshift(data))
+    if envelope: 
+        ift = hilbert(np.real(ift))
+    return out(ift)
 
 
 def fftfreq(px, nm):
@@ -1596,6 +1757,32 @@ def thermal_broaden(en, didv, T, N=10000, mode='reflect', offset=None):
     sampled = y(ev) 
     return sampled[len(en)+offset:2*len(en)+offset]
 
+
+
+def find_edges(img, sigma=1, mult=1, thresL=None, thresH=None, ax=None):
+    from skimage import feature
+    data = img - np.mean(img)
+    edges = feature.canny(data/np.max(data)*mult, sigma=sigma, low_threshold=thresL, high_threshold=thresH)
+    if ax is not None:
+        ax.imshow(edges, cmap=stmpy.cm.gray_r, alpha=0.3)
+    return edges
+
+def remove_edges(data, edges=None, sigmaRemove=2.0, sigmaFind=2.0, **kwargs):
+    from skimage import filters
+    if edges is None:
+        edges = find_edges(data, sigma=sigmaFind, **kwargs)
+    smooth = filters.gaussian(edges, sigma=sigmaRemove)
+    edgeSmooth = smooth/np.max(smooth)
+    if len(data.shape) == 3:
+        out = np.zeros_like(data)
+        for ix, layer in enumerate(data):
+            out[ix]  = (1-edgeSmooth)*layer + edgeSmooth*np.mean(layer)
+    else:
+        out = (1-edgeSmooth)*data + edgeSmooth*np.mean(data)
+
+    return out
+
+
 def narrow2oct(freq, asd, n=3, fbase=1.0):
     '''
     narrow band ASD data to 3rd octave ASD data
@@ -1639,3 +1826,4 @@ def narrow2oct(freq, asd, n=3, fbase=1.0):
             asd_oct[ix] = np.sqrt(asd[l]**2 * (df-rl) + sum(asd[l+1:u]**2) * df + asd[u]**2 * ru)
     asd_oct = asd_oct/np.sqrt(bw)
     return f_center, asd_oct, bw
+
