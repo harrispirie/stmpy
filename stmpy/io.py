@@ -592,16 +592,16 @@ def load_dat(filePath):
     self.header={}
     self.channels = {}
     while True:
-        line = fileObj.readline()
+        line = fileObj.readline().decode('utf-8')
         splitLine = line.split('\t')
         if line[0:6] == '[DATA]': 
             break
         elif line.rstrip() != '': 
             self.header[splitLine[0]] = splitLine[1]
-    channels = fileObj.readline().rstrip().split('\t')
+    channels = fileObj.readline().decode('utf-8').rstrip().split('\t')
     allData = []
     for line in fileObj:
-        line = line.rstrip().split('\t')
+        line = line.decode('utf-8').rstrip().split('\t')
         allData.append(np.array(line, dtype=float))
     allData = np.array(allData)
     for ix, channel in enumerate(channels):
