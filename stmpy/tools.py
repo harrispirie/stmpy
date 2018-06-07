@@ -227,7 +227,7 @@ def removePolynomial1d(y, n, x=None, fitRange=None):
     return y - polyBackgroundFunction(x)
 
 
-def lineSubtract(data, n=1, normalize=True):
+def lineSubtract(data, n=1, normalize=True, colSubtract=False):
     '''
     Remove a polynomial background from the data line-by-line.  If the data is
     3D (eg. 3ds) this does a 2D background subtract on each layer
@@ -240,6 +240,8 @@ def lineSubtract(data, n=1, normalize=True):
         normalize - Optional : Boolean flag to determine if the mean of a layer
                                is set to zero (True) or preserved (False).
                                (default : True)
+        colSubtract - Optional : Boolean flag (False by default) to determine if polynomial background should also be subtracted column-wise
+
     Returns:
         subtractedData  -   Data after removing an n-degree polynomial
     
@@ -248,6 +250,7 @@ def lineSubtract(data, n=1, normalize=True):
 
     History:
         2017-07-19  - HP : Updated to work for 1D data. 
+        2018-06-07  - MF : Updated to do a background subtract in the orthogonal direction (ie. column-wise) 
     '''
     def subtract_1D(data, n):
         x = np.linspace(0,1,len(data))
@@ -261,6 +264,11 @@ def lineSubtract(data, n=1, normalize=True):
         output = np.zeros_like(data)
         for ix, line in enumerate(data):
             output[ix] = subtract_1D(line, n) 
+        if colSubtract:
+            temp = np.zeros_like(data)
+            for ix, line in enumerate(np.transpose(output)):
+                temp[ix] = subtract_1D(line, n) 
+            output = np.transpose(temp)
         return output + norm
 
     if len(data.shape) == 3:
