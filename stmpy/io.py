@@ -9,15 +9,15 @@ Contents:
     save()  -   Save python data to disk. 
 
 Version history:
-    1.0     2018-03-02  - HP : Initial release.  
+    1.0     2018-03-02  - HP : Initial release. 
+    1.1     2018-10-10  - HP : Python 3 compatibility
 
 TO DO: 
     - Add support for .mat files
     - Rewrite load_3ds() to buffer data and improve efficiency.
 '''
 
-__version__ = 1.0
-
+__version__ = 1.1
 
 import stmpy
 from stmpy import matio
@@ -25,11 +25,14 @@ import numpy as np
 import scipy.io as sio
 import os
 import re
+import sys
 
 from struct import pack, unpack, calcsize
 from datetime import datetime, timedelta
 from scipy.optimize import minimize
 
+PY2 = sys.version_info.major == 2
+PY3 = sys.version_info.major == 3
 
 
 def load(filePath, biasOffset=True, niceUnits=False):
@@ -78,7 +81,9 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2017-08-17  - JG : Added support for general ASCII files. 
         2017-08-24  - HP : Better searching for Z attribute in DOS maps. 
         2017-10-03  - HP : Improved reading of DAT files
-        2018-03-02  - HP : VERSION  1.0 - Unified to a single SPY class. 
+        2018-03-02  - HP : VERSION  1.0 - Unified to a single SPY class.
+        2018-10-10  - HP : Python 3 compatibility
+
     '''
     try:
         extension = filePath.split('.')[1]
@@ -133,7 +138,8 @@ def save(data, filePath, objects=[]):
 
     History: 
         2018-03-02  - HP : Initial commit. 
-        2018-03-08  - HP : Added support for multi-line strings. 
+        2018-03-08  - HP : Added support for multi-line strings.
+        2018-10-10  - HP : Python 3 compatibility
     '''
     try:
         extension = filePath.split('.')[1]
@@ -241,55 +247,60 @@ def _make_attr(self, attr, names, data):
 
 def save_spy(data, filePath, objects=[]):
     '''Save python data to file'''
+
+    def stew(fileObj, val):
+        'Quickly write binary strings with utf-8 encoding.'
+        return fileObj.write(bytearray(val.encode('utf-8')))
+    
     def write_npy(name, npy):
         if npy.dtype.name == 'object':
-            fileObj.write('OAR=' + name + '\n')
-            fileObj.write(str(npy.shape) + '\n')
+            stew(fileObj, 'OAR=' + name + '\n' + str(npy.shape) + '\n')
             for obj in npy:
                 write_obj('unnamed', obj)
         else:
-            fileObj.write('NPY=' + name + '\n')
+            stew(fileObj, 'NPY=' + name + '\n')
             np.save(fileObj, npy)
 
     def write_obj(name, obj):
-        fileObj.write('OBJ=' + name + '\n')
+        stew(fileObj, 'OBJ=' + name + '\n')
         for name, item in obj.__dict__.items():
             write_item(name, item)
-        fileObj.write(':OBJ_END:\n')
+        stew(fileObj, ':OBJ_END:\n')
 
     def write_dic(name, dic):
-        fileObj.write('DIC=' + name + '\n')
+        stew(fileObj, 'DIC=' + name + '\n')
         for name, item in dic.items():        
             write_item(name, item)
-        fileObj.write(':DIC_END:\n')
+        stew(fileObj, ':DIC_END:\n')
 
     def write_lst(name, lst):
-        fileObj.write('LST=' + name + '\n')
+        stew(fileObj, 'LST=' + name + '\n')
         for ix, item in enumerate(lst):
             write_item(str(ix), item)
-        fileObj.write(':LST_END:\n')
+        stew(fileObj, ':LST_END:\n')
 
     def write_str(name, val):
-        fileObj.write('STR=' + name + '\n')
-        fileObj.write(bytearray(val.encode('utf-8')) + '\n')
-        fileObj.write(':STR_END:\n')
+        stew(fileObj, 'STR=' + name + '\n' + val + '\n:STR_END:\n')
+        #stew(bytearray(val.encode('utf-8')) + '\n')
+        #stew(':STR_END:\n')
     
     def write_num(name, val):
-        fileObj.write('NUM=' + name + '\n')
+        stew(fileObj, 'NUM=' + name + '\n')
         if isinstance(val, int):
             fmt = '>i'
         elif isinstance(val, float):
             fmt = '>d'
-        elif isinstance(val, long):
-            fmt = '>l'
-        fileObj.write(fmt + pack(fmt, val))
+        elif PY2:
+            if isinstance(val, long):
+                fmt = '>l'
+        fileObj.write(bytearray(fmt.encode('utf-8')) + pack(fmt, val))
 
     def write_cpx(name, val):
-        fileObj.write('CPX=' + name + '\n')
+        stew(fileObj, 'CPX=' + name + '\n')
         fileObj.write(pack('>f', val.real) + pack('>f', val.imag))
 
     def write_bol(name, val):
-        fileObj.write('BOL=' + name + '\n')
+        stew(fileObj, 'BOL=' + name + '\n')
         fileObj.write('NOTWORKING')
 
     def write_item(name, item):        
@@ -301,11 +312,11 @@ def save_spy(data, filePath, objects=[]):
             write_lst(name, item)
         elif isinstance(item, tuple):
             print('Tuples present...')
-        elif isinstance(item, file): 
+        elif hasattr(item, 'read'): 
             pass
-        elif isinstance(item, str) or isinstance(item, unicode):
+        elif isinstance(item, str):
             write_str(name, item)
-        elif type(item) in [int, float, long]:
+        elif type(item) in [int, float]:
             write_num(name, item)
         elif isinstance(item, complex):
             write_cpx(name, item)
@@ -313,11 +324,17 @@ def save_spy(data, filePath, objects=[]):
             print('WARING: Callable item not saved: {:}.'.format(name))
         elif any([isinstance(item, obj) for obj in objects]):
             write_obj(name, item)
+        elif PY2:
+            # Legacy types deprecated in python 3.x
+            if isinstance(item, unicode):
+                write_str(name, item)
+            elif isinstance(item, long):
+                write_num(name, item)
         else:
             raise(TypeError('Item {:} {:} not supported.'.format(name, type(item))))
     
     fileObj = open(filePath, 'wb')
-    fileObj.write('SPY: Stmpy I/O, Version=' + str(__version__) + '\n')
+    stew(fileObj, 'SPY: Stmpy I/O, Version=' + str(__version__) + '\n')
     objects.append(Spy)
     write_item('MAIN', data)
     fileObj.close()
@@ -380,7 +397,7 @@ def load_spy(filePath):
             line = fileObj.readline()
             if line.strip().decode('utf-8') == ':STR_END:':
                 break
-            st += line
+            st += line.decode('utf-8')
         return st
 
     #def read_str(fileObj):
