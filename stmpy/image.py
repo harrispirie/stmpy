@@ -111,7 +111,7 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
         plt.clim(clims)
 
     if label is not None:
-        tx = ax.text(0.95,0.95,'{:2.2f} {:}'.format(label[0], label_caption), 
+        tx = ax.text(0.95,0.95,'{:2.1f} {:}'.format(label[0], label_caption), 
                   transform=ax.transAxes, **textOptions)
     def init():
         im.set_array(data[0])
@@ -125,7 +125,7 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
         else:
             plt.clim(clims)
         if label is not None:
-            tx.set_text('{:2.0f} {:}'.format(label[i], label_caption))
+            tx.set_text('{:2.1f} {:}'.format(label[i], label_caption))
         return [im]
     fig.tight_layout()
     ani = FuncAnimation(fig, animate, init_func=init, frames=data.shape[0])
