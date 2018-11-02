@@ -631,7 +631,7 @@ class ngauss1d(object):
         self.output = opt.minimize(self._chix, p0[self._ix], **kwarg)
         p = self._find_p(self.output.x)
         self.fit = self.gaussn(*p)
-        self.p_unsrt = p.reshape(len(p0)/3, 3).T
+        self.p_unsrt = p.reshape(int(len(p0)/3), 3).T
         mu = self.p_unsrt[1]
         self.p = self.p_unsrt[:, mu.argsort()]
         self.peaks = np.zeros([self.p.shape[1], len(self._x)])
