@@ -486,7 +486,7 @@ def load_3ds(filePath):
         print('ERR: Did not reach end of file.')
     fileObj.close()
     
-    LIYNames =  ['LIY 1 omega (A)', 'LIY 1 omega [AVG] (A)']
+    LIYNames =  ['LIY 1 omega (A)', 'LIY 1 omega [AVG] (A)', 'LI Demod 1 Y (A)', 'LI Demod 2 Y (A)','LI Demod 3 Y (A)']
     if _make_attr(self, 'LIY', LIYNames, 'grid'):
         self.didv = np.mean(self.LIY, axis=(1,2))
         self.didvStd = np.std(self.LIY, axis=(1,2))
