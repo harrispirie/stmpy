@@ -54,7 +54,7 @@ def findBraggs(A, min_distance=2, threshold_rel=0.5, norm='linear', rspace=True)
         F = np.copy(A)
     cnorm = mpl.colors.Normalize(vmin=F.min(), vmax=F.max())
     if norm is 'log':
-        cnorm = mpl.colors.LogNorm(vmin=F.min(), vmax=F.max())
+        cnorm = mpl.colors.LogNorm(vmin=F.mean(), vmax=F.max())
     coords = peak_local_max(F, min_distance=min_distance, threshold_rel=threshold_rel)
     coords = np.fliplr(coords)
     plt.imshow(F, cmap=plt.cm.gray_r, interpolation='None', origin='lower left', norm=cnorm, aspect=1)
@@ -68,7 +68,7 @@ def findBraggs(A, min_distance=2, threshold_rel=0.5, norm='linear', rspace=True)
     return coords
     
 
-def gshearcorr(A, Bragg, rspace=True):
+def gshearcorr(A, Bragg, rspace=True, slow_scan='None'):
     '''
     Shear correction based on FT of 2D array A
     Inputs:
@@ -83,11 +83,11 @@ def gshearcorr(A, Bragg, rspace=True):
     A_corr = np.zeros_like(A)
     if len(Bragg.shape) is 2 and Bragg.shape[1] is 2:
         if len(A.shape) is 2:
-            tform, Bragg_M = calctform(Bragg, A.shape[-1])
+            tform, Bragg_M = calctform(Bragg, A.shape[-1], slow_scan=slow_scan)
             A_corr = corr2d(A, tform, rspace=rspace)
             return A_corr, Bragg_M
         if len(A.shape) is 3:
-            tform, Bragg_M = calctform(Bragg, A.shape[-1])
+            tform, Bragg_M = calctform(Bragg, A.shape[-1], slow_scan=slow_scan)
             for ix, layer in enumerate(A):
                 A_corr[ix] = corr2d(layer, tform, rspace=rspace)
             return A_corr, Bragg_M
@@ -323,8 +323,12 @@ def sortBraggs(Br, s):
     Br_s = Br_s[tanseq] # sort Bragg peaks accordingly
     return Br_s
 
-def calctform(Br, s):
-    ''' calculate projective transform matrix by Bragg peaks Br with coordinates in the range of F.shape'''
+def calctform(Br, s, slow_scan):
+    ''' 
+    calculate projective transform matrix by Bragg peaks Br with coordinates in the range of F.shape
+    slow_scan: None
+
+    '''
     N = Br.shape[0]
     c = s*0.5
     Br = sortBraggs(Br, s)
@@ -336,6 +340,16 @@ def calctform(Br, s):
     dtheta = np.mean(theta - theta_M)
     xn_M = R * np.cos(theta_M+dtheta) # Generate Model coordinates
     yn_M = R * np.sin(theta_M+dtheta) # based on first point
+
+    # rescale for fast scan direction, i.e. trust the coordinate of the fast scan direction
+    if slow_scan is 'y':
+        R *= np.mean(abs(yn/yn_M))
+        xn_M = R * np.cos(theta_M+dtheta) # Generate Model coordinates
+        yn_M = R * np.sin(theta_M+dtheta)
+    if slow_scan is 'x':
+        R *= np.mean(abs(xn/xn_M))
+        xn_M = R * np.cos(theta_M+dtheta) # Generate Model coordinates
+        yn_M = R * np.sin(theta_M+dtheta)
     Br_M = np.concatenate(((xn_M+1)*c, (yn_M+1)*c)).reshape(2, N).T # Back to original coordinates
     tform = tf.ProjectiveTransform()
     if tform.estimate(Br_M, Br):

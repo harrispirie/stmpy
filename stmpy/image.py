@@ -4,6 +4,8 @@ import matplotlib as mpl
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import cm
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+import matplotlib.font_manager as fm
 
 boxProperties = dict(boxstyle='square', facecolor='w', alpha=0.7, linewidth=0.0)
 textOptions = dict(fontsize=12, color = 'k', bbox=boxProperties, ha='right', va='top')
@@ -109,7 +111,7 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
         plt.clim(clims)
 
     if label is not None:
-        tx = ax.text(0.95,0.95,'{:2.2f} {:}'.format(label[0], label_caption), 
+        tx = ax.text(0.95,0.95,'{:2.1f} {:}'.format(label[0], label_caption), 
                   transform=ax.transAxes, **textOptions)
     def init():
         im.set_array(data[0])
@@ -123,7 +125,7 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
         else:
             plt.clim(clims)
         if label is not None:
-            tx.set_text('{:2.0f} {:}'.format(label[i], label_caption))
+            tx.set_text('{:2.1f} {:}'.format(label[i], label_caption))
         return [im]
     fig.tight_layout()
     ani = FuncAnimation(fig, animate, init_func=init, frames=data.shape[0])
@@ -255,6 +257,61 @@ def add_label(label, loc=0, ax=None, txOptions=None, bbox=None):
                     '\n\t\t3:bottom-right')
 
     return tx
+
+def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit='nm', loc='lower right', barcolor='w'):
+    """
+    Add scale bar to images.
+
+    Inputs:
+        length      - Required : Float. The length of scale bar in the given
+                                unit.
+        imgsize     - Required : Float. The size of image in the given unit. 
+        imgpixels   - Required : Float. The size of image in unit of pixels. 
+        barheight   - Optional : Float. The ratio between height of scale bar
+                                and the height of the whole image. Default: 1.5 %.
+        axes        - Optional : Axes object. It controls which axis the scale
+                                bar is added to. If not given, gca() will be the 
+                                default value.
+        unit        - Optional : String. Unit that will be shown in the text of 
+                                scale bar. Default: nm
+        loc         - Optional : Int or string. Default: 'lower right'.
+                                'best'          0
+                                'upper right'   1
+                                'upper left'    2
+                                'lower left'    3
+                                'lower right'   4
+                                'right'         5
+                                'center left'   6
+                                'center right'  7
+                                'lower center'  8
+                                'upper center'  9
+                                'center'        10
+        barcolor    - Optional : String. It specifies the color of the scale bar 
+                                and the text on it.
+
+    Returns:
+        scalebar    - scalebar object, which can be added to axis object Ax with 
+                                "Ax.add_artist(scalebar)"
+
+    History:
+        2018-11-02  - HP : Initial commit.
+    """
+
+    if axes is None:
+        axes = gca()
+    to_distance = imgsize/imgpixels
+    fontprops = fm.FontProperties(size=14)
+    scalebar = AnchoredSizeBar(axes.transData,  
+        length/to_distance, r'$\mathbf{{{}''\ {}}}$'.format(length, unit), loc,
+        pad=0.5,
+        color=barcolor,
+        frameon=False,
+        size_vertical=int(imgpixels*barheight),
+        fontproperties=fontprops
+        )
+    axes.add_artist(scalebar)
+    return scalebar
+
 
 
 
