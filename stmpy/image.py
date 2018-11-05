@@ -294,7 +294,7 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
                                 "Ax.add_artist(scalebar)"
 
     History:
-        2018-11-02  - HP : Initial commit.
+        2018-11-02  - RL : Initial commit.
     """
 
     if axes is None:

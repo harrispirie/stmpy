@@ -226,17 +226,23 @@ def removePolynomial1d(y, n, x=None, fitRange=None):
     polyBackgroundFunction = np.poly1d(polyCoeff)
     return y - polyBackgroundFunction(x)
 
-
-def lineSubtract(data, n=1, normalize=True, colSubtract=False):
+def lineSubtract(data, n=1, mask=False, thres=4, M=4, normalize=True, colSubtract=False):
     '''
-    Remove a polynomial background from the data line-by-line.  If the data is
-    3D (eg. 3ds) this does a 2D background subtract on each layer
-    independently.  Input is a numpy array. 
+    Remove a polynomial background from the data line-by-line, with 
+    the option to skip pixels within certain distance away from 
+    impurities.  If the data is 3D (eg. 3ds) this does a 2D background 
+    subtract on each layer independently.  Input is a numpy array. 
     
     Inputs:
         data    -   Required : A 1D, 2D or 3D numpy array.
         n       -   Optional : Degree of polynomial to subtract from each line.
                                (default : 1).
+        mask    -   Optional : Boolean flag to determine if the impurty areas are excluded.
+        thres   -   Optional : Float number specifying the threshold to determine 
+                               if a pixel is impurity or bad pixels. Any pixels with intensity greater 
+                               than thres*std will be identified as bad points.
+        M       -   Optional : Integer number specifying the box size where all pixels will be excluded 
+                               from poly fitting.
         normalize - Optional : Boolean flag to determine if the mean of a layer
                                is set to zero (True) or preserved (False).
                                (default : True)
@@ -247,11 +253,35 @@ def lineSubtract(data, n=1, normalize=True, colSubtract=False):
     
     Usage:
         dataObject.z = lineSubtract(dataObject.Z, n=1, normalize=True)
+        dataObject.z = lineSubtract(dataObject.Z, n=1, mask=True, thres=1.5, M=4, normalize=True)
 
     History:
         2017-07-19  - HP : Updated to work for 1D data. 
-        2018-06-07  - MF : Updated to do a background subtract in the orthogonal direction (ie. column-wise) 
+        2018-06-07  - MF : Updated to do a background subtract in the orthogonal direction (ie. column-wise)
+        2018-11-04  - RL : Updated to add mask to exclude impurity and bad pixels in polyfit.
     '''
+    # Polyfit for lineSubtraction excluding impurities.
+    def filter_2D(data, thres, M):
+        filtered = data.copy()
+        temp = (np.gradient(filtered)[0]+np.gradient(filtered)[1])/2
+        badPts = np.where(np.abs(temp-np.mean(temp))>thres*np.std(temp))
+        for ix, iy in zip(badPts[1], badPts[0]):
+            filtered[max(0, iy-M) : min(data.shape[0], iy+M+1),
+                                  max(0, ix-M) : min(data.shape[1], ix+M+1)] = np.nan
+        return filtered
+    
+    if mask is not False:
+        d = data.shape[-1]
+        x = np.linspace(0,d-1,d)
+        filtered = filter_2D(data, thres, M)
+        output = data.copy()
+        for i in range(d):
+            index = np.isfinite(filtered[i])
+            popt = np.polyfit(x[index], data[i][index], n)
+            output[i] = data[i] - np.polyval(popt, x)
+        return output
+    
+    # The original lineSubtract code.
     def subtract_1D(data, n):
         x = np.linspace(0,1,len(data))
         popt = np.polyfit(x, data, n)
