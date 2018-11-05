@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 from __future__ import print_function
 import stmpy
@@ -226,7 +226,7 @@ def removePolynomial1d(y, n, x=None, fitRange=None):
     polyBackgroundFunction = np.poly1d(polyCoeff)
     return y - polyBackgroundFunction(x)
 
-def lineSubtract(data, n=1, mask=False, thres=4, M=4, normalize=True, colSubtract=False):
+def lineSubtract(data, n=1, maskon=False, thres=4, M=4, normalize=True, colSubtract=False):
     '''
     Remove a polynomial background from the data line-by-line, with 
     the option to skip pixels within certain distance away from 
@@ -237,7 +237,7 @@ def lineSubtract(data, n=1, mask=False, thres=4, M=4, normalize=True, colSubtrac
         data    -   Required : A 1D, 2D or 3D numpy array.
         n       -   Optional : Degree of polynomial to subtract from each line.
                                (default : 1).
-        mask    -   Optional : Boolean flag to determine if the impurty areas are excluded.
+        maskon  -   Optional : Boolean flag to determine if the impurty areas are excluded.
         thres   -   Optional : Float number specifying the threshold to determine 
                                if a pixel is impurity or bad pixels. Any pixels with intensity greater 
                                than thres*std will be identified as bad points.
@@ -259,28 +259,61 @@ def lineSubtract(data, n=1, mask=False, thres=4, M=4, normalize=True, colSubtrac
         2017-07-19  - HP : Updated to work for 1D data. 
         2018-06-07  - MF : Updated to do a background subtract in the orthogonal direction (ie. column-wise)
         2018-11-04  - RL : Updated to add mask to exclude impurity and bad pixels in polyfit.
+        2018-11-05  - RL : Update to add support for 1D and 3D data file.
     '''
     # Polyfit for lineSubtraction excluding impurities.
-    def filter_2D(data, thres, M):
+    def filter_mask(data, thres, M, D):
         filtered = data.copy()
-        temp = (np.gradient(filtered)[0]+np.gradient(filtered)[1])/2
-        badPts = np.where(np.abs(temp-np.mean(temp))>thres*np.std(temp))
-        for ix, iy in zip(badPts[1], badPts[0]):
-            filtered[max(0, iy-M) : min(data.shape[0], iy+M+1),
+        if D == 1:
+            temp = np.gradient(filtered)
+            badPts = np.where(np.abs(temp-np.mean(temp))>thres*np.std(temp))
+            for ix in badPts[0]:
+                filtered[max(0, ix-M) : min(data.shape[0], ix+M+1)] = np.nan
+            return filtered
+        elif D == 2:
+            temp = np.gradient(filtered)[1]
+            badPts = np.where(np.abs(temp-np.mean(temp))>thres*np.std(temp))
+            for ix, iy in zip(badPts[1], badPts[0]):
+                filtered[max(0, iy-M) : min(data.shape[0], iy+M+1),
                                   max(0, ix-M) : min(data.shape[1], ix+M+1)] = np.nan
-        return filtered
-    
-    if mask is not False:
-        d = data.shape[-1]
-        x = np.linspace(0,d-1,d)
-        filtered = filter_2D(data, thres, M)
+            return filtered
+
+    def subtract_mask(data, n, thres, M, D):
+        d = data.shape[0]
+        x = np.linspace(0,data.shape[-1]-1,data.shape[-1])
+        filtered = filter_mask(data, thres, M, D)
         output = data.copy()
-        for i in range(d):
-            index = np.isfinite(filtered[i])
-            popt = np.polyfit(x[index], data[i][index], n)
-            output[i] = data[i] - np.polyval(popt, x)
-        return output
-    
+        if D == 1:
+            index = np.isfinite(filtered)
+            try:
+                popt = np.polyfit(x[index], data[index], n)
+                output = data - np.polyval(popt, x)
+            except TypeError:
+                raise TypeError('Empty x-array encountered. Please use a larger thres value.')
+            return output
+        if D == 2:
+            for i in range(d):
+                index = np.isfinite(filtered[i])
+                try:
+                    popt = np.polyfit(x[index], data[i][index], n)
+                    output[i] = data[i] - np.polyval(popt, x)
+                except TypeError:
+                    raise TypeError('Empty x-array encountered. Please use a larger thres value.')
+            return output
+
+    if maskon is not False:
+        if len(data.shape) == 3:
+            output = np.zeros_like(data)
+            for ix, layer in enumerate(data):
+                output[ix] = subtract_mask(layer, n, thres, M, 2)
+            return output
+        elif len(data.shape) == 2:
+            return subtract_mask(data, n, thres, M, 2)
+        elif len(data.shape) == 1:
+            return subtract_mask(data, n, thres, M, 1)
+        else:
+            raise TypeError('Data must be 1D, 2D or 3D numpy array.')
+
     # The original lineSubtract code.
     def subtract_1D(data, n):
         x = np.linspace(0,1,len(data))
