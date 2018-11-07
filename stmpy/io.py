@@ -83,6 +83,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2017-10-03  - HP : Improved reading of DAT files
         2018-03-02  - HP : VERSION  1.0 - Unified to a single SPY class.
         2018-10-10  - HP : Python 3 compatibility
+        2018-11-07  - HP : Add byte support to SPY files.
 
     '''
     try:
@@ -284,6 +285,10 @@ def save_spy(data, filePath, objects=[]):
         #stew(bytearray(val.encode('utf-8')) + '\n')
         #stew(':STR_END:\n')
     
+    def write_byt(name, byt):
+        stew(fileObj, 'BYT=' + name + '\n')
+        fileObj.write(byt)
+
     def write_num(name, val):
         stew(fileObj, 'NUM=' + name + '\n')
         if isinstance(val, int):
@@ -316,6 +321,8 @@ def save_spy(data, filePath, objects=[]):
             pass
         elif isinstance(item, str):
             write_str(name, item)
+        elif isinstance(item, bytes):
+            write_byt(name, item)
         elif type(item) in [int, float]:
             write_num(name, item)
         elif isinstance(item, complex):
@@ -400,6 +407,9 @@ def load_spy(filePath):
             st += line.decode('utf-8')
         return st
 
+    def read_byt(fileObj):
+        return fileObj.readline()
+
     #def read_str(fileObj):
     #    return fileObj.readline().strip().decode('utf-8')
 
@@ -426,6 +436,8 @@ def load_spy(filePath):
             item = read_lst(fileObj)
         elif key == 'STR':
             item = read_str(fileObj)
+        elif key == 'BYT':
+            item = read_byt(fileObj)
         elif key == 'NUM':
             item = read_num(fileObj)
         elif key == 'CPX':
