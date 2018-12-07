@@ -37,7 +37,7 @@ REFERENCES:
 
 '''
 
-def findBraggs(A, min_distance=2, threshold_rel=0.5, norm='linear', rspace=True):
+def findBraggs(A, min_distance=2, threshold_rel=0.5, norm='linear', rspace=True, zero_center=True):
     '''
     find Bragg peaks of topo image A using peak_local_max, will plot modulus of FT of A with result points
     NOTE: PLEASE REMOVE NON-BRAGG PEAKS MANUALLY BY 'Bragg = np.delete(coords, [indices], axis=0)'
@@ -47,9 +47,13 @@ def findBraggs(A, min_distance=2, threshold_rel=0.5, norm='linear', rspace=True)
     threshold_rel - minimum intensity of peaks, calculated as max(image) * threshold_rel
     norm: 'linear' or 'log', scale of display
     rspace: True - real space; False - reciprocal space
+    zero_center - whether or not zero the DC point of Fourier transform
     '''
     if rspace:
-        F = np.absolute(np.fft.fftshift(np.fft.fft2(A)))
+        ft = np.fft.fft2(A)
+        if zero_center:
+            ft[0,0] = 0
+        F = np.absolute(np.fft.fftshift(ft))
     else:
         F = np.copy(A)
     cnorm = mpl.colors.Normalize(vmin=F.min(), vmax=F.max())
@@ -57,7 +61,7 @@ def findBraggs(A, min_distance=2, threshold_rel=0.5, norm='linear', rspace=True)
         cnorm = mpl.colors.LogNorm(vmin=F.mean(), vmax=F.max())
     coords = peak_local_max(F, min_distance=min_distance, threshold_rel=threshold_rel)
     coords = np.fliplr(coords)
-    plt.imshow(F, cmap=plt.cm.gray_r, interpolation='None', origin='lower left', norm=cnorm, aspect=1)
+    plt.imshow(F, cmap=plt.cm.gray, origin='lower', norm=cnorm, aspect=1)
     plt.plot(coords[:, 0], coords[:, 1], 'r.')
     plt.gca().set_aspect(1)
     plt.axis('tight')

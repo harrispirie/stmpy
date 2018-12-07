@@ -388,7 +388,7 @@ def foldLayerImage(layerImage,bpThetaInRadians=0,n=4):
     return B
 
 
-def quickFT(data, n=None, zero_center=True, flag=True):
+def quickFT(data, n=None, zero_center=True, bp=(1.,1.), diag=True):
     '''
     A hassle-free FFT for 2D or 3D data.  Useful for quickly computing the QPI
     patterns from a DOS map. Returns the absolute value of the FFT for each
@@ -406,7 +406,7 @@ def quickFT(data, n=None, zero_center=True, flag=True):
         if n is None:
             return ft2(data)
         else:
-            return symmetrize(ft2(data), n, flag=flag)
+            return symmetrize(ft2(data), n, bp=bp, diag=diag)
     if len(data.shape) is 3:
         output = np.zeros_like(data)
         for ix, layer in enumerate(data):
@@ -414,10 +414,38 @@ def quickFT(data, n=None, zero_center=True, flag=True):
         if n is None:
             return output
         else:
-            return symmetrize(output, n, flag=flag)
+            return symmetrize(output, n, bp=bp, diag=diag)
     else:
         print('ERR: Input must be 2D or 3D numpy array.')
 
+def GMKhexagon(br, s, ec='k', lw=1):
+    '''generate Gamma, M, K points and hexagon by one Bragg point (image should be symmetrized).'''
+    def rotatexy(p1, p0, alpha, zoom=1):
+        '''rotate point pi:(xi, yi) around p0:(x0, y0) for an angle alpha'''
+        x1, y1 = p1[0], p1[1]
+        x0, y0 = p0[0], p0[1]
+        xf = x0 + zoom * ((x1 - x0)*np.cos(alpha) - (y1 - y0)*np.sin(alpha))
+        yf = y0 + zoom * ((y1 - y0)*np.cos(alpha) + (x1 - x0)*np.sin(alpha))
+        return xf, yf
+
+
+    x0, y0 = int(s/2), int(s/2)
+    x1, y1 = br[0], br[1]
+    x4, y4 = s-x1, s-y1
+    
+    a1, b1 = rotatexy((x1, y1), (x0, y0), np.pi/6, 2/np.sqrt(3))
+    a4, b4 = rotatexy((x4, y4), (x0, y0), np.pi/6, 2/np.sqrt(3))
+    a2, b2 = rotatexy((a1, b1), (x0, y0), np.pi/3)
+    a3, b3 = rotatexy((a2, b2), (x0, y0), np.pi/3)
+    a5, b5 = rotatexy((a4, b4), (x0, y0), np.pi/3)
+    a6, b6 = rotatexy((a5, b5), (x0, y0), np.pi/3)
+    
+    G = np.array([x0, y0])
+    K = np.array([a1, b1])
+    M = np.array([(a1+a2)/2, (b1+b2)/2])
+    hexagon = mpl.patches.Polygon(xy=[(a1, b1),(a2, b2),(a3, b3),(a4, b4),(a5, b5),(a6, b6)],\
+                                  closed=True, fill=None, ec=ec, lw=lw)
+    return G, M, K, hexagon
 
 def symmetrize(data, n, bp=(1.,1.), diag=False):
     '''
