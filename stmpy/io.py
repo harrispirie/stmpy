@@ -83,6 +83,8 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2017-10-03  - HP : Improved reading of DAT files
         2018-03-02  - HP : VERSION  1.0 - Unified to a single SPY class.
         2018-10-10  - HP : Python 3 compatibility
+        2018-11-07  - HP : Add byte support to SPY files.
+        2018-11-13  - HP : Add nice_units to .dat files
 
     '''
     try:
@@ -96,7 +98,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         if biasOffset:
             dataObject = _correct_bias_offset(dataObject, extension)
         if niceUnits:
-            dataObject = _nice_units(dataObject)
+            dataObject = _nice_units(dataObject, extension)
         return dataObject
     
     elif extension in ['spy', 'sxm', 'nvi', 'nvl', 'nsp', 'asc']:
@@ -175,7 +177,7 @@ def _correct_bias_offset(data, fileType):
         print('ERR: File not in standard format for processing. Could not correct for Bias offset')
         return data
 
-def _nice_units(data):
+def _nice_units(data, fileType):
     '''Switch to commonly used units.
 
     fileType    - .3ds : Use nS for LIY and didv attribute
@@ -183,6 +185,8 @@ def _nice_units(data):
     History:
         2017-08-10  - HP : Comment: Missing a factor of 2, phase error not
                            justified 
+        2018-11-13  - HP : Add nice_units to .dat files
+
     '''
     def use_nS(data):
         def chi(X):
@@ -190,13 +194,16 @@ def _nice_units(data):
             err = np.absolute(gFit - didv)
             return np.log(np.sum(err**2))
         lockInMod = float(data.header['Lock-in>Amplitude'])
-        current = np.mean(data.I, axis=(1,2))
-        didv = np.gradient(current) / np.gradient(data.en)
+       # current = np.mean(data.I, axis=(1,2))
+        didv = np.gradient(data.iv) / np.gradient(data.en)
         result = minimize(chi, 1)
         data.to_nS = result.x / lockInMod * 1e9 
         data.didv *= data.to_nS
-        data.LIY *= data.to_nS
-        data.didvStd *= data.to_nS
+        try: 
+            data.LIY *= data.to_nS
+            data.didvStd *= data.to_nS
+        except AttributeError:
+            pass # Just means that this is a .dat rather than a .3ds
         phi = np.arccos(1.0/result.x)
     
     def use_nm(data):
@@ -210,8 +217,10 @@ def _nice_units(data):
         data._pxToInvNm = data.qx[-1]/len(data.qx)
         print('WARNING: I am not 100% sure that the q scale is right...')
     
-    use_nS(data)
-    use_nm(data)
+    if fileType in ['3ds', 'dat']:
+        use_nS(data)
+    if fileType in ['3ds', 'sxm']:
+        use_nm(data)
     return data
 
 def _make_attr(self, attr, names, data):
@@ -284,6 +293,10 @@ def save_spy(data, filePath, objects=[]):
         #stew(bytearray(val.encode('utf-8')) + '\n')
         #stew(':STR_END:\n')
     
+    def write_byt(name, byt):
+        stew(fileObj, 'BYT=' + name + '\n')
+        fileObj.write(byt)
+
     def write_num(name, val):
         stew(fileObj, 'NUM=' + name + '\n')
         if isinstance(val, int):
@@ -316,6 +329,8 @@ def save_spy(data, filePath, objects=[]):
             pass
         elif isinstance(item, str):
             write_str(name, item)
+        elif isinstance(item, bytes):
+            write_byt(name, item)
         elif type(item) in [int, float]:
             write_num(name, item)
         elif isinstance(item, complex):
@@ -400,6 +415,9 @@ def load_spy(filePath):
             st += line.decode('utf-8')
         return st
 
+    def read_byt(fileObj):
+        return fileObj.readline()
+
     #def read_str(fileObj):
     #    return fileObj.readline().strip().decode('utf-8')
 
@@ -426,6 +444,8 @@ def load_spy(filePath):
             item = read_lst(fileObj)
         elif key == 'STR':
             item = read_str(fileObj)
+        elif key == 'BYT':
+            item = read_byt(fileObj)
         elif key == 'NUM':
             item = read_num(fileObj)
         elif key == 'CPX':
@@ -503,7 +523,7 @@ def load_3ds(filePath):
         print('ERR: Did not reach end of file.')
     fileObj.close()
     
-    LIYNames =  ['LIY 1 omega (A)', 'LIY 1 omega [AVG] (A)']
+    LIYNames =  ['LIY 1 omega (A)', 'LIY 1 omega [AVG] (A)', 'LI Demod 1 Y (A)', 'LI Demod 2 Y (A)','LI Demod 3 Y (A)']
     if _make_attr(self, 'LIY', LIYNames, 'grid'):
         self.didv = np.mean(self.LIY, axis=(1,2))
         self.didvStd = np.std(self.LIY, axis=(1,2))
@@ -517,6 +537,7 @@ def load_3ds(filePath):
     else:
         _make_attr(self, 'Z', ['Scan:Z (m)'], 'scan')
         print('WARNING: Using scan channel for Z attribute.')
+    self.iv = np.mean(self.I, axis=(1,2))
     try:     
         self.en = np.mean(self.grid['Bias [AVG] (V)'], axis=(1,2))
     except KeyError:
@@ -633,7 +654,7 @@ def load_dat(filePath):
     fileObj.close()
     _make_attr(self, 'didv', 
             ['LIY 1 omega (A)', 'LIY 1 omega [AVG] (A)'], 'channels')
-    _make_attr(self, 'I', ['Current (A)', 'Current [AVG] (A)'],
+    _make_attr(self, 'iv', ['Current (A)', 'Current [AVG] (A)'],
     'channels')
     _make_attr(self, 'en', ['Bias (V)', 'Bias calc (V)'], 'channels')
     if 'LIY 1 omega [00001] (A)' in self.channels.keys():
