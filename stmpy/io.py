@@ -85,10 +85,13 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2018-10-10  - HP : Python 3 compatibility
         2018-11-07  - HP : Add byte support to SPY files.
         2018-11-13  - HP : Add nice_units to .dat files
+        2019-01-09  - BB : Generalize file extension extraction
+
 
     '''
     try:
-        extension = filePath.split('.')[1]
+        filename, extension = os.path.splitext(filePath)
+        extension = extension.replace(".","")
     except IndexError:
         raise IOError('Please include file extension in path.')
     loadFn = 'load_' + extension
