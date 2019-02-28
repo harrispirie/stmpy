@@ -86,6 +86,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2018-11-07  - HP : Add byte support to SPY files.
         2018-11-13  - HP : Add nice_units to .dat files
         2019-01-09  - BB : Generalize file extension extraction
+        2019-02-28  - HP : Loads multisweep .dat files even if missing header.
 
 
     '''
@@ -661,7 +662,18 @@ def load_dat(filePath):
     'channels')
     _make_attr(self, 'en', ['Bias (V)', 'Bias calc (V)'], 'channels')
     if 'LIY 1 omega [00001] (A)' in self.channels.keys():
-        sweeps = int(self.header['Bias Spectroscopy>Number of sweeps'])
+        try:
+            sweeps = int(self.header['Bias Spectroscopy>Number of sweeps'])
+        except KeyError:
+            sweeps = -1
+            flag = 0
+            for key in self.channels.keys():
+                if key.startswith('LIY 1 omega') and 'bwd' not in key:
+                    sweeps += 1
+                if 'bwd' in key:
+                    flag = 1
+            if flag == 1:
+                print('WARNING: Ignoring backward sweeps.')
         self.LIY = np.zeros([len(self.en), sweeps])
         for ix in range(1, sweeps+1):
             s = str(ix).zfill(5)
