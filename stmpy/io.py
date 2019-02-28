@@ -159,7 +159,7 @@ def save(data, filePath, objects=[]):
 def _correct_bias_offset(data, fileType):
     try:
         if fileType == 'dat':
-            I = data.I
+            I = data.iv
         elif fileType == '3ds':
             I = [np.mean(data.I[ix]) for ix, __ in enumerate(data.en)]
         else:
