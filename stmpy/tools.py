@@ -9,7 +9,7 @@ import matplotlib as mpl
 from scipy.interpolate import interp1d
 import scipy.optimize as opt
 import scipy.ndimage as snd
-from scipy.signal import butter, filtfilt, fftconvolve, hilbert
+from scipy.signal import butter, filtfilt, fftconvolve, hilbert, correlate
 
 
 def interp2d(x, y, z, kind='nearest', **kwargs):
@@ -1926,3 +1926,31 @@ def narrow2oct(freq, asd, n=3, fbase=1.0):
     asd_oct = asd_oct/np.sqrt(bw)
     return f_center, asd_oct, bw
 
+
+def xcorr(data1, data2, norm=True):
+    '''
+    Compute the cross correlation of two ndarrays.
+
+    Inputs:
+        data1   - Required : Numpy ndarray containing variable 1.
+        data2   - Required : Numpy ndarray containing variable 2.  For auto
+                             correlation use data2=data1. 
+        norm    - Optional : Normalize the output so that the autocorrelation
+                             is 1 in the center.  Not 100% sure this works...
+
+    Returns: 
+        out     - Numpy ndarray containing correlation coefficients. 
+
+    History:
+        2019-03-10  - HP : Initial commit. 
+
+    '''
+    out = correlate(data1-np.mean(data1), data2-np.mean(data2), mode='same')
+    if norm:
+        if len(data1.shape) == 1:
+            out /= (out.shape[0] * data1.std() * data2.std())
+        elif len(data1.shape) == 2:
+            out /= (out.shape[0] * out.shape[1] * data1.std() * data2.std())
+        else:
+            print('ERR - Norm not implemented for {:2.0f}Darrays.'.format(len(data1.shape)))
+    return out
