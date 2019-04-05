@@ -1446,6 +1446,7 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
         2017-08-27  - HP : Set default method to 'SLSQP'
                            Will print warning if no iterations are evalued.
         2017-09-06  - JG : Set dtype of p0 to be float
+        2019-04-05  - JG : Force the size of vary the same with p0 if vary is None
     '''
     if 'method' not in kwarg.keys():
         kwarg['method'] = 'SLSQP'
@@ -1460,10 +1461,10 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
         from inspect import signature
         sig = signature(f)
         nargs = len(sig.parameters) - 1
-    if vary is None:
-        vary = np.ones(nargs, dtype=bool)
     if p0 is None:
         p0 = np.ones(nargs)
+    if vary is None:
+        vary = np.ones_like(p0, dtype=bool)
     p0 = np.array(p0, dtype=float)
     vary = np.array(vary)
     curve_fit.result = opt.minimize(chi, p0[vary == True], **kwarg)
