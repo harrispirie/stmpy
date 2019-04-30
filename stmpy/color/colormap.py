@@ -106,6 +106,9 @@ cm.defect1 = _make_STMView_colormap('Defect1.mat', name='defect1')
 cm.defect2 = _make_STMView_colormap('Defect2.mat', name='defect2')
 cm.defect4 = _make_STMView_colormap('Defect4.mat', name='defect4')
 cm.gray = _make_STMView_colormap('Gray.mat', name='gray')
+
+cm.PuGn = _make_STMView_colormap('PuGn.txt', name='PuGn')
+
 cm.sailingMod2 = _make_STMView_colormap('SailingMod2.mat', name='sailingMod2')
 cm.jackyYRK = _make_diverging_colormap([1, 1, 0], [0, 0, 0.5], 
                                         m=[0.7, 0.2, 0], name='jackyYRK')
@@ -148,7 +151,7 @@ cmaps = [cm.BuGy, cm.GnGy, cm.redblue, cm.autumn, cm.blue1, cm.blue2, cm.blue3,
          cm.defect0, cm.defect1, cm.defect2, cm.defect4, cm.gray,
          cm.sailingMod2, cm.jackyYRK, cm.jackyCopper, cm.jackyRdGy,
          cm.jackyPSD, cm.jason, cm.helix, cm.yanghe, cm.gold, cm.als,
-         cm.hpblue, cm.mhblue]
+         cm.hpblue, cm.mhblue, cm.PuGn]
 
 for cmap in cmaps:
     rev = _reverse_LSC(cmap)
