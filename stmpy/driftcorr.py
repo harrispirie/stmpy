@@ -1,5 +1,7 @@
 from __future__ import print_function
+import stmpy
 import numpy as np
+import scipy as sp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
@@ -7,6 +9,7 @@ import scipy.ndimage as snd
 from scipy.interpolate import interp1d, interp2d
 from skimage import transform as tf
 from skimage.feature import peak_local_max
+#import stmpy.driftcorr as dfc
 
 '''
 Local drift correction of square/triangular lattice. (Please carefully rewrite if a rectangular lattice version is needed.)
@@ -33,55 +36,89 @@ REFERENCES:
 [1] MH Hamidian, et al. "Picometer registration of zinc impurity states in Bi2Sr2CaCu2O8+d for phase determination in intra-unit-cell Fourier transform STM", New J. Phys. 14, 053017 (2012).
 [2] JA Slezak, PhD thesis (Ch. 3), http://davisgroup.lassp.cornell.edu/theses/Thesis_JamesSlezak.pdf
 
-20170428 CREATED BY JIANFENG GE
-
+History:
+    2017-04-28      CREATED BY JIANFENG GE
+    04/29/2019      RL : Add documents for all functions. Add another method to calculate phasemap.
+                            Add inverse FFT method to apply the drift field.
 '''
 
-def findBraggs(A, min_distance=2, threshold_rel=0.5, norm='linear', rspace=True, zero_center=True):
+def findBraggs(A, min_dist=5, thres=0.25, rspace=True, maskon=True, outAll=False, show=False):
     '''
-    find Bragg peaks of topo image A using peak_local_max, will plot modulus of FT of A with result points
-    NOTE: PLEASE REMOVE NON-BRAGG PEAKS MANUALLY BY 'Bragg = np.delete(coords, [indices], axis=0)'
+    Find Bragg peaks in the unit of pixels of topo or FT pattern A using peak_local_max.
 
-    Parameters: 
-    min_distance - peaks are separated by at least min_distance in pixel;
-    threshold_rel - minimum intensity of peaks, calculated as max(image) * threshold_rel
-    norm: 'linear' or 'log', scale of display
-    rspace: True - real space; False - reciprocal space
-    zero_center - whether or not zero the DC point of Fourier transform
+    Input: 
+        A           - Required : 2D array of topo in real space, or FFT in q space.
+        min_dist    - Optional : Minimum distance (in pixels) between peaks. Default: 5
+        thres       - Optional : Minimum intensity of Bragg peaks relative to max value. Default: 0.25
+        rspace      - Optional : Boolean indicating if A is real or Fourier space image. Default: True
+        maskon      - Optional : Boolean, if True then a Gaussian mask (width=len(A)/5) will be used to 
+                                    remove low q high intensity signals before finding Bragg peaks.
+        outAll      - Optional : Boolean, if False then only the first two and last two peaks will be output.
+                                    If True then all Bragg peaks will be output.
+        show        - Optional : Boolean, if True then A and Bragg peaks will be plotted out.
+
+    Returns:
+        coords      -  (4x2) array contains Bragg peaks in the format of [[x1,y1],[x2,y2],...,[x4,y4]]
+
+    Usage:
+        import stmpy.driftcorr as dfc
+        bg = dfc.findBraggs(A, min_dist=10, thres=0.2, rspace=True,show=True)
+
+    History:
+        04/28/2017      JG : Initial commit.
+        04/29/2019      RL : Add maskon option, add outAll option, and add documents.
+
     '''
-    if rspace:
-        ft = np.fft.fft2(A)
-        if zero_center:
-            ft[0,0] = 0
-        F = np.absolute(np.fft.fftshift(ft))
+    if rspace is True:
+        F = stmpy.tools.fft(A, zeroDC=True)
     else:
         F = np.copy(A)
+    # Remove low-q high intensity data with Gaussian mask
+    if maskon is True:
+        X, Y = np.shape(A)
+        Lx = X/5
+        Ly = Y/5
+        x = np.arange(X)
+        y = np.arange(Y)
+        p0 = [int(X/2), int(Y/2), Lx, Ly, 1, np.pi/2]
+        G = 1-stmpy.tools.gauss2d(x, y, p=p0)
+        F *= G
     cnorm = mpl.colors.Normalize(vmin=F.min(), vmax=F.max())
-    if norm is 'log':
-        cnorm = mpl.colors.LogNorm(vmin=F.mean(), vmax=F.max())
-    coords = peak_local_max(F, min_distance=min_distance, threshold_rel=threshold_rel)
+    #if norm is 'log':
+    #    cnorm = mpl.colors.LogNorm(vmin=F.mean(), vmax=F.max())
+    coords = peak_local_max(F, min_distance=min_dist, threshold_rel=thres)
     coords = np.fliplr(coords)
-    plt.imshow(F, cmap=plt.cm.gray, origin='lower', norm=cnorm, aspect=1)
-    plt.plot(coords[:, 0], coords[:, 1], 'r.')
-    plt.gca().set_aspect(1)
-    plt.axis('tight')
-    print('#:\t[x y]')
-    for ix, iy in enumerate(coords):
-        print(ix, end='\t')
-        print(iy)
+    if show is True:
+        plt.imshow(F, cmap=plt.cm.gray_r, interpolation='None', origin='lower left', norm=cnorm, aspect=1)
+        plt.plot(coords[:, 0], coords[:, 1], 'r.')
+        plt.gca().set_aspect(1)
+        plt.axis('tight')
+        print('#:\t[x y]')
+        for ix, iy in enumerate(coords):
+            print(ix, end='\t')
+            print(iy)
+    if outAll is False:
+        if len(coords) > 4:
+            coords = np.delete(coords, np.arange(len(coords)-4)+2,axis=0)
     return coords
     
-
 def gshearcorr(A, Bragg, rspace=True, slow_scan='None'):
     '''
-    Shear correction based on FT of 2D array A
+    Global shear correction based on FT of 2D array A
+
     Inputs:
-    A - 2D or 3D array to be shear corrected;
-    Bragg - 2D array of the shape (N, 2), e.g. Bragg = np.array([[x1, y1], [x2, y2], ...]), coordinates in pixel from FT image;
-    rspace: True - correction in real space, False - in reciprocal space.
+        A           - Required : 2D or 3D array to be shear corrected.
+        Bragg       - Required : (Nx2) array contains Bragg peaks in the unit of pixels.
+        rspace      - Optional : Boolean indicating if A is real or Fourier space image. Default: True
+        slow_scan   - Optional : One of ("None", "x", "y"), specifying the slow scan direction.
+    
+    Returns:
+        A_corr      - 2D or 3D array after global shear correction.
+        Bragg_M     - model points for Bragg peaks
 
-    Output: A_corr - corrected 2D or 3D array; Bragg_M - model points for Bragg peaks
-
+    Usage:
+        import stmpy.driftcorr as dfc
+        A_gcorr, bg_m = dfc.gshearcorr(A, Bragg, rspace=True, slow_scan='y')
     '''
     
     A_corr = np.zeros_like(A)
@@ -100,21 +137,32 @@ def gshearcorr(A, Bragg, rspace=True, slow_scan='None'):
     else:
         print('Bragg peak coordinates should be 2D array of the shape (N, 2)')
 
-def phasemap(A, Br_c, sigma=10):
+def phasemap(A, Br_c, sigma=10, method="lockin"):
     '''
-    calculate local phase and phase shift maps
+    Calculate local phase and phase shift maps. Two methods are available now: spatial lockin or Gaussian mask convolution
+
     Input:
-    A - global shear corrected 2D (Topo.) array (cropped)
-    Br_c: Bragg peaks of FT(A), N x 2 array, find them using findBraggs(A), remember to delete wrong points.
-    sigma: width of DC filter.
+        A       - Required : 2D arrays after global shear correction with bad pixels cropped on the edge
+        Br_c    - Required : Coords of Bragg peaks of FT(A), can be computed by findBraggs(A)
+        sigma   - Optional : width of DC filter in lockin method or len(A)/s
+        method  - Optional : Specify which method to use to calculate phase map.
+                                "lockin": Spatial lock-in method to find phase map
+                                "convolution": Gaussian mask convolution method to find phase map
+
+    Returns:
+        thetax      -       2D array, Phase shift map in x direction, relative to perfectly generated cos lattice
+        thetay      -       2D array, Phase shift map in y direction, relative to perfectly generated cos lattice
+        Q1          -       Coordinates of 1st Bragg peak
+        Q2          -       Coordinates of 2nd Bragg peak
     
-    NOTE: PHASE SLIPS ARE VERY SENSITIVE TO SIGMA.
-    TRY A SMALL VALUE FIRST AND THEN DO LOCAL DRIFT WITH PROPER VALUE AGAIN TO AVOID PHASE SLIPS
+    Usage:
+        import stmpy.driftcorr as dfc
+        thetax, thetay, Q1, Q2 = dfc.phasemap(A, Br_c, sigma=10, method='lockin')
     
-    Output: phix, phiy - phase maps; thetax, thetay - phase shift maps
-    use plt.contour(x, y, np.cos(phix), [-0.9], colors='m', origin='lower', linewidths=0.5, nchunk=0)
-    with imshow to check pi phase lines
-    use np.diff(thetax, axis=0) to see phase slips, do not use gradient
+    History:
+        04/28/2017      JG : Initial commit.
+        04/29/2019      RL : Add "convolution" method, and add documents.
+
     '''
     if A.shape[1] != A.shape[0]:
         print('Input is not a square 2D array!')
@@ -125,19 +173,40 @@ def phasemap(A, Br_c, sigma=10):
         x, y = np.meshgrid(t, t)
         Q1 = 2*np.pi*np.array([Br_c[0][0]-s/2, Br_c[0][1]-s/2])/s
         Q2 = 2*np.pi*np.array([Br_c[1][0]-s/2, Br_c[1][1]-s/2])/s
-        Axx = A * np.sin(Q1[0]*x+Q1[1]*y)
-        Axy = A * np.cos(Q1[0]*x+Q1[1]*y)
-        Ayx = A * np.sin(Q2[0]*x+Q2[1]*y)
-        Ayy = A * np.cos(Q2[0]*x+Q2[1]*y)
-        Axxf = FTDCfilter(Axx, sigma)
-        Axyf = FTDCfilter(Axy, sigma)
-        Ayxf = FTDCfilter(Ayx, sigma)
-        Ayyf = FTDCfilter(Ayy, sigma)
-        thetax = np.arctan2(Axxf, Axyf)
-        thetay = np.arctan2(Ayxf, Ayyf)
-        #thetax -= thetax.mean()
-        #thetay -= thetay.mean()
-        return thetax, thetay, Q1, Q2
+        if method is "lockin":
+            Axx = A * np.sin(Q1[0]*x+Q1[1]*y)
+            Axy = A * np.cos(Q1[0]*x+Q1[1]*y)
+            Ayx = A * np.sin(Q2[0]*x+Q2[1]*y)
+            Ayy = A * np.cos(Q2[0]*x+Q2[1]*y)
+            Axxf = FTDCfilter(Axx, sigma)
+            Axyf = FTDCfilter(Axy, sigma)
+            Ayxf = FTDCfilter(Ayx, sigma)
+            Ayyf = FTDCfilter(Ayy, sigma)
+            thetax = np.arctan2(Axxf, Axyf)
+            thetay = np.arctan2(Ayxf, Ayyf)
+            return thetax, thetay, Q1, Q2
+        elif method is "convolution":
+            t_x = np.arange(s)
+            t_y = np.arange(s)
+            xcoords, ycoords = np.meshgrid(t_x, t_y)
+            exponent_x = (Q1[0] * xcoords + Q1[1] * ycoords)#(2.* np.pi/s)*(Q1[0] * xcoords + Q1[1] * ycoords)
+            exponent_y = (Q2[0] * xcoords + Q2[1] * ycoords)#(2.* np.pi/s)*(Q2[0] * xcoords + Q2[1] * ycoords)
+            A_x = A * np.exp(np.complex(0,-1)*exponent_x)
+            A_y = A * np.exp(np.complex(0,-1)*exponent_y)
+            sx = sigma
+            sy = sigma
+            Amp = 1/(4*np.pi*sx*sy)
+            p0 = [int(s/2), int(s/2), sx, sy, Amp, np.pi/2]
+            G = stmpy.tools.gauss2d(t_x, t_y, p=p0, symmetric=True)
+            T_x = sp.signal.fftconvolve(A_x, G, mode='same',)
+            T_y = sp.signal.fftconvolve(A_y, G, mode='same',)
+            R_x = np.abs(T_x)
+            R_y = np.abs(T_y)
+            phi_y = np.angle(T_y)    
+            phi_x = np.angle(T_x) 
+            return phi_x, phi_y, Q1, Q2
+        else:
+            print('Only two methods are available now:\n1. lockin\n2. convolution')
 
 def chkphasemap(A, thetax, thetay, Q1, Q2, l=-0.95):
     '''
@@ -162,10 +231,29 @@ def chkphasemap(A, thetax, thetay, Q1, Q2, l=-0.95):
     plt.tight_layout()
     return phix, phiy
 
-def fixphaseslip(A, thres=np.pi, method='spiral', orient=0):
+def fixphaseslip(A, thres=None, method='unwrap', orient=0):
     '''
-    fix phase slip in phase shift maps by flattening A into a 1D array in a spiral way orientation is clockwise(0) or conter-clockwise(1).
-    Fails when discontiuity between lines presents. If so, edges need to be cropped.
+    Fix phase slip by adding 2*pi at phase jump lines.
+
+    Inputs:
+        A       - Required : 2D arrays of phase shift map, potentially containing phase slips
+        thres   - Optional : Float number, specifying threshold for finding phase jumps in diff(A). Default: None
+        method  - Optional : Specifying which method to fix phase slips.
+                                "unwrap": fix phase jumps line by line in x direction and y direction, respectively
+                                "spiral": fix phase slip in phase shift maps by flattening A into a 1D array in a spiral way
+        orient  - Optional : Used in "spiral" phase fixing method. 0 for clockwise and 1 for counter-clockwise
+
+    Returns:
+    
+        phase_corr      -       2D arrays of phase shift map with phase slips corrected
+
+    Usage:
+        import stmpy.driftcorr as dfc
+        thetaxf = dfc.fixphaseslip(thetax, method='unwrap')
+
+    History:
+        04/28/2017      JG : Initial commit.
+        04/29/2019      RL : Add "unwrap" method, and add documents.
     '''
     def fixphaseslip1d(A, thres=np.pi):
         dA = np.diff(A, 1)
@@ -174,16 +262,10 @@ def fixphaseslip(A, thres=np.pi, method='spiral', orient=0):
         for slip in slips:
             sliprm[:slip+1] += 2 * np.pi * np.sign(dA[slip])
         return A+sliprm
-        ##################
-        
-        #B = np.copy(A)
-        #for ix in range(len(A)-1):
-        #    tmp = B[ix] - B[ix+1]
-        #    if abs(tmp) > thres:
-        #        B[:ix+1] -= np.sign(tmp) * np.around(abs(tmp/np.pi)) * np.pi
-        #return B
 
     if method is 'spiral':
+        if thres is None:
+            thres=np.pi
         if A.shape[0] != A.shape[1]:
             print('ERR: Input must be a square 2D array!')
         else:
@@ -226,49 +308,146 @@ def fixphaseslip(A, thres=np.pi, method='spiral', orient=0):
             if orient is 1:
                 E = E.T
             return E
+    elif method is "unwrap":
+        return unwrap_phase_2d(A, thres=thres)
     else:
         print('Method not implemented!')
 
-def driftmap(thetax, thetay, Q1, Q2):
-    '''calculate drift maps based on phase shift maps, use Q1 and Q2 generated by phasemap'''
-    tx = np.copy(thetax)
-    ty = np.copy(thetay)
-    #tx -= tx.mean()
-    #ty -= ty.mean()
-    ux = -(Q2[1]*tx - Q1[1]*ty) / (Q1[0]*Q2[1]-Q1[1]*Q2[0])
-    uy = -(Q2[0]*tx - Q1[0]*ty) / (Q1[1]*Q2[0]-Q1[0]*Q2[1])
-    return ux, uy
-
-def driftcorr(A, ux, uy, interpolation='cubic'):
-    ''' 
-    drift correction on 2D image or 3D DOS map, use ux, uy calculated by driftmap. Crop edges of A_corr if needed.
-    interpolation: 'linear', 'cubic' or 'quintic'. Default is 'cubic'
+def driftmap(thetax, thetay, Q1, Q2, method="lockin"):
     '''
+    Calculate drift fields based on phase shift maps, with Q1 and Q2 generated by phasemap.
 
-    A_corr = np.zeros_like(A)
+    Inputs:
+        thetax      - Required : 2D arrays of phase shift map in x direction with phase slips corrected
+        thetay      - Required : 2D arrays of phase shift map in y direction with phase slips corrected
+        Q1          - Required : Coordinates of 1st Bragg peak, generated by phasemap
+        Q2          - Required : Coordinates of 2nd Bragg peak, generated by phasemap
+        method      - Optional : Specifying which method to use.
+                                    "lockin": Used for phase shift map generated by lockin method
+                                    "convolution": Used for phase shift map generated by lockin method
+
+    Returns:
+        ux          - 2D array of drift field in x direction
+        uy          - 2D array of drift field in y direction
+
+    Usage:
+        import stmpy.driftcorr as dfc
+        ux, uy = dfc.driftmap(thetaxf, thetayf, Q1, Q2, method='lockin')
+
+    History:
+        04/28/2017      JG : Initial commit.
+        04/29/2019      RL : Add "lockin" method, and add documents.
+    '''
+    if method is "lockin":
+        tx = np.copy(thetax)
+        ty = np.copy(thetay)
+        #tx -= tx.mean()
+        #ty -= ty.mean()
+        ux = -(Q2[1]*tx - Q1[1]*ty) / (Q1[0]*Q2[1]-Q1[1]*Q2[0])
+        uy = -(Q2[0]*tx - Q1[0]*ty) / (Q1[1]*Q2[0]-Q1[0]*Q2[1])
+        return ux, uy
+    elif method is "convolution":
+        #s = np.shape(thetax)[-1]
+        Qx_mag = np.sqrt((Q1[0])**2 + (Q1[1])**2)
+        Qy_mag = np.sqrt((Q2[0])**2 + (Q2[1])**2)
+        Qx_ang = np.arctan2(Q1[1],Q1[0]) # in radians
+        Qy_ang = np.arctan2(Q2[1],Q2[0]) # in radians
+        Qxdrift = 1/(Qx_mag) * thetax#s/(2*np.pi*Qx_mag) * thetax
+        Qydrift = 1/(Qy_mag) * thetay#s/(2*np.pi*Qy_mag) * thetay
+        ux = Qxdrift * np.cos(Qx_ang) - Qydrift * np.sin(Qy_ang-np.pi/2)
+        uy = Qxdrift * np.sin(Qx_ang) + Qydrift * np.cos(Qy_ang-np.pi/2)
+        return -ux, -uy
+    else:
+        print("Only two methods are available now:\n1. lockin\n2. convolution")
+
+def driftcorr(A, ux, uy, method="interpolate", interpolation='cubic'):
+    '''
+    Correct the drift in the topo according to drift fields
+
+    Inputs:
+        A           - Required : 2D or 3D arrays of topo to be drift corrected
+        ux          - Required : 2D arrays of drift field in x direction, generated by driftmap()
+        uy          - Required : 2D arrays of drift field in y direction, generated by driftmap()
+        method      - Optional : Specifying which method to use.
+                                    "interpolate": Interpolate A and then apply it to a new set of coordinates,
+                                                    (x-ux, y-uy)
+                                    "invfft": Used inversion fft to apply the drift fields
+        interpolation - Optional : Specifying which method to use for interpolating
+
+    Returns:
+        A_corr      - 2D or 3D array of topo with drift corrected
+
+    Usage:
+        import stmpy.driftcorr as dfc
+        A_corr = dfc.driftcorr(ux, uy, method='interpolate', interpolation='cubic')
+
+    History:
+        04/28/2017      JG : Initial commit.
+        04/29/2019      RL : Add "invfft" method, and add documents.
+    '''
+    if method is "interpolate":
+        A_corr = np.zeros_like(A)
+        s = A.shape[-1]
+        t = np.arange(s, dtype='float')
+        x, y = np.meshgrid(t, t)
+        xnew = (x - ux).ravel()
+        ynew = (y - uy).ravel()
+        tmp = np.zeros(s**2)
+        if len(A.shape) is 2:
+            tmp_f = interp2d(t, t, A, kind=interpolation)
+            for ix in range(tmp.size):
+                tmp[ix] = tmp_f(xnew[ix], ynew[ix])
+            A_corr = tmp.reshape(s, s)
+            return A_corr
+        elif len(A.shape) is 3:
+            for iz, layer in enumerate(A):
+                tmp_f = interp2d(t, t, layer, kind=interpolation)
+                for ix in range(tmp.size):
+                    tmp[ix] = tmp_f(xnew[ix], ynew[ix])
+                A_corr[iz] = tmp.reshape(s, s)
+                print('Processing slice %d/%d...'%(iz+1, A.shape[0]), end='\r')
+            return A_corr
+        else:
+            print('ERR: Input must be 2D or 3D numpy array!')
+    elif method is "invfft":
+        A_corr = np.zeros_like(A)
+        if len(A.shape) is 2:
+            return apply_drift_field(A, ux=ux, uy=uy, zeroOut=True)
+        elif len(A.shape) is 3:
+            for iz, layer in enumerate(A):
+                A_corr[iz] = apply_drift_field(layer, ux=ux, uy=uy, zeroOut=True)
+                print('Processing slice %d/%d...'%(iz+1, A.shape[0]), end='\r')
+            return A_corr
+        else:
+            print('ERR: Input must be 2D or 3D numpy array!')
+
+def apply_drift_field(A, ux, uy, zeroOut=True):
+    A_corr = np.copy(A)
     s = A.shape[-1]
     t = np.arange(s, dtype='float')
     x, y = np.meshgrid(t, t)
-    xnew = (x - ux).ravel()
-    ynew = (y - uy).ravel()
-    tmp = np.zeros(s**2)
-
-    if len(A.shape) is 2:
-        tmp_f = interp2d(t, t, A, kind=interpolation)
-        for ix in range(tmp.size):
-            tmp[ix] = tmp_f(xnew[ix], ynew[ix])
-        A_corr = tmp.reshape(s, s)
-        return A_corr
-    elif len(A.shape) is 3:
-        for iz, layer in enumerate(A):
-            tmp_f = interp2d(t, t, layer, kind=interpolation)
-            for ix in range(tmp.size):
-                tmp[ix] = tmp_f(xnew[ix], ynew[ix])
-            A_corr[iz] = tmp.reshape(s, s)
-            print('Processing slice %d/%d...'%(iz+1, A.shape[0]), end='\r')
-        return A_corr
-    else:
-        print('ERR: Input must be 2D or 3D numpy array!')
+    xshifted = x + ux
+    yshifted = y + uy
+    if zeroOut is True:
+        A_corr[np.where(xshifted < 0)] = 0
+        A_corr[np.where(yshifted < 0)] = 0
+        A_corr[np.where(xshifted > s)] = 0
+        A_corr[np.where(yshifted > s)] = 0
+    qcoord = (2*np.pi/s)*(np.arange(s)-(int(s/2)))
+    xshifted = np.reshape(xshifted, [1, s**2])
+    yshifted = np.reshape(yshifted, [1, s**2])
+    qcoord = np.reshape(qcoord, [s, 1])
+    xphase = np.exp(-1j*(np.matmul(xshifted.T, qcoord.T).T))
+    yphase = np.exp(-1j*(np.matmul(yshifted.T, qcoord.T).T))
+    avgData = np.mean(A_corr)
+    A_corr -= avgData
+    A_corr = np.reshape(A_corr, s**2)
+    data_temp = np.zeros([s, s**2])
+    for i in range(s):
+        data_temp[i] = A_corr
+    FT = np.matmul(data_temp * xphase, yphase.T).T
+    invFT = np.fft.ifft2(np.fft.fftshift(FT)) + avgData
+    return np.real(invFT)
 
 def chkperflat(A_corr, Q1, Q2, shiftx=0, shifty=0):
     '''check corrected topo image with perfect lattice. Manually find smallest shifts of x and y in corrected image to align atoms'''
@@ -519,3 +698,176 @@ def findBZvertices(A, Br):
         V[ix] = findV(C, Br[ix], Br[ix+1])
     V[-1] = findV(C, Br[-1], Br[0])
     return V
+
+def unwrap_phase(ph, tolerance=None, maxval=None):
+
+    maxval = 2 * np.pi if maxval is None else maxval0
+    tol = 0.25*maxval if tolerance is None else tolerance*maxval
+    if len(ph) < 2:
+        return ph
+
+    dph = np.diff(ph)
+    dph[np.where(np.abs(dph) < tol)] = 0
+    dph[np.where(dph < -tol)] = 1
+    dph[np.where(dph > tol)] = -1
+    ph[1:] += maxval * np.cumsum(dph)
+    return ph
+
+def unwrap_phase_2d(A, thres=None):
+    output = np.copy(A[::-1,::-1])         
+    if len(np.shape(A)) == 2:
+        n = np.shape(A)[-1]
+        for i in range(n):
+            output[i,:] = unwrap_phase(output[i,:], tolerance=thres)
+        for i in range(n):
+            output[:,i] = unwrap_phase(output[:,i], tolerance=thres)
+        return output[::-1,::-1]
+
+def global_corr(data, show=False):
+    """
+    Global shear correct the 2D topo automatically.
+
+    Inputs:
+        data    - Required : 2D array of topo to be shear corrected.
+        show    - Optional : Boolean specifying if the results are plotted or not
+
+    Returns:
+        bg_1    - Bragg peaks returned by gshearcorr. To be used in local_corr()
+        data_1  - 2D array of topo after global shear correction
+
+    Usage:
+        import stmpy.driftcorr as dfc
+        bg1, data1 = dfc.global_corr(data, show=True)
+
+    History:
+        04/29/2019      RL : Initial commit.
+    """
+    imgsize = np.shape(data)[-1]
+    bg_1 = findBraggs(data, min_dist=int(imgsize/10), thres=0.2, show=show)
+    data_1, Bragg_M = gshearcorr(data, bg_1, rspace=True)
+    if show is True:
+        fig,ax=plt.subplots(1,2,figsize=[8,4])
+        ax[0].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
+        ax[1].imshow(stmpy.tools.fft(data_1, zeroDC=True), cmap=stmpy.cm.gray_r,origin='lower')
+        fig.suptitle('After global shear correction', fontsize=14)
+        fig,ax=plt.subplots(2,2,figsize=[8,8])
+        ax[0,0].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
+        ax[0,1].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
+        ax[1,0].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
+        ax[1,1].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
+        ax[0,0].set_xlim(0, imgsize/10)
+        ax[0,0].set_ylim(imgsize-imgsize/10, imgsize)
+        ax[0,1].set_xlim(imgsize-imgsize/10, imgsize)
+        ax[0,1].set_ylim(imgsize-imgsize/10, imgsize)
+        ax[1,0].set_xlim(0, imgsize/10)
+        ax[1,0].set_ylim(0, imgsize/10)
+        ax[1,1].set_xlim(imgsize-imgsize/10, imgsize)
+        ax[1,1].set_ylim(0, imgsize/10)
+        fig.suptitle('Bad pixels in 4 corners', fontsize=14)
+    return bg_1, data_1
+
+def local_corr(data, sigma=10, method="lockin", fixMethod='unwrap', show=False):
+    """
+    Locally drift correct 2D topo automatically.
+
+    Inputs:
+        data        - Required : 2D array of topo after global shear correction, with bad pixels removed on the edge
+        sigma       - Optional : Floating number specifying the size of mask to be used in phasemap()
+        method      - Optional : Specifying which method to in phasemap()
+                                "lockin": Spatial lock-in method to find phase map
+                                "convolution": Gaussian mask convolution method to find phase map
+        fixMethod   - Optional : Specifying which method to use in fixphaseslip()
+                                "unwrap": fix phase jumps line by line in x direction and y direction, respectively
+                                "spiral": fix phase slip in phase shift maps by flattening A into a 1D array in a spiral way
+        show        - Optional : Boolean specifying if the results are plotted or not
+
+    Returns:
+        ux          - 2D array of drift field in x direction
+        uy          - 2D array of drift field in y direction
+        data_corr   - 2D array of topo after local drift corrected
+
+    Usage:
+        import stmpy.driftcorr as dfc
+        ux, uy, data_corr = dfc.local_corr(data, sigma=5, method='lockin', fixMethod='unwrap', show=True)
+
+    History:
+        04/29/2019      RL : Initial commit.
+    """
+    imgsize = np.shape(data)[-1]
+    bg_2 = findBraggs(data, min_dist=int(imgsize/10), thres=0.2, show=show)
+    thetax, thetay, Q1, Q2= phasemap(data, bg_2, method=method, sigma=sigma)
+    if show is True:
+        fig,ax=plt.subplots(1,2,figsize=[8,4])
+        ax[0].imshow(thetax, origin='lower')
+        ax[1].imshow(thetay, origin='lower')
+        fig.suptitle('Raw phase maps')
+    thetaxf = fixphaseslip(thetax, method=fixMethod)
+    thetayf = fixphaseslip(thetay, method=fixMethod)
+    if show is True:
+        fig,ax=plt.subplots(1,2,figsize=[8,4])
+        ax[0].imshow(thetaxf, origin='lower')
+        ax[1].imshow(thetayf, origin='lower')
+        fig.suptitle('After fixing phase slips')
+    ux, uy = driftmap(thetaxf, thetayf, Q1, Q2, method=method)
+    if method=='lockin':
+        data_corr = driftcorr(data, ux, uy, method='interpolate', interpolation='cubic')
+    elif method=='convolution':
+        data_corr = driftcorr(data, ux, uy, method='invfft',)
+    else:
+        print("Error: Only two methods are available, lockin or convolution.")
+    if show is True:
+        fig,ax=plt.subplots(2,2,figsize=[8, 8])
+        ax[1, 0].imshow(data_corr, cmap=stmpy.cm.blue1,origin='lower')
+        ax[1, 1].imshow(stmpy.tools.fft(data_corr, zeroDC=True), cmap=stmpy.cm.gray_r,origin='lower')
+        ax[0, 0].imshow(data, cmap=stmpy.cm.blue1,origin='lower')
+        ax[0, 1].imshow(stmpy.tools.fft(data, zeroDC=True), cmap=stmpy.cm.gray_r,origin='lower')
+        fig.suptitle('Before and after local drift correction')
+    return ux, uy, data_corr
+
+def apply_df_3d(data, bg1, ux, uy, crop1=None, crop2=None, method='interpolate'):
+    """
+    Apply drift field (both global and local) found in 2D to corresponding 3D map.
+
+    Inputs:
+        data        - Required : 3D array of map to be drift corrected
+        bg1         - Required : Coordinates of Bragg peaks returned by global_corr()
+        ux          - Required : 2D array of drift field in x direction. Usually generated by local_corr()
+        uy          - Required : 2D array of drift field in y direction. Usually generated by local_corr()
+        crop1       - Optional : List of length 1 or length 4, specifying after global shear correction how much to crop on the edge
+        crop2       - Optional : List of length 1 or length 4, specifying after local drift correction how much to crop on the edge
+        method      - Optional : Specifying which method to apply the drift correction
+                                    "interpolate": Interpolate A and then apply it to a new set of coordinates,
+                                                    (x-ux, y-uy)
+                                    "invfft": Used inversion fft to apply the drift fields
+    Returns:
+        data_corr   - 2D array of topo after local drift corrected
+
+    Usage:
+        import stmpy.driftcorr as dfc
+        data_corr = dfc.apply_df_3d(data, bg1=bg1, ux=ux, uy=uy, crop1=[5], crop2=[5], method='interpolate')
+
+    History:
+        04/29/2019      RL : Initial commit.
+    """
+    data_c, _  = gshearcorr(data, bg1, rspace=True)
+    if crop1 is None:
+        data_c = data_c
+    elif len(crop1) == 1:
+        data_c = cropedge(data_c, crop1[0])
+    elif len(crop1) == 4:
+        edge_left, edge_right, edge_bottom, edge_top = crop1
+        data_c = data_c[:,edge_bottom:edge_top+1,edge_left:edge_right+1]
+    else:
+        print("Please provide crop1 as 1-element or 4-element list.")
+    data_corr = driftcorr(data_c, ux, uy, method=method, interpolation='cubic')
+    if crop2 is None:
+        data_out = data_corr
+    elif len(crop2) == 1:
+        data_out = cropedge(data_corr, crop2[0])
+    elif len(crop2) == 4:
+        edge_left, edge_right, edge_bottom, edge_top = crop2
+        data_out = data_corr[:,edge_bottom:edge_top+1,edge_left:edge_right+1]
+    else:
+        print("Please provide crop2 as 1-element or 4-element list.")
+    return data_out
+
