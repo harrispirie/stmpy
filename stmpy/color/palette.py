@@ -54,6 +54,15 @@ class _HpPalette(object):
         self.red    = _to_rgba('#ca0222')
         self.orange = _to_rgba('#EB8C2D')
         self.green  = _to_rgba('#68b959')
+        self.vblue  = _to_rgba('#377eb8')
+        self.vorange = _to_rgba('#ff7f00')
+        self.vgreen = _to_rgba('#4daf4a')
+        self.vpink  = _to_rgba('#f781bf')
+        self.vbrown = _to_rgba('#a65628')
+        self.vpurple = _to_rgba('#984ea3')
+        self.vgray  = _to_rgba('#999999')
+        self.vred   = _to_rgba('#e41a1c')
+        self.vyellow = _to_rgba('#dede00')
 
 
 # ___ CREATE COLOR PALETTES ___
