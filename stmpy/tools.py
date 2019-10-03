@@ -1955,3 +1955,35 @@ def xcorr(data1, data2, norm=True):
         else:
             print('ERR - Norm not implemented for {:2.0f}Darrays.'.format(len(data1.shape)))
     return out
+
+def remove_piezo_drift(data):
+    '''
+    Removes vertical axis piezo drift for 2D image files (.sxm) by fitting
+    average y values to a logistic function (fundamental model for piezo
+    drift).
+
+    Inputs: 
+        data    - Required : Numpy array containing image data (must be 2D).
+
+    Returns: 
+        out     - Numpy 2D array with drift removed. The mean is set to zero,
+                  but the units are retained.
+
+    History:
+        2019-10-02  - HP : Initial commit. 
+
+    '''
+    datan = (data-np.min(data)) / np.max(data-np.min(data))
+    y = np.mean(datan, axis=1)
+    x = np.linspace(0,1,data.shape[1])
+    def logistic(x, L, k, x0, c):
+        return L / (1 + np.exp(-k*(x-x0))) + c
+    p0 = curve_fit(logistic, x, y)
+    ls = logistic(x, *p0)
+    out = np.zeros_like(data)
+    for ix, line in enumerate(datan):
+        out[ix] = line - ls[ix]
+    outn = out * np.max(data-np.min(data)) + np.min(data)
+    return outn - np.mean(outn)
+
+        
