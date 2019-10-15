@@ -1986,4 +1986,25 @@ def remove_piezo_drift(data):
     outn = out * np.max(data-np.min(data)) + np.min(data)
     return outn - np.mean(outn)
 
-        
+def bias_offset_map(en, I):
+    '''Calculate zero bias offset for I(V) map. 
+    
+    Inputs: 
+        en      - Required : Numpy array containing voltage data (must be 1D).
+        I       - Required : Numpy array containing current data (must be 3D).
+
+    Returns: 
+        mu      - Numpy 2D array of the zero-bias voltage point at each point
+                  in space.
+
+    History:
+        2019-10-15  - HP : Initial commit. 
+
+    '''
+    mu = np.zeros_like(I[0])
+    for ix in range(I.shape[-1]):
+        for iy in range(I.shape[1]):
+            p = np.polyfit(en, I[:,iy,ix], 1)
+            mu[iy,ix] =  (- p[1]) / (p[0])
+    return mu
+ 
