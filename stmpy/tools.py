@@ -2002,9 +2002,11 @@ def bias_offset_map(en, I):
 
     '''
     mu = np.zeros_like(I[0])
+    g = np.zeros_like(mu)
     for ix in range(I.shape[-1]):
         for iy in range(I.shape[1]):
             p = np.polyfit(en, I[:,iy,ix], 1)
             mu[iy,ix] =  (- p[1]) / (p[0])
-    return mu
+            g[iy,ix] = p[0]
+    return mu,g
  

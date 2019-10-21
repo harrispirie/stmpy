@@ -200,7 +200,7 @@ def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None,
     return cbar
 
 
-def add_label(label, loc=0, ax=None, txOptions=None, bbox=None):
+def add_label(label, loc=0, ax=None, fs=20, txOptions=None, bbox=None):
     '''Add text labels to images. 
 
     Inputs:
@@ -231,13 +231,13 @@ def add_label(label, loc=0, ax=None, txOptions=None, bbox=None):
     if bbox is None:
         bbox = dict(boxstyle='square', facecolor='w', alpha=0.8, linewidth=0.0)
         if txOptions is None:
-            txOptions = dict(fontsize=14, color='k', bbox=bbox)
+            txOptions = dict(fontsize=fs, color='k', bbox=bbox)
     elif bbox is False:
         if txOptions is None:
-            txOptions = dict(fontsize=14, color='k')
+            txOptions = dict(fontsize=fs, color='k')
     else:
         if txOptions is None:
-            txOptions = dict(fontsize=14, color='k', bbox=bbox)
+            txOptions = dict(fontsize=fs, color='k', bbox=bbox)
 
     if loc == 0:
         tx = ax.text(0.95,0.95, label, va='top', ha='right',
