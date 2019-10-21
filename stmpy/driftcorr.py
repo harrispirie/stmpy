@@ -204,7 +204,7 @@ def gshearcorr(A, bp=None, obj=None, rspace=True, pts1=None, pts2=None, angle=np
         else:
             Q_corr = obj.qmag
         Qc1 = Q_corr*np.array([-np.cos(angle), -np.sin(angle)]) + center[0]
-        Qc2 = Q_corr*np.array([np.sin(angle), np.cos(angle)]) + center[0]
+        Qc2 = Q_corr*np.array([np.sin(angle), -np.cos(angle)]) + center[0]
         if pts1 is None:
             pts1 = np.float32([center,Q1,Q2])
         else:
@@ -998,7 +998,7 @@ def quick_linecut(A, width = 2, n=4, bp=None, ax=None, thres=3):
     plt.gca().set_ylim(-1, Y*2+1)
     return qscale, cut
 
-def quick_show(A, en, thres=5, rspace=True, saveon=False, qlimit=1.2, imgName=''):
+def quick_show(A, en, thres=5, rspace=True, saveon=False, qlimit=1.2, imgName='', extension='png'):
     layers = len(A)
     if rspace is False:
         imgsize = np.shape(A)[-1]
@@ -1019,13 +1019,13 @@ def quick_show(A, en, thres=5, rspace=True, saveon=False, qlimit=1.2, imgName=''
                 ax[i//4,i%4].imshow(A[i*skip],extent=[-ext,ext,-ext,ext,],clim=[0,c+thres*s],cmap=stmpy.cm.gray_r)
                 ax[i//4,i%4].set_xlim(-qlimit,qlimit)
                 ax[i//4,i%4].set_ylim(-qlimit,qlimit)
-            stmpy.image.add_label("${}$mV".format(int(en[i*skip])), ax=ax[i//4,i%4])
+            stmpy.image.add_label("${}$ mV".format(int(en[i*skip])), ax=ax[i//4,i%4])
     except IndexError:
         pass
     if saveon is True:
-        plt.savefig("{}.png".format(imgName),dpi=200, bbox_inches='tight')
+        plt.savefig("{}.{}".format(imgName, extension), bbox_inches='tight')
         
-def quick_show_cut(A, en, qscale, thres=5, thres2=None, saveon=False, qlimit=1.2, imgName=''):
+def quick_show_cut(A, en, qscale, thres=5, thres2=None, saveon=False, qlimit=1.2, imgName='', extension="png"):
     fname = ["M-0", "M-90", "X-45","X-135"]
     X1, Y1 = np.shape(A[0])
     X2, Y2 = np.shape(A[-1])
@@ -1045,10 +1045,10 @@ def quick_show_cut(A, en, qscale, thres=5, thres2=None, saveon=False, qlimit=1.2
         plt.axvline(-1, linestyle='--')
         plt.axvline(1, linestyle='--')    
         if saveon is True:
-            plt.savefig(imgName + " along {}.png".format(fname[i]), dpi=400, facecolor='w')
+            plt.savefig(imgName + " along {}.{}".format(fname[i], extension), facecolor='w')
 
 # Quick show single images    
-def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, qlimit=1.2, imgName=''):
+def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, qlimit=1.2, imgName='', extension='png'):
     layers = len(A)
     if rspace is False:
         if qscale is None:
@@ -1072,12 +1072,12 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
                 plt.imshow(A[i],extent=[-ext,ext,-ext,ext,],clim=[0,c+thres*s],cmap=stmpy.cm.gray_r)
                 plt.xlim(-qlimit,qlimit)
                 plt.ylim(-qlimit,qlimit)
-            stmpy.image.add_label("${}$mV".format(int(en[i])), ax=plt.gca())
+            stmpy.image.add_label("${}$ mV".format(int(en[i])), ax=plt.gca())
             plt.gca().axes.get_xaxis().set_visible(False)
             plt.gca().axes.get_yaxis().set_visible(False)
             plt.gca().set_frame_on(False)
             if saveon is True:
-                plt.savefig("{} at {}mV.png".format(imgName, int(en[i])),dpi=200, bbox_inches='tight',pad_inches=0)
+                plt.savefig("{} at {}mV.{}".format(imgName, int(en[i]), extension), bbox_inches='tight',pad_inches=0)
     elif len(np.shape(A)) == 2:
         plt.figure(figsize=[4,4])
         c = np.mean(A)
@@ -1088,10 +1088,10 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
             plt.imshow(A,extent=[-ext,ext,-ext,ext,],clim=[0,c+thres*s],cmap=stmpy.cm.gray_r)
             plt.xlim(-qlimit,qlimit)
             plt.ylim(-qlimit,qlimit)
-        stmpy.image.add_label("${}$mV".format(int(en)), ax=plt.gca())
+        stmpy.image.add_label("${}$ mV".format(int(en)), ax=plt.gca())
         plt.gca().axes.get_xaxis().set_visible(False)
         plt.gca().axes.get_yaxis().set_visible(False)
         plt.gca().set_frame_on(False)
         if saveon is True:
-            plt.savefig("{} at {}mV.png".format(imgName, int(en)),dpi=200, bbox_inches='tight',pad_inches=0)
+            plt.savefig("{} at {}mV.{}".format(imgName, int(en), extension), bbox_inches='tight',pad_inches=0)
     
