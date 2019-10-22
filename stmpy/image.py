@@ -258,7 +258,8 @@ def add_label(label, loc=0, ax=None, fs=20, txOptions=None, bbox=None):
 
     return tx
 
-def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit='nm', loc='lower right', barcolor='w'):
+def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit='nm', 
+        loc='lower right', color='w', fs=20, pad=0.5, tex=True, **kwargs):
     """
     Add scale bar to images.
 
@@ -286,8 +287,15 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
                                 'lower center'  8
                                 'upper center'  9
                                 'center'        10
-        barcolor    - Optional : String. It specifies the color of the scale bar 
+        color       - Optional : String. It specifies the color of the scale bar 
                                 and the text on it.
+        fs          - Optional : Float. Fontsize for the label.
+        pad         - Optional : Float. Distance from edge of image. 
+        tex         - Optional : Boolean. If false, the font is taken from
+                                 rcparams. (If true it uses latex fonts). 
+        **kwargs    - Optional : Passed to AnchorSizeBar(). Including:
+                                 'sep' : separation between bar and label
+                                 'label_top' : top put label above bar
 
     Returns:
         scalebar    - scalebar object, which can be added to axis object Ax with 
@@ -295,20 +303,34 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
 
     History:
         2018-11-02  - RL : Initial commit.
+        2019-10-22  - HP : Add option to *not* use tex formatting!
     """
 
     if axes is None:
         axes = gca()
     to_distance = imgsize/imgpixels
-    fontprops = fm.FontProperties(size=14)
-    scalebar = AnchoredSizeBar(axes.transData,  
-        length/to_distance, r'$\mathbf{{{}''\ {}}}$'.format(length, unit), loc,
-        pad=0.5,
-        color=barcolor,
-        frameon=False,
-        size_vertical=int(imgpixels*barheight),
-        fontproperties=fontprops
-        )
+    fontprops = fm.FontProperties(size=fs)
+    if tex:
+        scalebar = AnchoredSizeBar(axes.transData,  
+            length/to_distance, r'$\mathbf{{{}''\ {}}}$'.format(length, unit), loc,
+            pad=pad,
+            color=barcolor,
+            frameon=False,
+            size_vertical=int(imgpixels*barheight),
+            fontproperties=fontprops,
+            **kwargs
+            )
+    else:
+        scalebar = AnchoredSizeBar(axes.transData,  
+            length/to_distance, '{} {}'.format(length, unit), loc,
+            pad=pad,
+            color=barcolor,
+            frameon=False,
+            size_vertical=int(imgpixels*barheight),
+            fontproperties=fontprops,
+            **kwargs
+            )
+
     axes.add_artist(scalebar)
     return scalebar
 
