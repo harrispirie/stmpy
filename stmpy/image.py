@@ -2,7 +2,7 @@ import numpy as np
 import pylab as plt
 import matplotlib as mpl
 from matplotlib.animation import FuncAnimation
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1 import make_axes_locatable, inset_locator
 from matplotlib import cm
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import matplotlib.font_manager as fm
@@ -139,7 +139,7 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
 
 def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None,
         ticks=True):
-    '''Add a colorbar to the current axis.
+    '''Add a colorbar to the current axis. Alternatively, use add_cbar(). 
 
     Inputs:
         loc     - Optional : Specify the location of the colorbar: 0 (bottom),
@@ -198,6 +198,46 @@ def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None,
     if ticks is False:
         cbar.set_ticks([])
     return cbar
+
+def add_cbar(ax=None, im=None, width='7%', height='45%', hPos=1.1,
+        vPos=0.1, sf=2, units=''):
+    '''Adds colorbar to current axis. 
+
+    Inputs:
+        ax      - Optional : Axes to attach the colorbar to.  Uses gca() as
+                             default.
+        im      - Optional : Image used to get colormap and color limits.
+        width   - Optional : String containing width as a percentage. 
+                             Default : '7%'
+        height  - Optional : String containing height as a percentage. 
+                             Default : '45%'
+        hPos    - Optional : Float. Horizontal position from lower left of ax.
+        vPos    - Optional : Float. Vertical position from lower left of ax.
+        sf      - Optional : Int. Number of significant figures for tick labels. 
+        units   - Optional : String to put after tick label. 
+
+    Returns:
+        cbar    - matplotlib.colorbar.Colorbar instance.
+
+    History:
+        2019-11-02  - HP : Initial commit.
+    '''
+    if ax is None:
+        ax = mpl.pyplot.gca()
+    if im is None:
+        elements = ax.get_children()
+        for element in elements:
+            if isinstance(element, (mpl.image.AxesImage, mpl.collections.QuadMesh)):
+                im = element
+    axins = inset_locator.inset_axes(ax, width=width, height=height, loc='lower left', 
+                       bbox_to_anchor=(hPos, vPos, 1, 1), bbox_transform=ax.transAxes,)
+    cb = mpl.pyplot.colorbar(im, cax=axins)
+    cb.set_ticks([])
+    fm ='%.' + str(sf) + 'f '
+    low, high = cb.get_clim()
+    axins.text(0.5, 1.1, fm % high + units, transform = axins.transAxes, fontsize=17, ha='center')
+    axins.text(0.5, -0.1, fm % low + units, transform = axins.transAxes, fontsize=17, ha='center', va='top')
+    return cb
 
 
 def add_label(label, loc=0, ax=None, fs=20, txOptions=None, bbox=None):

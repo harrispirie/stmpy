@@ -1140,7 +1140,8 @@ def radial_linecut(data, length, angle, width, reshape=True):
         print('ERR: Input must be 2D or 3D numpy array')
 
 
-def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
+def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0,
+        units='None'):
     '''
     Compute the fast Frouier transform of a data set with the option to add
     windowing. 
@@ -1156,7 +1157,10 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
         zeroDC  - Optional : Boolean indicated if the centeral pixel of the
                                 FFT will be set to zero.
         beta    - Optional : Float used to specify the kaiser window.  Only
-                               used if window='kaiser'. 
+                               used if window='kaiser'.
+        units   - Optional : String containing desired units for the FFT.
+                             Options: 'None', or 'amplitude' (in the future, I
+                             might add "ASD" and "PSD".
     
     Returns:
         fftData - numpy array containing FFT of data
@@ -1227,6 +1231,20 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0):
         wData = data * W
         ftD = np.fft.fft(wData)
         ftData = outputFunction(np.fft.fftshift(ftD))
+    if units == 'amplitude':
+        if len(data.shape) == 3:
+            datashape = data[0].shape
+        else:
+            datashape = data.shape
+        for size in datashape:
+            ftData /= size
+            if window == 'hanning':
+                ftData *= 2
+            elif window == 'None' or window == 'none':
+                pass
+            else:
+                print('WARNING: The window function "%s" messes up the FT units' %
+                        window)
     return ftData
 
 
@@ -1986,27 +2004,45 @@ def remove_piezo_drift(data):
     outn = out * np.max(data-np.min(data)) + np.min(data)
     return outn - np.mean(outn)
 
-def bias_offset_map(en, I):
-    '''Calculate zero bias offset for I(V) map. 
+def bias_offset_map(en, I, I2=None):
+    '''
+    Calculate zero-bias offset for I(V) map or for a two-setpoint map. If only
+    one map is provided, the zero-bais point is when the I(V) curve crosses
+    0pA. If two maps are provided, it is the intersection of the two I(V)
+    curves. 
     
     Inputs: 
         en      - Required : Numpy array containing voltage data (must be 1D).
         I       - Required : Numpy array containing current data (must be 3D).
+        I2      - Optional : Numpy array containing current data from second
+                             map (must be same size as I). 
 
     Returns: 
         mu      - Numpy 2D array of the zero-bias voltage point at each point
                   in space.
+        g       - Numpy 2D array of the slope at each point. 
+        g2      - (optional) If I2 is not None, also return the slope for the
+                  second I(V) map.
 
     History:
         2019-10-15  - HP : Initial commit. 
+        2019-11-04  - HP : Add compatibility for a two-setpoint map. 
 
     '''
     mu = np.zeros_like(I[0])
     g = np.zeros_like(mu)
+    g2 = np.zeros_like(g)
     for ix in range(I.shape[-1]):
         for iy in range(I.shape[1]):
             p = np.polyfit(en, I[:,iy,ix], 1)
-            mu[iy,ix] =  (- p[1]) / (p[0])
             g[iy,ix] = p[0]
-    return mu,g
+            if I2 is not None:
+                p2 = np.polyfit(en, I2[:,iy,ix], 1)
+                g[iy,ix] = p2[0]
+                p -= p2
+            mu[iy,ix] =  (-p[1]) / (p[0])
+    if I2 is None: 
+        return mu, g
+    else: 
+        return mu, g, g2
  

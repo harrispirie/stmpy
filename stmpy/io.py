@@ -533,7 +533,7 @@ def load_3ds(filePath):
         self.didvStd = np.std(self.LIY, axis=(1,2))
     else:
         print('ERR: LIY AVG channel not found, resort to manual ' + 
-              'definitions.  Found channels:\n {:}'.format(self.data.keys()))
+              'definitions.  Found channels:\n {:}'.format(self.grid.keys()))
     
     _make_attr(self, 'I',  ['Current (A)', 'Current [AVG] (A)'], 'grid')
     if _make_attr(self, 'Z',  ['Z (m)', 'Z [AVG] (m)'], 'grid'):
