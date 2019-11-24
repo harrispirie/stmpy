@@ -13,11 +13,11 @@ textOptions = dict(fontsize=12, color = 'k', bbox=boxProperties, ha='right', va=
 def saturate(level_low=0, level_high=None, im=None):
     '''
     Adjusts color axis of in current handle.  Calculates a probablility density
-    function for the data in current axes handle.  Uses upper and lower 
-    thresholds to find sensible c-axis limits.  Thresholds are between 0 and 
-    100.  If unspecified the upper threshold is assumed to be 100 - lower 
+    function for the data in current axes handle.  Uses upper and lower
+    thresholds to find sensible c-axis limits.  Thresholds are between 0 and
+    100.  If unspecified the upper threshold is assumed to be 100 - lower
     threshold.
-    
+
     Usage:  pcolormesh(image)
             saturate(10)
     '''
@@ -51,11 +51,11 @@ def saturate(level_low=0, level_high=None, im=None):
 def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
                     label=None, label_caption='meV', speed=8, zoom=1, **kwargs):
     ''' Create a movie from a 3D data set and save it to the path specified. Intended
-    for visualising DOS maps and QPI data. Iterates through the first index in 
+    for visualising DOS maps and QPI data. Iterates through the first index in
     the data set to create an animation.
-    
+
     Notes:
-        Make sure you include file extension (eg '.mov') in the file path. 
+        Make sure you include file extension (eg '.mov') in the file path.
         Currently supported file types are mov and mp4.
         Make sure you have ffmpeg installed (e.g. through Homebrew) before running.
         The MP4 writer is really difficult to get high quality.  I learned that
@@ -63,8 +63,8 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
         of these parameters falls outside of a narrow window the compression
         session will fail to start.  The defaults used in this script seem to
         work.
-        
-        
+
+
     Inputs:
         data    - Required : A 3D numpy array containing each frame in the
                              movie.
@@ -76,7 +76,7 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
                              specified.
         label   - Optional : Data to use for labeling frames.  Must have the
                              same length as data.shape[0].
-        label_caption - Optional : String to be displayed after label. 
+        label_caption - Optional : String to be displayed after label.
         speed   - Optional : Frames per second for output.
         zoom    - Optional : Float for zoom factor (eg. 2 times zoom).
         **kwarg - Optional : Additional keyword arguments are sent to imshow().
@@ -87,9 +87,9 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
     Usage:
         write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
                     label=None, label_caption='meV', speed=8, zoom=1, **kwargs)
-    
-    History: 
-        2017-06-08  -   HP  : Added **kwargs sent to imshow 
+
+    History:
+        2017-06-08  -   HP  : Added **kwargs sent to imshow
         2017-06-23  -   HP  : Added support for MP4 export and made codec
                               choice automatic.
     '''
@@ -111,7 +111,7 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
         plt.clim(clims)
 
     if label is not None:
-        tx = ax.text(0.95,0.95,'{:2.1f} {:}'.format(label[0], label_caption), 
+        tx = ax.text(0.95,0.95,'{:2.1f} {:}'.format(label[0], label_caption),
                   transform=ax.transAxes, **textOptions)
     def init():
         im.set_array(data[0])
@@ -139,12 +139,12 @@ def write_animation(data, fileName, saturation=2, clims=(0,1), cmap=None,
 
 def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None,
         ticks=True):
-    '''Add a colorbar to the current axis. Alternatively, use add_cbar(). 
+    '''Add a colorbar to the current axis. Alternatively, use add_cbar().
 
     Inputs:
         loc     - Optional : Specify the location of the colorbar: 0 (bottom),
                              1 (right), 2 (top) or 3 (left).
-        label   - Optional : String containing colorbar label 
+        label   - Optional : String containing colorbar label
         fs      - Optional : Float for colorbar label fontsize
         size    - Optional : String describing the width of the colorbar as a
                              percentage fo the image.
@@ -192,36 +192,52 @@ def add_colorbar(loc=0, label='', fs=12, size='5%', pad=0.05, ax=None, im=None,
         cbar = fig.colorbar(im, cax=cax, orientation='vertical')
         cbar.set_label(label, fontsize=fs)
         cbar.ax.yaxis.set_ticks_position('left')
-        cbar.ax.yaxis.set_label_position('left')       
+        cbar.ax.yaxis.set_label_position('left')
     else:
         raise ValueError('loc must be 0 (bottom), 1 (right), 2 (top) or 3 (left).')
     if ticks is False:
         cbar.set_ticks([])
     return cbar
 
-def add_cbar(ax=None, im=None, width='7%', height='45%', hPos=1.1,
-        vPos=0.1, sf=2, units=''):
-    '''Adds colorbar to current axis. 
+def add_cbar(ax=None, im=None, orient='v', length='45%', thickness='7%',
+        hPos=None, vPos=None, sf=2, units='', fs=17, pad=0.12, labelpad=0.05):
+    '''Adds colorbar to current axis.
 
     Inputs:
         ax      - Optional : Axes to attach the colorbar to.  Uses gca() as
                              default.
         im      - Optional : Image used to get colormap and color limits.
-        width   - Optional : String containing width as a percentage. 
-                             Default : '7%'
-        height  - Optional : String containing height as a percentage. 
-                             Default : '45%'
+        orient  - Optional : 'v' for vertical or 'h' for horizontal.
+                             Default: 'v'
+        length  - Optional : String containing colorbar length as a percent.
+                             Default: '45%' (of ax)
+        thickness - Optional : String containing colorbar thickness as a percent.
+                             Default: '7%' (of ax)
         hPos    - Optional : Float. Horizontal position from lower left of ax.
+                             Default: 1.1 (for vertical) (ie 10% away from RHS)
         vPos    - Optional : Float. Vertical position from lower left of ax.
-        sf      - Optional : Int. Number of significant figures for tick labels. 
-        units   - Optional : String to put after tick label. 
+                             Default: 0.1 (for vertical) (ie 10% away from BOTTOM)
+        sf      - Optional : Int. Number of significant figures for tick labels.
+                             Default: 2
+        units   - Optional : String to put after tick label.
+                             Default: ''
+        fs      - Optional : Float for label fontsize.
+                             Default: 17
+        pad     - Optional : Float that pushes the colorbar away from ax.
+                             Default: 0.12 (equivalent to 12% of ax)
+        labelpad - Optional : Float. Distance from edge of colorbar to start of label.
+                              Default: 0.05 (equivalent to 5% of ax)
 
     Returns:
         cbar    - matplotlib.colorbar.Colorbar instance.
 
     History:
         2019-11-02  - HP : Initial commit.
+        2019-11-24  - HP : Added horizontal compatibility.
     '''
+    fm ='%.' + str(sf) + 'f '
+    ln = float(length.split('%')[0])/100
+    th = float(thickness.split('%')[0])/100
     if ax is None:
         ax = mpl.pyplot.gca()
     if im is None:
@@ -229,30 +245,53 @@ def add_cbar(ax=None, im=None, width='7%', height='45%', hPos=1.1,
         for element in elements:
             if isinstance(element, (mpl.image.AxesImage, mpl.collections.QuadMesh)):
                 im = element
-    axins = inset_locator.inset_axes(ax, width=width, height=height, loc='lower left', 
-                       bbox_to_anchor=(hPos, vPos, 1, 1), bbox_transform=ax.transAxes,)
-    cb = mpl.pyplot.colorbar(im, cax=axins)
+    if orient == 'v':
+        if hPos is None:
+            hPos = 1
+        if vPos is None:
+            vPos = 0.12
+        hPos += pad
+        axins = inset_locator.inset_axes(ax, width=thickness, height=length,
+                        loc='lower left', bbox_to_anchor=(hPos, vPos, 1, 1),
+                        bbox_transform=ax.transAxes, borderpad=0)
+        cb = mpl.pyplot.colorbar(im, cax=axins, orientation='vertical')
+        low, high = cb.get_clim()
+        axins.text(hPos+th/2, vPos+ln+labelpad, fm % high + units,
+                transform=ax.transAxes, fontsize=fs, ha='center')
+        axins.text(hPos+th/2, vPos-labelpad, fm % low + units,
+                transform=ax.transAxes, fontsize=fs, ha='center', va='top')
+    elif orient == 'h':
+        if hPos is None:
+            hPos = 0.5 - ln/2
+        if vPos is None:
+            vPos = 0
+        vPos -= pad
+        axins = inset_locator.inset_axes(ax, width=length, height=thickness,
+                        loc='lower left', bbox_to_anchor=(hPos, vPos, 1, 1),
+                        bbox_transform=ax.transAxes, borderpad=0)
+        cb = mpl.pyplot.colorbar(im, cax=axins, orientation='horizontal')
+        low, high = cb.get_clim()
+        axins.text(hPos-labelpad, vPos+th/2, fm % low + units,
+                transform=ax.transAxes, fontsize=fs, ha='right', va='center')
+        axins.text(hPos+ln+labelpad, vPos+th/2, fm % high + units,
+                transform=ax.transAxes, fontsize=fs, ha='left', va='center')
     cb.set_ticks([])
-    fm ='%.' + str(sf) + 'f '
-    low, high = cb.get_clim()
-    axins.text(0.5, 1.1, fm % high + units, transform = axins.transAxes, fontsize=17, ha='center')
-    axins.text(0.5, -0.1, fm % low + units, transform = axins.transAxes, fontsize=17, ha='center', va='top')
     return cb
 
 
 def add_label(label, loc=0, ax=None, fs=20, txOptions=None, bbox=None):
-    '''Add text labels to images. 
+    '''Add text labels to images.
 
     Inputs:
         label   - Required : String (or formatted string) with contents of
                              label.
-        loc     - Optional : Integer to describe location of label: 
-                                 0: top-right 
+        loc     - Optional : Integer to describe location of label:
+                                 0: top-right
                                  1: top-left
                                  2: bottom-left
                                  3: bottom-right
         ax      - Optional : Axes to place the label.  Uses mpl.pyplot.gca() if
-                            not provided. 
+                            not provided.
         txOptions - Optional : Dictionary containing keyword arguments for text
                                formatting, such as: 'fontsize' and 'color'.
         bbox    - Optional : Dictionary containing box properties, such as:
@@ -291,14 +330,14 @@ def add_label(label, loc=0, ax=None, fs=20, txOptions=None, bbox=None):
     elif loc == 3:
         tx = ax.text(0.95,0.05, label, va='bottom', ha='right',
                     transform=ax.transAxes, **txOptions)
-    else: 
+    else:
         raise ValueError('loc must be one of the following options:\n' +
                     '\t\t0: top-right\n\t\t1: top-left\n\t\t2: bottom-left' +
                     '\n\t\t3:bottom-right')
 
     return tx
 
-def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit='nm', 
+def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit='nm',
         loc='lower right', color='w', fs=20, pad=0.5, tex=True, **kwargs):
     """
     Add scale bar to images.
@@ -306,14 +345,14 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
     Inputs:
         length      - Required : Float. The length of scale bar in the given
                                 unit.
-        imgsize     - Required : Float. The size of image in the given unit. 
-        imgpixels   - Required : Float. The size of image in unit of pixels. 
+        imgsize     - Required : Float. The size of image in the given unit.
+        imgpixels   - Required : Float. The size of image in unit of pixels.
         barheight   - Optional : Float. The ratio between height of scale bar
                                 and the height of the whole image. Default: 1.5 %.
         axes        - Optional : Axes object. It controls which axis the scale
-                                bar is added to. If not given, gca() will be the 
+                                bar is added to. If not given, gca() will be the
                                 default value.
-        unit        - Optional : String. Unit that will be shown in the text of 
+        unit        - Optional : String. Unit that will be shown in the text of
                                 scale bar. Default: nm
         loc         - Optional : Int or string. Default: 'lower right'.
                                 'best'          0
@@ -327,18 +366,18 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
                                 'lower center'  8
                                 'upper center'  9
                                 'center'        10
-        color       - Optional : String. It specifies the color of the scale bar 
+        color       - Optional : String. It specifies the color of the scale bar
                                 and the text on it.
         fs          - Optional : Float. Fontsize for the label.
-        pad         - Optional : Float. Distance from edge of image. 
+        pad         - Optional : Float. Distance from edge of image.
         tex         - Optional : Boolean. If false, the font is taken from
-                                 rcparams. (If true it uses latex fonts). 
+                                 rcparams. (If true it uses latex fonts).
         **kwargs    - Optional : Passed to AnchorSizeBar(). Including:
                                  'sep' : separation between bar and label
                                  'label_top' : top put label above bar
 
     Returns:
-        scalebar    - scalebar object, which can be added to axis object Ax with 
+        scalebar    - scalebar object, which can be added to axis object Ax with
                                 "Ax.add_artist(scalebar)"
 
     History:
@@ -351,7 +390,7 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
     to_distance = imgsize/imgpixels
     fontprops = fm.FontProperties(size=fs)
     if tex:
-        scalebar = AnchoredSizeBar(axes.transData,  
+        scalebar = AnchoredSizeBar(axes.transData,
             length/to_distance, r'$\mathbf{{{}''\ {}}}$'.format(length, unit), loc,
             pad=pad,
             color=color,
@@ -361,7 +400,7 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
             **kwargs
             )
     else:
-        scalebar = AnchoredSizeBar(axes.transData,  
+        scalebar = AnchoredSizeBar(axes.transData,
             length/to_distance, '{} {}'.format(length, unit), loc,
             pad=pad,
             color=color,
@@ -373,7 +412,3 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
 
     axes.add_artist(scalebar)
     return scalebar
-
-
-
-

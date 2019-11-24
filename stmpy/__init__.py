@@ -7,4 +7,3 @@ from stmpy import image
 from stmpy.image import saturate
 from stmpy.color.colormap import cm
 import stmpy.color.palette as palette
-
