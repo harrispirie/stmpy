@@ -8,14 +8,14 @@ def cubic_gap(x, y, threshold=0):
     '''
     Find phenomenological hybridization gap by the difference between cubic
     inflection points.  Splits data into high energy and low energy parts and
-    fits a cubic to each. Returns the difference between the inflection points. 
+    fits a cubic to each. Returns the difference between the inflection points.
 
     Inputs:
         x       - Required : A 1D numpy array containing x values (usually en)
         y       - Required : A 1D numpy array containing y values (usually
                              didv).
         threshold - Optional : Integer that alters the splitting point. The
-                               splitting points are (max - threshold) and 
+                               splitting points are (max - threshold) and
                                (min + threshold).
 
     Returns:
@@ -38,15 +38,15 @@ def cubic_gap(x, y, threshold=0):
 
 def cubic_gapmap(LIY, en, **kwarg):
     '''Computes a cubic gap for each dIdV measurement in a DOS-map.
-    
+
     Inputs:
         LIY - Required : 3D numpy array containing the data.
-        en  - Required : 1D numpy array containing energy values. 
+        en  - Required : 1D numpy array containing energy values.
         **kwarg        : Keyword arguments passed to cubic_gap()
 
     Returns:
         gapmap - A 2D numpy array containing the size of the cubic gap at each
-                 point 
+                 point
 
     History:
         2017-06-18  - Initial commit.
@@ -63,13 +63,13 @@ def fano(E, g, ef, q, a, b, c):
     '''
     Calculate Fano lineshapes describing the interaction of a disctrete
     state with a background continuum. See http://doi.org/10.1038/nature09073
-    for detail of the model.  
+    for detail of the model.
 
     Inputs:
         E   - Required : 1D numpy array containing x values for calculation.
         g   - Required : Float. Gamma parameter in Fano model which describes
                          the lifetime of the discrete state.  This is
-                         proportional to the interaction strength. 
+                         proportional to the interaction strength.
         ef  - Required : Float. Energy level of discrete state.
         q   - Required : Float. Ratio of tunneling probabilities.
         a   - Required : Float. Scaling factor for units conversion.
@@ -78,9 +78,9 @@ def fano(E, g, ef, q, a, b, c):
 
     Returns:
         fanoCalc - a 1D numpy array containing the calculation.
-    
+
     History:
-        2017-06-18  - HP : Initial commit.   
+        2017-06-18  - HP : Initial commit.
     '''
     EPrime = 2.0*(E - ef)/g
     y = (q+EPrime)**2 / (EPrime**2 + 1.0)
@@ -88,17 +88,17 @@ def fano(E, g, ef, q, a, b, c):
 
 
 def fano_fit(xData, yData, X0=[8.75,-3.6,-0.6,-5.6,0.04,10]):
-    '''Fit Fano model to data.  
-    See help(stmpy.hp.kondo_holes.fano) for details. 
-    
+    '''Fit Fano model to data.
+    See help(stmpy.hp.kondo_holes.fano) for details.
+
     Inputs:
         xData   - Required : 1D numpy array containing X values.
         yData   - Required : 1D numpy array containing Y values.
         X0      - Optional : 1D numpy array containing the initial guess for
-                             Fano parameters in the form: 
+                             Fano parameters in the form:
                              [E, g, ef, q, a, b, c]
-    
-    Returns: 
+
+    Returns:
         result - Scipy.optimize.minimize.OptimizeResult object. Important
                  attribute is x, the solution array. See scipy docs for more
                  info.
@@ -116,21 +116,21 @@ def fano_fit(xData, yData, X0=[8.75,-3.6,-0.6,-5.6,0.04,10]):
     return result
 
 
-def fano_gapmap(LIY, en, **kwargs): 
+def fano_gapmap(LIY, en, **kwargs):
     '''Computes a Fano fit to each dIdV measurement in a DOS-map.
     See help(stmpy.hp.kondo_holes.fano_fit) for details.
 
     Inputs:
         LIY - Required : 3D numpy array containing the data.
-        en  - Required : 1D numpy array containing energy values. 
+        en  - Required : 1D numpy array containing energy values.
         **kwargs - Optional : Passed to stmpy.tools.curve_fit.  e.g. you can
-                              specify the "vary" and "p0" parameters. 
+                              specify the "vary" and "p0" parameters.
 
     Returns:
         gapmap - A 3D numpy array containing the fit parameters at each spatial
                  point. The fit parameters are in the order: g, ef, q, a, b, c.
-                 i.e. gapmap[0] is a spatial map of hybridization strength. 
-    
+                 i.e. gapmap[0] is a spatial map of hybridization strength.
+
     History:
         2017-06-18  - HP : Initial commit.
         2017-07-21  - HP : Now uses stmpy.tools.curve_fit
@@ -138,14 +138,14 @@ def fano_gapmap(LIY, en, **kwargs):
     gapmap = np.zeros([6, LIY.shape[1], LIY.shape[2]])
     for iy in range(LIY.shape[1]):
         for ix in range(LIY.shape[2]):
-            result = fano_fit(en, LIY[:,iy,ix])
+            # result = fano_fit(en, LIY[:,iy,ix])
             gapmap[:,iy,ix] = stmpy.tools.curve_fit(
                                     fano, en, LIY[:,iy,ix], **kwargs)
         stmpy.tools.print_progress_bar(iy, LIY.shape[1]-1, fill='>')
     return gapmap
 
 
-def gapmap(f, en, LIY, **kwargs): 
+def gapmap(f, en, LIY, **kwargs):
     '''Simple tool to iterate a function over all spectra in a map.
 
     Inputs:
@@ -187,9 +187,9 @@ class KondoHole(object):
         butter  - Optional : Boolean to create butterworth lowpass filtered DOS
                              map.
         fano    - Optional : Boolean to create Fano gap map.
-        cubic   - Optional : Boolean to create cubic inflection gapmap. 
+        cubic   - Optional : Boolean to create cubic inflection gapmap.
 
-    Methods : 
+    Methods :
         process - Creates new attributes using boolean flags: z, glob, butter,
                   fano, cubic.
 
@@ -201,7 +201,7 @@ class KondoHole(object):
         2017-07-12  - HP : Initial commit.
 
     '''
-    def __init__(self, data, cen, width=20, z=True, 
+    def __init__(self, data, cen, width=20, z=True,
                  glob=True, butter=True, fano=False, cubic=False):
         self.en = data.en
         self.LIY = stmpy.tools.crop(data.LIY, cen, width)
@@ -214,7 +214,7 @@ class KondoHole(object):
         self.header = data.header
         self.process(z, glob, butter, fano, cubic)
 
-    def process(self, z=False, glob=False, butter=False, 
+    def process(self, z=False, glob=False, butter=False,
                 fano=False, cubic=False):
         if z:
             self.z = stmpy.tools.lineSubtract(self.Z, 2)
@@ -240,7 +240,3 @@ class KondoHole(object):
         else:
             bestLIY = self.LIY
         return bestLIY
-
-
-
-
