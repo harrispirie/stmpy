@@ -476,6 +476,39 @@ def load_spy(filePath):
     fileObj.close()
     return item
 
+def load_stmview(name, path=''):
+    '''
+    Loads STM_View files into python.
+    Inputs:
+            name    - Required : String containing the data set name. The data
+                                 contains numerous .mat files, which much have
+                                 the correct appendices following name (-G, -I,
+                                 Z) e.g. name = '90227A13'
+            path    - Optional: String containing path to the directory where
+                                the data files are located.
+
+    Returns:
+            data    - stmpy.io.Spy() object with standard attributes: LIY, en,
+                      didv, iv, and Z, but no header.
+
+    History:
+            2020-02-12  - HP : Initial commit
+    '''
+    def matigo(name, path='', extension=''):
+        raw = stmpy.matio.loadmat(path + name + extension)
+        end = extension.split('.')[0][1:]
+        mat = raw['obj_' + name + '_' + end]
+        return mat
+    self = stmpy.io.Spy()
+    matG = matigo(name, path, '-G.mat')
+    matI = matigo(name, path, '-I.mat')
+    matZ = matigo(name, path, '-T.mat')
+    self.LIY = np.moveaxis(matG['map'], -1, 0)
+    self.en = matG['e'][0]
+    self.didv = matG['ave']
+    self.iv = np.moveaxis(matI['map'], -1, 0)
+    self.Z = matZ['map']
+    return self
 
 def load_3ds(filePath):
     '''Load Nanonis 3ds into python.'''

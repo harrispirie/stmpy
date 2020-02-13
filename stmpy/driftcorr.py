@@ -199,25 +199,25 @@ def gshearcorr(A, bp=None, obj=None, rspace=True, pts1=None, pts2=None, angle=np
     *_, s2, s1 = np.shape(A)
     bp_temp = bp
     if matrix is None:
-        bp = sortBraggs(bp, s=np.shape(A))
-        s = np.array(np.shape(A))
-        bp_temp = bp * s
-        center = [int(s[0]*s[1]/2), int(s[0]*s[1]/2)]
-        Q1, Q2, Q3, Q4, *_ = bp_temp
-        if obj is None:
-            Qx_mag = compute_dist(Q1, center)
-            Qy_mag = compute_dist(Q2, center)
-            Q_corr = np.mean([Qx_mag, Qy_mag])
-        else:
-            Q_corr = obj.qmag
-        Qc1 = Q_corr*np.array([-np.cos(angle), -np.sin(angle)]) + center
-        Qc2 = Q_corr*np.array([np.sin(angle), -np.cos(angle)]) + center
-        Q1, Q2, Q3, Q4, *_ = bp
-        Qc2 = Qc2 / s
-        Qc1 = Qc1 / s
-        center = [int(s2/2),int(s1/2)]
-        print(Q1,Q2,Qc1,Qc2,center)
         if pts1 is None:
+            bp = sortBraggs(bp, s=np.shape(A))
+            s = np.array(np.shape(A))
+            bp_temp = bp * s
+            center = [int(s[0]*s[1]/2), int(s[0]*s[1]/2)]
+            Q1, Q2, Q3, Q4, *_ = bp_temp
+            if obj is None:
+                Qx_mag = compute_dist(Q1, center)
+                Qy_mag = compute_dist(Q2, center)
+                Q_corr = np.mean([Qx_mag, Qy_mag])
+            else:
+                Q_corr = obj.qmag
+            Qc1 = Q_corr*np.array([-np.cos(angle), -np.sin(angle)]) + center
+            Qc2 = Q_corr*np.array([np.sin(angle), -np.cos(angle)]) + center
+            Q1, Q2, Q3, Q4, *_ = bp
+            Qc2 = Qc2 / s
+            Qc1 = Qc1 / s
+            center = [int(s2/2),int(s1/2)]
+            print(Q1,Q2,Qc1,Qc2,center)
             pts1 = np.float32([center,Q1,Q2])
         else:
             pts1 = pts1.astype(np.float32)
@@ -636,8 +636,16 @@ def _rough_cut(A, n):
     else:
         n1, n2, n3, n4, *_ = n
     if len(B.shape) is 2:
+        if n2 == 0:
+            n2 = -B.shape[1]
+        if n4 == 0:
+            n4 = -B.shape[0]
         return B[n3:-n4, n1:-n2]
     elif len(B.shape) is 3:
+        if n2 == 0:
+            n2 = -B.shape[2]
+        if n4 == 0:
+            n4 = -B.shape[1]
         return B[:,n3:-n4, n1:-n2]
 
 def Gaussian2d(x, y, sigma_x, sigma_y, theta, x0, y0, Amp):
