@@ -483,13 +483,13 @@ def load_stmview(name, path=''):
             name    - Required : String containing the data set name. The data
                                  contains numerous .mat files, which much have
                                  the correct appendices following name (-G, -I,
-                                 Z) e.g. name = '90227A13'
+                                 -T) e.g. name = '90227A13'
             path    - Optional: String containing path to the directory where
                                 the data files are located.
 
     Returns:
             data    - stmpy.io.Spy() object with standard attributes: LIY, en,
-                      didv, iv, and Z, but no header.
+                      didv, I, and Z, but no header.
 
     History:
             2020-02-12  - HP : Initial commit
@@ -506,7 +506,7 @@ def load_stmview(name, path=''):
     self.LIY = np.moveaxis(matG['map'], -1, 0)
     self.en = matG['e'][0]
     self.didv = matG['ave']
-    self.iv = np.moveaxis(matI['map'], -1, 0)
+    self.I = np.moveaxis(matI['map'], -1, 0)
     self.Z = matZ['map']
     return self
 
