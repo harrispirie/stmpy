@@ -547,7 +547,8 @@ def sortBraggs(br, s):
     return Br_s
 
 #9. - cropedge
-def cropedge(A, n, obj=None, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=False, update_obj=True):
+def cropedge(A, n, obj=None, bp=None, corner=None, c1=2, c2=2, a1=None, a2=None,
+            force_commen=False, update_obj=True):
     """
     Crop out bad pixels or highly drifted regions from topo/dos map.
 
@@ -556,6 +557,11 @@ def cropedge(A, n, obj=None, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=
         n           - Required : List of integers specifying how many bad pixels to crop on each side.
                                     Order: [left, right, down, up].
         obj         - Optional : Spy object of topo (2D) or map (3D).
+        corner      - Optional : Deprecated. String specifying which corner will
+                                 be cropped out, default "0". If specified,
+                                 "n" must be an integer. Options for "corner" are:
+                                 "0" - all four edges, "1" - lower left corner,
+                                 "2" - upper left, "3" - upper right, "4" - lower right
         force_commen- Optional : Boolean determining if the atomic lattice is commensurate with
                                     the output image.
 
@@ -571,7 +577,22 @@ def cropedge(A, n, obj=None, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=
     History:
         06/04/2019      RL : Initial commit.
         11/30/2019      RL : Add support for non-square dataset
+        27/03/2020      HP : Added "corner" kwarg for backwards compatibility.
     """
+    if corner is not None:
+        if type(n) != int:
+            raise AttributeError('"n" must be an integer if "corner" is specified')
+        if corner == '0':
+            n = [n,n,n,n]
+        elif corner == '1':
+            n = [n,0,n,0]
+        elif corner == '2':
+            n = [n,0,0,n]
+        elif corner == '3':
+            n = [0,n,0,n]
+        elif corner == '4':
+            n = [0,n,n,0]
+
     if force_commen is not True:
         B = _rough_cut(A, n=n)
         print('Shape before crop:', end=' ')
