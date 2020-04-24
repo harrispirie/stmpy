@@ -412,3 +412,33 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
 
     axes.add_artist(scalebar)
     return scalebar
+
+def get_cbar(cmap, figsize=[0.36,0.07], color='k', orientation='horizontal',
+        nseg=100):
+    """
+    Plot a basic colorbar for a given colormap.
+
+    Inputs:
+        cmap    - Required : Instance of stmpy.cm.
+        figsize - Optional : Desired size for the colorbar
+        color   - Optional : Border color
+        orientation - Optional : 'horizontal' or 'vertical'
+        nseg    - Optional : Number of discrete colors to use in plotting.
+
+    Returns:
+        cb - matplotlib colorbar instance.
+
+    History:
+    2020-04-25  - HP : Initial commit.    
+    """
+    a = np.array([[0,1]])
+    fig = plt.figure(figsize=figsize)
+    ax = plt.subplot(111)
+    im = ax.imshow(a, cmap=cmap)
+    ax.set_visible(False)
+    cax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
+    bounds = np.linspace(0, 1, nseg+1)
+    cb = plt.colorbar(im, cax=cax, orientation=orientation, boundaries=bounds)
+    cb.set_ticks([])
+    cb.outline.set_edgecolor(color)
+    return cb

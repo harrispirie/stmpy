@@ -15,22 +15,22 @@ from scipy.signal import butter, filtfilt, fftconvolve, hilbert, correlate
 def interp2d(x, y, z, kind='nearest', **kwargs):
     '''
     An extension for scipy.interpolate.interp2d() which adds a 'nearest'
-    neighbor interpolation. 
+    neighbor interpolation.
 
-    See help(scipy.interpolate.interp2d) for details. 
+    See help(scipy.interpolate.interp2d) for details.
 
     Inputs:
-        x       - Required : Array contining x values for data points. 
+        x       - Required : Array contining x values for data points.
         y       - Required : Array contining y values for data points.
-        z       - Required : Array contining z values for data points. 
+        z       - Required : Array contining z values for data points.
         kind    - Optional : Sting for interpolation scheme. Options are:
                              'nearest', 'linear', 'cubic', 'quintic'.  Note
-                             that 'linear', 'cubic', 'quintic' use spline. 
+                             that 'linear', 'cubic', 'quintic' use spline.
         **kwargs - Optional : Keyword arguments passed to
                               scipy.interpolate.interp2d
 
-    Returns: 
-        f(x,y) - Callable function which will return interpolated values. 
+    Returns:
+        f(x,y) - Callable function which will return interpolated values.
 
     History:
         2017-08-24  - HP : Initial commit.
@@ -49,7 +49,7 @@ def interp2d(x, y, z, kind='nearest', **kwargs):
             if type(y) is not np.ndarray:
                 ly = 1
             else:
-                ly = y.shape[0]    
+                ly = y.shape[0]
             X, Y = np.meshgrid(x ,y)
             points = np.array([X.flatten(), Y.flatten()]).T
             values = fActual(points)
@@ -60,10 +60,10 @@ def interp2d(x, y, z, kind='nearest', **kwargs):
         return scinterp2d(x, y, z, kind=kind, **kwargs)
 
 
-def azimuthalAverage(F, x0, y0, r, theta=np.linspace(0,2*np.pi,500), 
+def azimuthalAverage(F, x0, y0, r, theta=np.linspace(0,2*np.pi,500),
         kind='linear'):
-    ''' Uses 2D interpolation to average F over an arc defined by theta 
-    for every r value starting from x0,y0. 
+    ''' Uses 2D interpolation to average F over an arc defined by theta
+    for every r value starting from x0,y0.
 
     History:
         2017-08-24  - HP : Modified to use stmpy.tools.interp2d().
@@ -91,12 +91,12 @@ def azimuthalAverageRaw(F,x0,y0,rmax):
     for r0 in set(np.sort(p)):
         R.append(r0)
         allFVals = [f0 for ix,f0 in enumerate(f) if p[ix] == r0]
-        FAvg.append(np.mean(allFVals))  
-    R = np.array(R); ixSorted = R.argsort()  
+        FAvg.append(np.mean(allFVals))
+    R = np.array(R); ixSorted = R.argsort()
     return R[ixSorted], np.array(FAvg)[ixSorted]
 
 
-def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100, kind='linear',  
+def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100, kind='linear',
         show=False, ax=None, **kwarg):
     '''A less cumbersome wrapper for stmpy.tools.azimuthalAverage.  Computes an
     arc-averaged linecut on 2D data, or on each layer in 3D data.
@@ -114,7 +114,7 @@ def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100, kind='linear',
                              azimuthal direction: default 100.
         kind    - Optional : Sting for interpolation scheme. Options are:
                              'nearest', 'linear', 'cubic', 'quintic'.  Note
-                             that 'linear', 'cubic', 'quintic' use spline. 
+                             that 'linear', 'cubic', 'quintic' use spline.
         show    - Optional : Boolean determining whether to plot where the
                              linecut was taken.
         ax      - Optional : Matplotlib axes instance to plot where linecut is
@@ -124,16 +124,16 @@ def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100, kind='linear',
 
     Returns:
         r   -   1D numpy array which goes from 0 to the length of the cut.
-        cut -   1D or 2D numpy array containg the linecut. 
+        cut -   1D or 2D numpy array containg the linecut.
 
     Usage:
-        r, cut = arc_linecut(data, cen, length, angle, width=20, dl=0, dw=100, 
+        r, cut = arc_linecut(data, cen, length, angle, width=20, dl=0, dw=100,
                              show=False, ax=None, **kwarg):
 
     History:
-        2017-07-20  - HP : Initial commit. 
+        2017-07-20  - HP : Initial commit.
         2017-08-24  - HP : Modified to use stmpy.tools.interp2d() for
-                           interpolation, which allows for 'nearest'. 
+                           interpolation, which allows for 'nearest'.
     '''
     theta = np.radians(angle)
     dtheta = np.radians(width/2.0)
@@ -147,27 +147,27 @@ def arc_linecut(data, p0, length, angle, width=20, dl=0, dw=100, kind='linear',
             cut[ix] = azimuthalAverage(layer, p0[0], p0[1], r, t, kind=kind)
     else:
         raise TypeError('Data must be 2D or 3D numpy array.')
-    if show:  
-        ax.plot([p0[0], p0[0]+length*np.cos(theta-dtheta)], 
+    if show:
+        ax.plot([p0[0], p0[0]+length*np.cos(theta-dtheta)],
                 [p0[1], p0[1]+length*np.sin(theta-dtheta)], 'k--', lw=1, **kwarg)
-        ax.plot([p0[0], p0[0]+length*np.cos(theta+dtheta)], 
+        ax.plot([p0[0], p0[0]+length*np.cos(theta+dtheta)],
                 [p0[1], p0[1]+length*np.sin(theta+dtheta)], 'k--', lw=1, **kwarg)
     return r, cut
 
 
 def binData(x,y,nBins):
     ''' For any randomly sampled data x,y, return a histogram with linear bin spacing'''
-    # Issues: What if there are no elements in a bin? 
+    # Issues: What if there are no elements in a bin?
     binSize = max(x)/nBins; X=[];Y=[]
     for n in range(nBins):
         allBinYVal = []
-        minR = n * binSize; maxR = (n+1) * binSize; 
+        minR = n * binSize; maxR = (n+1) * binSize;
         for ix,R in enumerate(x):
             if R >= minR and R < maxR:
                 allBinYVal.append(y[ix])
         X.append( (minR + maxR) / 2.0 )
         Y.append( np.mean(allBinYVal) )
-    return X,Y  
+    return X,Y
 
 
 def linecut_old(F, x1, y1, x2, y2, n):
@@ -228,20 +228,20 @@ def removePolynomial1d(y, n, x=None, fitRange=None):
 
 def lineSubtract(data, n=1, maskon=False, thres=4, M=4, normalize=True, colSubtract=False):
     '''
-    Remove a polynomial background from the data line-by-line, with 
-    the option to skip pixels within certain distance away from 
-    impurities.  If the data is 3D (eg. 3ds) this does a 2D background 
-    subtract on each layer independently.  Input is a numpy array. 
-    
+    Remove a polynomial background from the data line-by-line, with
+    the option to skip pixels within certain distance away from
+    impurities.  If the data is 3D (eg. 3ds) this does a 2D background
+    subtract on each layer independently.  Input is a numpy array.
+
     Inputs:
         data    -   Required : A 1D, 2D or 3D numpy array.
         n       -   Optional : Degree of polynomial to subtract from each line.
                                (default : 1).
         maskon  -   Optional : Boolean flag to determine if the impurty areas are excluded.
-        thres   -   Optional : Float number specifying the threshold to determine 
-                               if a pixel is impurity or bad pixels. Any pixels with intensity greater 
+        thres   -   Optional : Float number specifying the threshold to determine
+                               if a pixel is impurity or bad pixels. Any pixels with intensity greater
                                than thres*std will be identified as bad points.
-        M       -   Optional : Integer number specifying the box size where all pixels will be excluded 
+        M       -   Optional : Integer number specifying the box size where all pixels will be excluded
                                from poly fitting.
         normalize - Optional : Boolean flag to determine if the mean of a layer
                                is set to zero (True) or preserved (False).
@@ -250,13 +250,13 @@ def lineSubtract(data, n=1, maskon=False, thres=4, M=4, normalize=True, colSubtr
 
     Returns:
         subtractedData  -   Data after removing an n-degree polynomial
-    
+
     Usage:
         dataObject.z = lineSubtract(dataObject.Z, n=1, normalize=True)
         dataObject.z = lineSubtract(dataObject.Z, n=1, mask=True, thres=1.5, M=4, normalize=True)
 
     History:
-        2017-07-19  - HP : Updated to work for 1D data. 
+        2017-07-19  - HP : Updated to work for 1D data.
         2018-06-07  - MF : Updated to do a background subtract in the orthogonal direction (ie. column-wise)
         2018-11-04  - RL : Updated to add mask to exclude impurity and bad pixels in polyfit.
         2018-11-05  - RL : Update to add support for 1D and 3D data file.
@@ -322,15 +322,15 @@ def lineSubtract(data, n=1, maskon=False, thres=4, M=4, normalize=True, colSubtr
     def subtract_2D(data, n):
         if normalize:
             norm = 0
-        else: 
+        else:
             norm = np.mean(data)
         output = np.zeros_like(data)
         for ix, line in enumerate(data):
-            output[ix] = subtract_1D(line, n) 
+            output[ix] = subtract_1D(line, n)
         if colSubtract:
             temp = np.zeros_like(data)
             for ix, line in enumerate(np.transpose(output)):
-                temp[ix] = subtract_1D(line, n) 
+                temp[ix] = subtract_1D(line, n)
             output = np.transpose(temp)
         return output + norm
 
@@ -352,7 +352,7 @@ def fitGaussian2d(data, p0):
     def gauss(xy,amplitude,x0,y0,sigmaX,sigmaY,theta,offset):
         x,y = xy
         x0=float(x0);y0=float(y0)
-        a =  0.5*(np.cos(theta)/sigmaX)**2 + 0.5*(np.sin(theta)/sigmaY)**2 
+        a =  0.5*(np.cos(theta)/sigmaX)**2 + 0.5*(np.sin(theta)/sigmaY)**2
         b = -np.sin(2*theta)/(2*sigmaX)**2 + np.sin(2*theta)/(2*sigmaY)**2
         c =  0.5*(np.sin(theta)/sigmaX)**2 + 0.5*(np.cos(theta)/sigmaY)**2
         g = offset+amplitude*np.exp(-( a*(x-x0)**2 -2*b*(x-x0)*(y-y0) + c*(y-y0)**2 ))
@@ -367,7 +367,7 @@ def findOtherBraggPeaks(FT, bpx, bpy, n = 1):
     '''Once one bragg peak is found this retruns n other bragg peak harmonics by symmetry of the Fourier transform.'''
     N  = range(-n,0)+range(1,n+1)
     Bpx = [];  Bpy = []
-    cenX = FT.shape[1]/2.0;  cenY = FT.shape[0]/2.0 
+    cenX = FT.shape[1]/2.0;  cenY = FT.shape[0]/2.0
     rScale = np.sqrt((bpx-cenX)**2 + (bpy-cenY)**2)
     dx = bpx - cenX;  dy = bpy - cenY
     for i in N:
@@ -384,11 +384,11 @@ def findPeaks(x,y,n=1,nx=1e3):
     x0=[]; y0=[]
     for ix, df0 in enumerate(df):
         if ix != 0:
-            if df0/df[ix-1] < 0: 
+            if df0/df[ix-1] < 0:
                 x0.append(xx[ix])
                 y0.append(fx[ix])
     xn = [x for (y,x) in sorted(zip(y0,x0))][::-1][:n]
-    yn = sorted(y0)[::-1][:n]			
+    yn = sorted(y0)[::-1][:n]
     if xn == []: xn = [0] * n
     if yn == []: yn = [0] * n
     return xn, yn
@@ -399,7 +399,7 @@ def locmax1d(x, min_distance=1, thres_rel=0, thres_abs=-np.inf):
     d = int(min_distance) # forced to be integer number of points
     tr = thres_rel * (x.max() - x.min()) + x.min() # threshold
     t = max(thres_abs, tr)
-    mask = np.full_like(x, False, dtype=bool) # mask array for output indices   
+    mask = np.full_like(x, False, dtype=bool) # mask array for output indices
     x2 = np.concatenate((np.repeat(x[0], d), x, np.repeat(x[-1], d))) # constant values added to the edge
     for ix, value in enumerate(x):
         if value > t: # condition 1: value exceeds threshold
@@ -427,7 +427,7 @@ def fitGaussians1d(x, y, p0):
             amp = abs(float( p[i] ))
             mu = float( p[i+1] )
             sigma = float( p[i+2] )
-            g += amp * np.exp(- (x-mu)**2 / (2.0*sigma**2) ) 
+            g += amp * np.exp(- (x-mu)**2 / (2.0*sigma**2) )
         return g
     p,cov = opt.curve_fit(gaussn, x, y, p0)
     return p,gaussn(x,*p)
@@ -495,14 +495,14 @@ def GMKhexagon(br, s, ec='k', lw=1):
     x0, y0 = int(s/2), int(s/2)
     x1, y1 = br[0], br[1]
     x4, y4 = s-x1, s-y1
-    
+
     a1, b1 = rotatexy((x1, y1), (x0, y0), np.pi/6, 2/np.sqrt(3))
     a4, b4 = rotatexy((x4, y4), (x0, y0), np.pi/6, 2/np.sqrt(3))
     a2, b2 = rotatexy((a1, b1), (x0, y0), np.pi/3)
     a3, b3 = rotatexy((a2, b2), (x0, y0), np.pi/3)
     a5, b5 = rotatexy((a4, b4), (x0, y0), np.pi/3)
     a6, b6 = rotatexy((a5, b5), (x0, y0), np.pi/3)
-    
+
     G = np.array([x0, y0])
     K = np.array([a1, b1])
     M = np.array([(a1+a2)/2, (b1+b2)/2])
@@ -524,15 +524,15 @@ def symmetrize(data, n, bp=(1.,1.), diag=False):
                              mirror line.
         diag    - Optional : Boolean to assert whether the mirror line is left
                              on the diagonal.
-    
+
     Returns:
         dataSymm - A 2D or 3D numpy array containing symmetrized data.
 
     History:
         2017-05-04  - JG : Initial commit.
         2017-06-05  - HP : Modified default bp-value to be on diagonal.
-        2017-08-15  - HP : Added flag to leave mirror line on the diagonal. 
-                           Code will not line mirror unsquare data.  
+        2017-08-15  - HP : Added flag to leave mirror line on the diagonal.
+                           Code will not line mirror unsquare data.
      '''
     def sym2d(F, n):
         angle = 360.0/n
@@ -542,15 +542,15 @@ def symmetrize(data, n, bp=(1.,1.), diag=False):
             out += snd.rotate(F, -angle*ix, reshape=False)
         out /= 2*n
         return out
-    
+
     def linmirr(F, x1, y1):
         x0 = int(F.shape[0]/2.)
         y0 = int(F.shape[1]/2.)
         if x0 == y0:
             # angle between mirror line and diagonal line, unit in rad
-            alpha = 3*np.pi/4-np.arctan((y1-y0)/(x1-x0)) 
+            alpha = 3*np.pi/4-np.arctan((y1-y0)/(x1-x0))
             # rotate the mirror line to be diagonal
-            Fr = snd.rotate(F, -alpha/np.pi*180, reshape=False) 
+            Fr = snd.rotate(F, -alpha/np.pi*180, reshape=False)
             Ff = Fr.T # diagnoal mirror
             if diag:
                 return (Ff+Fr)/2.0
@@ -574,19 +574,19 @@ def symmetrize(data, n, bp=(1.,1.), diag=False):
 def gauss2d(x, y, p, symmetric=False):
     '''Create a two dimensional Gaussian.
 
-    Inputs: 
+    Inputs:
         x   - Required : 1D array containing x values
         y   - Required : 1D array containing y values.  The funciton will
                          create a meshgrid from x and y, but should be called
-                         like f(x, y, *args). 
+                         like f(x, y, *args).
         p   - Required : List of parameters that define the gaussian, in the
                          following order: [x0, y0, sigmax, sigmay, Amp, theta]
         symmetric   - Optional : Boolean, if True this will add another
                                  Gaussian at (cenx - x0, ceny - y0), which is
-                                 useful in frequency space. 
+                                 useful in frequency space.
 
     Returns:
-        G   -   2D array containing Gaussian. 
+        G   -   2D array containing Gaussian.
 
     History:
         2018-03-30  - HP : Initial commit.
@@ -606,14 +606,14 @@ def gauss2d(x, y, p, symmetric=False):
 
 def gauss_ring(x, y, major, sigma, minor=None, theta=0, x0=None, y0=None):
     '''
-    Create a 2D ring with a gaussian cross section. 
+    Create a 2D ring with a gaussian cross section.
 
     Inputs:
         x   - Required : 1D array containing x values
         y   - Required : 1D array containing y values.  The funciton will
                          create a meshgrid from x and y, but should be called
-                         like f(x, y, *args). 
-        major   - Required : Float. Radius of ring or major axis of ellipse. 
+                         like f(x, y, *args).
+        major   - Required : Float. Radius of ring or major axis of ellipse.
         sigma   - Required : Float. Width of gaussian cross section
         minor   - Optional : Float. Radius of minor axis of ellipse
                              (default: major)
@@ -625,9 +625,9 @@ def gauss_ring(x, y, major, sigma, minor=None, theta=0, x0=None, y0=None):
     Returns:
         G   -   2D array containing Gaussian ring.
 
-    History: 
-        2018-05-09  - HP : Initial commit. 
-        2018-05-10  - HP : Added center point. 
+    History:
+        2018-05-09  - HP : Initial commit.
+        2018-05-10  - HP : Added center point.
     '''
     if minor is None:
         minor = 1
@@ -645,7 +645,7 @@ def gauss_ring(x, y, major, sigma, minor=None, theta=0, x0=None, y0=None):
 def gauss_theta(x, y, theta, sigma, x0=None, y0=None, symmetric=1):
     '''
     Create a radial wedge with a gaussian profile. For theta-dependent
-    amplitude modulation of a signal. 
+    amplitude modulation of a signal.
 
     Inputs:
         x   - Required : 1D array containing x values
@@ -663,17 +663,17 @@ def gauss_theta(x, y, theta, sigma, x0=None, y0=None, symmetric=1):
     Returns:
         G   -   2D array containing Gaussian wedge.
 
-    History: 
-        2018-05-10  - HP : Initial commit. 
-        
+    History:
+        2018-05-10  - HP : Initial commit.
+
     '''
     def reduce_angle(theta):
         '''Maps any angle in degrees to the interval -180 to 180'''
         t =  theta % 360
         if t > 180:
             t -= 360
-        return t   
-    
+        return t
+
     if x0 is None:
         x0 = (x[-1] + x[0])/2.0
     if y0 is None:
@@ -683,7 +683,7 @@ def gauss_theta(x, y, theta, sigma, x0=None, y0=None, symmetric=1):
     T = np.arctan2(x[:,None]-x0, y[None,:]-y0)
     if -np.pi/2.0 < t <= np.pi/2.0:
         amp = np.exp(-(T-t)**2/(2*sig**2))
-    else: 
+    else:
         amp = np.exp(-(T-(np.sign(t)*np.pi-t))**2/(2*sig**2))[:,::-1]
     for deg in np.linspace(360.0/symmetric, 360, int(symmetric)-1, endpoint=False):
         amp += gauss_theta(x, y, np.degrees(t)+deg, sigma, x0=x0, y0=y0, symmetric=1)
@@ -695,7 +695,7 @@ class ngauss1d(object):
     Fits a combination of n gaussians to 1d data. Output is an object
     containing various attributs pertaining to the fit. Includes the option to
     fix a number of parameters in the fit by providing an array of 1 and 0
-    corresponding to each parameter: 1 - vary, 0 - fix.  
+    corresponding to each parameter: 1 - vary, 0 - fix.
 
     Inputs:
         x - x data
@@ -705,10 +705,10 @@ class ngauss1d(object):
             [amp, mu, sigma, amp, mu, sigma, ...]
             len(p0) must be divisible by 3.
         vary - array with same lengh as p0 describing whether to vary or fix
-            each parameter. Defaults to varying all. 
+            each parameter. Defaults to varying all.
         kwarg - additional keyword arguments passed to scipy.optimize.minimize
 
-    Usage: result = ngauss1d(x, y, p0, vary=None, **kwarg) 
+    Usage: result = ngauss1d(x, y, p0, vary=None, **kwarg)
     '''
     def __init__(self, x, y, p0, vary=None, **kwarg):
         if vary is None:
@@ -730,7 +730,7 @@ class ngauss1d(object):
         for ix, (peak, peak_u) in enumerate(zip(self.p.T, self.p_unsrt.T)):
             self.peaks[ix] = self.gaussn(*peak)
             self.peaks_unsrt[ix] = self.gaussn(*peak_u)
-    
+
     def gaussn(self, *p):
         g = np.zeros_like(self._x)
         for i in range(0,len(p),3):
@@ -739,7 +739,7 @@ class ngauss1d(object):
             sigma = float(p[i+2])
             g += amp * np.exp(-(self._x-mu)**2 / (2.0*sigma**2))
         return g
-    
+
     def _find_p(self, p_vary):
         p = np.zeros([len(self._p0)])
         vix = 0
@@ -761,14 +761,14 @@ class ngauss1d(object):
 def track_peak(x, z, p0, **kwarg):
     '''
     Simple interface for ngauss1d that tracks peaks on a 2d map in the y
-    direction. 
+    direction.
 
     Inputs:
         x - x data
         z - 2d map with peaks in the y direction
         p0 - initial guess parameters for peaks
         kwarg - additional keyword arguments passed to ngauss1d.  Check
-        ngauss1d.__doc__ for details. 
+        ngauss1d.__doc__ for details.
 
     Usage: mu = track_peak(x, z, p0, vary=vary, bounds=bounds)
     '''
@@ -786,7 +786,7 @@ def plane_subtract(data, deg, X0=None):
     any cross terms, i.e. not xy, only x^2 and y*2.  I think this is fine and
     just doesn't keep any hyperbolic-like terms.
 
-    Inputs: 
+    Inputs:
         data    - Required : A 2D or 3D numpy array containing data
         deg     - Required : Degree of polynomial to be removed.
         X0      - Optional : Guess optimization parameters for
@@ -796,7 +796,7 @@ def plane_subtract(data, deg, X0=None):
         subtractedData - Data with a polynomial plane removed.
 
     History:
-        2017-07-13  - HP : Fixed so that it works up to at least 3rd order.  
+        2017-07-13  - HP : Fixed so that it works up to at least 3rd order.
     '''
     def plane(a):
         x = np.arange(subtract2D.norm.shape[1])
@@ -833,7 +833,7 @@ def plane_subtract(data, deg, X0=None):
 def butter_lowpass_filter(data, ncutoff=0.5, order=1, method='pad', padtype='odd', irlen=None):
     '''
     Low-pass filter applied for an individual spectrum (.dat) or every spectrum in a DOS map (.3ds)
-    
+
     Parameters:
     data: data to be filtered, could be A.didv or A.LIY
     ncutoff: unitless cutoff frequency normaled by Nyquist frequency (half of sampling frequency),
@@ -842,11 +842,11 @@ def butter_lowpass_filter(data, ncutoff=0.5, order=1, method='pad', padtype='odd
     method : “pad” or “gust”. When method is “pad”, the signal is padded. When method is “gust”, Gustafsson’s method is used. [F. Gustaffson, “Determining the initial states in forward-backward filtering”, Transactions on Signal Processing, Vol. 46, pp. 988-992, 1996.]
     padtype : ‘odd’, ‘even’, ‘constant’, or None. This determines the type of extension to use for the padded signal to which the filter is applied. If padtype is None, no padding is used. The default is ‘odd’.
     irlen : When method is “gust”, irlen specifies the length of the impulse response of the filter. If irlen is None, no part of the impulse response is ignored. For a long signal, specifying irlen can significantly improve the performance of the filter.
-    
+
     Usage: A_didv_filt = butter_lowpass_filter(A.didv, ncutoff=0.5, order=1)
            A_LIY_filt = butter_lowpass_filter(A.LIY, ncutoff=0.5, order=1)
     '''
-    
+
     b, a = butter(order, ncutoff, btype='low', analog=False)
     y = np.zeros_like(data)
     if len(data.shape) is 1:
@@ -862,24 +862,62 @@ def butter_lowpass_filter(data, ncutoff=0.5, order=1, method='pad', padtype='odd
         print('ERR: Input must be 1D or 3D numpy array.')
 
 
+def highpass(data, ncutoff=0.5, order=1, method='pad', padtype='odd', irlen=None):
+    """Simple 1D highpass filter
+
+    Inputs:
+        data    - Required : 1D array containing data, eg. A.LIY.flatten()
+        ncutoff - Optional : Unitless cutoff frequency normaled by Nyquist
+                             frequency (half of sampling frequency). Note that
+                             ncutoff <=1, ie. real cutoff frequency should be
+                             less than Nyquist frequency.
+        order   - Optional : degree of high frequency attenuation, see Wikipedia
+                             article for "Butterworth filter".
+        method  - Optional : “pad” or “gust”. When method is “pad”, the signal
+                             is padded. When method is “gust”, Gustafsson’s
+                             method is used. [F. Gustaffson, “Determining the
+                             initial states in forward-backward filtering”,
+                             Transactions on Signal Processing, Vol. 46, pp.
+                             988-992, 1996.]
+        padtype - Optional : ‘odd’, ‘even’, ‘constant’, or None. This determines
+                             the type of extension to use for the padded signal
+                             to which the filter is applied. If padtype is None,
+                             no padding is used. The default is ‘odd’.
+        irlen   - Optional : When method is “gust”, irlen specifies the length
+                             of the impulse response of the filter. If irlen is
+                             None, no part of the impulse response is ignored.
+                             For a long signal, specifying irlen can
+                             significantly improve the performance of the filter.
+
+    Returns:
+        out - 1D array containting filtered data.
+
+    History:
+    2020-04-25  - HP : Initial commit.
+    """
+    b, a = butter(order, ncutoff, btype='high', analog=False)
+    y = filtfilt(b, a, data, method=method, padtype=padtype, irlen=irlen)
+    return y
+
+
 def gradfilter(A, x, y, genvec=False):
     '''
     Minimum gradient filter for dispersive features (Ref. arXiv:1612.07880), returns filtered image
     with optional gradient components for pseudo-vector-field and gradient modulus maps,
     e.g. grad[I(k, E)].
-    
+
     A is a 2D array composed of two axes x and y representing two independent experimental variables
     x and y should be both equally spaced 1D array but may not be same increment dx and dy
-    
+
     Usage: x = np.linspace(-1, 1, 40)
            y = np.linspace(0, 1, 20)
            A = np.array([...])
            # simple filtering
            A_gfl = gradfilter(A, x, y)
-           
+
            # with gradient mapped
            A_gfl, A_grad_x, A_grad_y = gradfilter(A, x, y, genvec=True)
-           
+
            X, Y = np.meshgrid(x, y)
            quiver(X, Y, A_grad_x, A_grad_Y, facecolors='b' ,width=0.005, pivot='mid') # vector-field
            A_grad_map = np.sqrt(A_grad_x**2 + A_grad_y**2) # modulus map
@@ -889,14 +927,14 @@ def gradfilter(A, x, y, genvec=False):
     #A_grad_row, A_grad_col = np.gradient(A, edge_order=1)
     #A_grad = np.sqrt(A_grad_row**2 + A_grad_col**2)
     #A_grad_filtered = A / np.sqrt(A_grad_row**2 + A_grad_col**2)
-    
+
     # 8-component method
     col, row = A.shape
     norm = np.sqrt(1/8.) # normalize boundaries such that boundary values of modulus map are 1 to be divided.
     dx = x[1]-x[0] # increment of W, E
     dy = y[1]-y[0] # increment of N, S
     dxy = np.sqrt(dx**2 + dy**2) # increment of NW, NE, SW, SE
-    
+
     A_grad_N = np.ones_like(A)*norm
     A_grad_S = np.ones_like(A)*norm
     A_grad_W = np.ones_like(A)*norm
@@ -905,7 +943,7 @@ def gradfilter(A, x, y, genvec=False):
     A_grad_NE = np.ones_like(A)*norm
     A_grad_SW = np.ones_like(A)*norm
     A_grad_SE = np.ones_like(A)*norm
-    
+
     for i in np.arange(1,col-1):
         for j in np.arange(1,row-1):
             A_grad_N[i, j] = (A[i, j] - A[i-1, j]) / dy
@@ -916,7 +954,7 @@ def gradfilter(A, x, y, genvec=False):
             A_grad_NE[i, j] = (A[i, j] - A[i-1, j+1]) / dxy
             A_grad_SW[i, j] = (A[i, j] - A[i+1, j-1]) / dxy
             A_grad_SE[i, j] = (A[i, j] - A[i+1, j+1]) / dxy
-    
+
     A_grad_col = A_grad_W + (A_grad_NW + A_grad_SW) /np.sqrt(2) - A_grad_E - (A_grad_NE + A_grad_SE)/ np.sqrt(2)
     A_grad_row = A_grad_N + (A_grad_NW + A_grad_NE) / np.sqrt(2) - A_grad_S - (A_grad_SW + A_grad_SE)/ np.sqrt(2)
     A_grad_mod = np.sqrt(A_grad_N**2 + A_grad_S**2 + A_grad_W**2 + A_grad_E**2 + A_grad_NW**2 + A_grad_NE**2 \
@@ -949,13 +987,13 @@ def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + '-' * (length - filledLength)
     print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
-    if iteration == total: 
+    if iteration == total:
         print('\n Process completed!')
 
 
 def nsigma_global(data, n=5, M=2, repeat=1):
     '''Replace bad pixels that have a value n-sigma greater than the global
-    mean with the average of their neighbors. 
+    mean with the average of their neighbors.
 
     Inputs:
         data    - Required : 1D, 2D or 3D numpy array containing bad pixels.
@@ -963,24 +1001,24 @@ def nsigma_global(data, n=5, M=2, repeat=1):
                              by iterating over the first index.
         n       - Optional : Number of standard deviations away from mean for
                              filter to identify bad pixels (default : 5).
-        M       - Optional : Size of box for calculating replacement value. 
+        M       - Optional : Size of box for calculating replacement value.
         repeat  - Optional : Number of times to repeat the filter.
-    
+
     Returns:
         filteredData    :  Data with bad pixels set to the local average
-                           value. 
+                           value.
 
     Usage:
         filteredData = nsigma_global(data, n=5, M=2)
 
     History:
         2017-06-07  - HP : Initial commit
-        2017-06-18  - HP : Added support for 1D data. 
+        2017-06-18  - HP : Added support for 1D data.
         2017-07-12  - HP : Added repeat flag.
     '''
     def filter_1D(line, n, M):
         filtered = line.copy()
-        badPixels = np.where((line > np.mean(line) + n*np.std(line)) | 
+        badPixels = np.where((line > np.mean(line) + n*np.std(line)) |
                              (line < np.mean(line) - n*np.std(line)) )
         for ix in badPixels[0]:
             neighbors = line[max(0, ix-M) : min(line.shape[0], ix+M+1)]
@@ -991,7 +1029,7 @@ def nsigma_global(data, n=5, M=2, repeat=1):
 
     def filter_2D(layer, n, M):
         filtered = layer.copy()
-        badPixels = np.where((layer > np.mean(layer) + n*np.std(layer)) | 
+        badPixels = np.where((layer > np.mean(layer) + n*np.std(layer)) |
                              (layer < np.mean(layer) - n*np.std(layer)) )
         for ix, iy in zip(badPixels[1], badPixels[0]):
             neighbors = layer[max(0, iy-M) : min(layer.shape[0], iy+M+1),
@@ -999,8 +1037,8 @@ def nsigma_global(data, n=5, M=2, repeat=1):
             mask = (neighbors != layer[iy,ix])
             replacement = np.sum(mask*neighbors) / (neighbors.size - 1.0)
             filtered[iy, ix] = replacement
-        return filtered 
-    
+        return filtered
+
     filteredData = data.copy()
     if len(data.shape) == 1:
         for iz in range(repeat):
@@ -1014,7 +1052,7 @@ def nsigma_global(data, n=5, M=2, repeat=1):
         for iz in range(repeat):
             for ix, layer in enumerate(filteredData):
                 filteredData[ix] = filter_2D(layer, n, M)
-    else: 
+    else:
         print('ERR: Input must be 1D, 2D or 3D numpy array')
 
     return filteredData
@@ -1036,16 +1074,16 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
                                replacement value.  The replacement is the mean
                                of a (2M+1) x (2M+1) square that excludes the
                                bad pixel (default : 4)
-        repeat  - Optional  :  Number of times to repeat the filter 
+        repeat  - Optional  :  Number of times to repeat the filter
                                (default : 1)
-   
+
    Returns:
         filteredData    :  Data with bad pixels set to the average value of
                            neighbors.
-        
+
     Usage:
         filteredData = nsigma_local(data, n=4, N=4, M=4, repeat=1)
-    
+
     History:
         2017-06-07  - HP : Initial commit
         2017-06-18  - HP : Added support for 1D data.
@@ -1055,7 +1093,7 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
         filtered = line.copy()
         for IX in range(N, line.shape[0], 2*N+1):
                 local = filtered[max(0, IX-N) : min(line.shape[0], IX+N+1)]
-                badPixels = np.where((local > np.mean(local) + n*np.std(local)) | 
+                badPixels = np.where((local > np.mean(local) + n*np.std(local)) |
                                      (local < np.mean(local) - n*np.std(local)) )
                 for ix in badPixels[0]:
                     neighbors = local[max(0, ix-M) : min(line.shape[0], ix+M+1)]
@@ -1068,9 +1106,9 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
         filtered = layer.copy()
         for IY in range(N, layer.shape[0], 2*N+1):
             for IX in range(N, layer.shape[1], 2*N+1):
-                local = filtered[max(0, IY-N) : min(layer.shape[0], IY+N+1), 
+                local = filtered[max(0, IY-N) : min(layer.shape[0], IY+N+1),
                                  max(0, IX-N) : min(layer.shape[1], IX+N+1)]
-                badPixels = np.where((local > np.mean(local) + n*np.std(local)) | 
+                badPixels = np.where((local > np.mean(local) + n*np.std(local)) |
                                      (local < np.mean(local) - n*np.std(local)) )
                 for ix, iy in zip(badPixels[1], badPixels[0]):
                     neighbors = local[max(0, iy-M) : min(layer.shape[0], iy+M+1),
@@ -1079,7 +1117,7 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
                     replacement = np.sum(mask*neighbors) / (neighbors.size - 1.0)
                     filtered[IY-N+iy, IX-N+ix] = replacement
         return filtered
-    
+
     filteredData = data.copy()
     if len(data.shape) == 1:
         for iz in range(repeat):
@@ -1093,9 +1131,9 @@ def nsigma_local(data, n=4, N=4, M=4, repeat=1):
         for iz in range(repeat):
             for ix, layer in enumerate(filteredData):
                 filteredData[ix] = nsigma_local_2D(layer, n, N, M)
-    else: 
+    else:
         print('ERR: Input must be 1D, 2D or 3D numpy array')
-    
+
     return filteredData
 
 def radial_linecut(data, length, angle, width, reshape=True):
@@ -1109,7 +1147,7 @@ def radial_linecut(data, length, angle, width, reshape=True):
         angle   - Required : Float used to specify the angle in degrees
                              relative to the x-axis for the linecut.
         width   - Required : Integer (>0) that specified the perpendicular
-                             width to average over. 
+                             width to average over.
         reshape - Optional : Boolean to define whether to reshape the image
                              during rotation. True seems better unless it cuts
                              off.
@@ -1125,8 +1163,8 @@ def radial_linecut(data, length, angle, width, reshape=True):
     '''
     def linecut2D(layer):
         layerRot = snd.rotate(layer, angle, reshape=reshape)
-        cen = np.array(layerRot.shape)/2 
-        layerCrop = layerRot[cen[1]-int(width) : cen[1]+int(width), 
+        cen = np.array(layerRot.shape)/2
+        layerCrop = layerRot[cen[1]-int(width) : cen[1]+int(width),
                              cen[0] : cen[0]+int(length)]
         return np.mean(layerCrop, axis=0)
     if len(data.shape) == 2:
@@ -1136,7 +1174,7 @@ def radial_linecut(data, length, angle, width, reshape=True):
         for ix, layer in enumerate(data):
             linecut[ix] = linecut2D(layer)
         return linecut
-    else: 
+    else:
         print('ERR: Input must be 2D or 3D numpy array')
 
 
@@ -1144,8 +1182,8 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0,
         units='None'):
     '''
     Compute the fast Frouier transform of a data set with the option to add
-    windowing. 
-   
+    windowing.
+
     Inputs:
         dataIn    - Required : A 1D, 2D or 3D numpy array
         window  - Optional : String containing windowing function used to mask
@@ -1161,37 +1199,37 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0,
         units   - Optional : String containing desired units for the FFT.
                              Options: 'None', or 'amplitude' (in the future, I
                              might add "ASD" and "PSD".
-    
+
     Returns:
         fftData - numpy array containing FFT of data
-    
+
     Usage:
-        fftData = fft(data, window='None', output='absolute', zeroDC=False, 
+        fftData = fft(data, window='None', output='absolute', zeroDC=False,
                       beta=1.0)
 
     History:
         2017-06-15  - HP : Initial commit.
         2017-06-22  - HP : Added support for 1D data and complex output.
         2017-10-31  - HP : Improved zeroDC to subtact the mean before FFT.
-        2017-11-19  - HP : Fixed a bug in calculating the mean of 3D data. 
+        2017-11-19  - HP : Fixed a bug in calculating the mean of 3D data.
     '''
     def ft2(data):
         ftData = np.fft.fft2(data)
         if zeroDC:
             ftData[0,0] = 0
         return np.fft.fftshift(ftData)
-    
-    outputFunctions = {'absolute':np.absolute, 'real':np.real, 
+
+    outputFunctions = {'absolute':np.absolute, 'real':np.real,
                        'imag':np.imag, 'phase':np.angle, 'complex':(lambda x:x) }
-    
+
     windowFunctions = {'None':(lambda x:np.ones(x)), 'none':(lambda x:np.ones(x)),
-                       'bartlett':np.bartlett, 'blackman':np.blackman, 
-                       'hamming':np.hamming, 'hanning':np.hanning, 
+                       'bartlett':np.bartlett, 'blackman':np.blackman,
+                       'hamming':np.hamming, 'hanning':np.hanning,
                        'kaiser':np.kaiser }
 
     outputFunction = outputFunctions[output]
     windowFunction = windowFunctions[window]
-    
+
     data = dataIn.copy()
     if zeroDC:
         if len(data.shape) == 3:
@@ -1216,11 +1254,11 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0,
             wData = data * wTile
             if output == 'complex':
                 ftData = np.zeros_like(data, dtype=np.complex)
-            else: 
+            else:
                 ftData = np.zeros_like(data)
             for ix, layer in enumerate(wData):
                 ftData[ix] = outputFunction(ft2(layer))
-        else: 
+        else:
             print('ERR: Input must be 1D, 2D or 3D numpy array')
 
     else:
@@ -1250,7 +1288,7 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0,
 
 def ifft(data, output='real', envelope=False):
     '''
-    Compute the inverse Fourier transform with the option to detect envelope. 
+    Compute the inverse Fourier transform with the option to detect envelope.
 
     Inputs:
         data    - Required : A 1D or 2D numpy array. (3D not yet supported)
@@ -1259,26 +1297,26 @@ def ifft(data, output='real', envelope=False):
                              or 'complex'.
         envelope - Optional : Boolen, when True applies the Hilbert transform
                               to detect the envelope of the IFT, which is the
-                              absolute values.  
+                              absolute values.
         **kwarg - Optional : Passed to scipy.signal.hilbert()
 
     See docs.scipy.org/doc/scipy/reference/generated/scipy.signal.hilbert.html
-    for more information about envelope function. 
+    for more information about envelope function.
 
     Outputs:
-        ift - A numpy array containing inverse Fourier transform. 
+        ift - A numpy array containing inverse Fourier transform.
 
     History:
-        2018-03-30  - HP : Initial commit. 
+        2018-03-30  - HP : Initial commit.
     '''
-    outputFunctions = {'absolute':np.absolute, 'real':np.real, 
+    outputFunctions = {'absolute':np.absolute, 'real':np.real,
                        'imag':np.imag, 'phase':np.angle, 'complex':(lambda x:x)}
     out = outputFunctions[output]
     if len(data.shape) == 2:
         ift = np.fft.ifft2(np.fft.ifftshift(data))
     elif len(data.shape) == 1:
         ift = np.fft.ifft(np.fft.ifftshift(data))
-    if envelope: 
+    if envelope:
         ift = hilbert(np.real(ift))
     return out(ift)
 
@@ -1307,7 +1345,7 @@ def normalize(data, axis=0, condition='mean'):
         normData = normalize(data, axis=0, condition='mean')
 
     History:
-        2017-06-16  - HP : Initial commit 
+        2017-06-16  - HP : Initial commit
     '''
     conditionOptions = {'max':np.max, 'mean':np.mean,
                         'min':np.min}
@@ -1318,7 +1356,7 @@ def normalize(data, axis=0, condition='mean'):
         outputT[ix] = line/cond(line)
     output = np.moveaxis(outputT, 0, axis)
     return output
-   
+
 
 def linecut(data, p0, p1, width=1, dl=0, dw=0, kind='linear',
                 show=False, ax=None, **kwarg):
@@ -1337,7 +1375,7 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0, kind='linear',
                              perpendicular direction.
         kind    - Optional : Sting for interpolation scheme. Options are:
                              'nearest', 'linear', 'cubic', 'quintic'.  Note
-                             that 'linear', 'cubic', 'quintic' use spline. 
+                             that 'linear', 'cubic', 'quintic' use spline.
         show    - Optional : Boolean determining whether to plot where the
                              linecut was taken.
         ax      - Optional : Matplotlib axes instance to plot where linecut is
@@ -1347,14 +1385,14 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0, kind='linear',
 
     Returns:
         r   -   1D numpy array which goes from 0 to the length of the cut.
-        cut -   1D or 2D numpy array containg the linecut. 
+        cut -   1D or 2D numpy array containg the linecut.
 
     Usage:
         r, cut = linecut(data, (x0,y0), (x1,y1), width=1, dl=0, dw=0,
                          show=False, ax=None, **kwarg)
 
     History:
-        2017-06-19  - HP : Initial commit. 
+        2017-06-19  - HP : Initial commit.
         2017-06-22  - HP : Python 3 compatible.
         2017-08-24  - HP : Modified to use stmpy.tools.interp2d()
     '''
@@ -1378,12 +1416,12 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0, kind='linear',
         return (wx0, wx1), (wy0, wy1)
 
     def cutter(F, p0, p1, dw):
-        l, __, xtot, ytot = calc_length(p0, p1, dw)    
+        l, __, xtot, ytot = calc_length(p0, p1, dw)
         cut = np.zeros(int(np.ceil(l+dw)))
         for ix, (x,y) in enumerate(zip(xtot, ytot)):
             cut[ix] = F(x,y)
         return cut
-    
+
     def linecut2D(layer, p0, p1, width, dl, dw):
         xAll, yAll = np.arange(layer.shape[1]), np.arange(layer.shape[0])
         F = interp2d(xAll, yAll, layer, kind=kind)
@@ -1395,11 +1433,11 @@ def linecut(data, p0, p1, width=1, dl=0, dw=0, kind='linear',
             wcut = cutter(F, (wx0,wy0), (wx1,wy1), dw)
             cut[ix] = np.mean(wcut)
         return r, cut
-    
+
     if len(data.shape) == 2:
         r, cut = linecut2D(data, p0, p1, width, dl, dw)
     if len(data.shape) == 3:
-        l, __, __, __ = calc_length(p0, p1, dl) 
+        l, __, __, __ = calc_length(p0, p1, dl)
         cut = np.zeros([data.shape[0], int(np.ceil(l+dl))])
         for ix, layer in enumerate(data):
             r, cut[ix] = linecut2D(layer, p0, p1, width, dl, dw)
@@ -1420,8 +1458,8 @@ def crop(data, cen, width=15):
         data    - Required : A 2D or 3D numpy array.
         cen     - Required : A tuple containing location of the center
                              pixel.
-        width   - Optional : Integer containing the half-width of the 
-                             square to crop. 
+        width   - Optional : Integer containing the half-width of the
+                             square to crop.
 
     Returns:
         croppedData - A 2D or 3D numpy square array of specified width.
@@ -1430,14 +1468,14 @@ def crop(data, cen, width=15):
         croppedData = crop(data, cen, width=15)
 
     History:
-        2017-07-11  - HP : Initial commit. 
+        2017-07-11  - HP : Initial commit.
     '''
     imcopy = data.copy()
     if len(data.shape) == 2:
         return imcopy[cen[1]-width : cen[1]+width,
                       cen[0]-width : cen[0]+width]
     elif len(data.shape) == 3:
-        return imcopy[:, cen[1]-width : cen[1]+width, 
+        return imcopy[:, cen[1]-width : cen[1]+width,
                       cen[0]-width : cen[0]+width]
 
 
@@ -1448,7 +1486,7 @@ def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
         f       - Required : Fitting function callable as f(xData, *args).
         xData   - Required : 1D array containing x values.
         yData   - Required : 1D array containing y values.
-        p0      - Optional : Initial guess for parameter values, defauts to 1. 
+        p0      - Optional : Initial guess for parameter values, defauts to 1.
         vary    - Optional : List of booleans describing which parameters to
                              vary (True) and which to keep fixed (False).
         **kwarg - Optional : Passed to scipy.optimize.minimize(). Example: option={'disp':True} to display convergence messages.
@@ -1502,22 +1540,22 @@ def boxcar_average1D(data, N):
                              applied along the first axis, e.g. the energy
                              direction in a DOS map.
         N       - Required : Integer describing the width of the boxcar window.
-    
+
     Returns:
         averagedData - Data with filter applied
 
     History:
-        2017-07-14  - HP : Initial commit. 
+        2017-07-14  - HP : Initial commit.
     '''
     def running_mean(x, N):
-        cumsum = np.cumsum(np.insert(x, 0, 0)) 
-        return (cumsum[N:] - cumsum[:-N]) / N 
+        cumsum = np.cumsum(np.insert(x, 0, 0))
+        return (cumsum[N:] - cumsum[:-N]) / N
     if type(N) != int:
         raise TypeError('N must be an integer.')
     if len(data.shape) == 1:
         return running_mean(data, N)
-    elif len(data.shape) == 3: 
-        getShape = running_mean(data[:,0,0], N) 
+    elif len(data.shape) == 3:
+        getShape = running_mean(data[:,0,0], N)
         output = np.zeros([data.shape[0] - N + 1, data.shape[1], data.shape[2]])
         for ix in range(data.shape[2]):
             for iy in range(data.shape[1]):
@@ -1552,13 +1590,13 @@ def gaussn(x, p):
     return g
 
 
-def find_extrema(data, n=(1,0), minDist=10, thres=(0.01,0.01), 
+def find_extrema(data, n=(1,0), minDist=10, thres=(0.01,0.01),
                  exclBorder=False, **kwarg):
     '''
     Get the coordinates of n local maxima and minima in a 2D image, or in each
-    layer in a 3D map. 
+    layer in a 3D map.
     Note: this function requires the package `skimage` to be installed.
-    Run `pip install -U scikit-image` in terminal, or see scikit-image.org for 
+    Run `pip install -U scikit-image` in terminal, or see scikit-image.org for
     details.
 
     Inputs:
@@ -1586,31 +1624,31 @@ def find_extrema(data, n=(1,0), minDist=10, thres=(0.01,0.01),
                   'Run `pip install -U scikit-image` in terminal, or see scikit-'+
                   'image.org for details.')
 
-    def find_extrema2D(layer, n=(1, 0), minDist=10, thres=(0.01, 0.01), 
+    def find_extrema2D(layer, n=(1, 0), minDist=10, thres=(0.01, 0.01),
                        exclBorder=False, **kwarg):
         cmax = np.array([[np.nan, np.nan]])
         cmin = np.array([[np.nan, np.nan]])
         n = [int(val) for val in n]
         if n[0] is not 0:
-            cmax = peak_local_max(layer, min_distance=minDist, threshold_rel=thres[0], 
+            cmax = peak_local_max(layer, min_distance=minDist, threshold_rel=thres[0],
                               num_peaks=n[0], exclude_border=exclBorder, **kwarg)
         if n[1] is not 0:
             cmin = peak_local_max(np.max(layer)-layer, min_distance=minDist,
-                              threshold_rel=thres[1], num_peaks=n[1], 
+                              threshold_rel=thres[1], num_peaks=n[1],
                               exclude_border=exclBorder, **kwarg)
         coords = np.concatenate([cmax, cmin])
         mask = ~np.isnan(coords)[:,0]
         return coords[mask]
-    
+
     if len(data.shape) == 3:
         output = np.zeros([data.shape[0], n[0]+n[1], 2])
         output.fill(np.nan)
         for ix, layer in enumerate(data):
-            coords = find_extrema2D(layer, n=n, minDist=minDist, thres=thres, 
+            coords = find_extrema2D(layer, n=n, minDist=minDist, thres=thres,
                                     exclBorder=exclBorder, **kwarg)
             output[ix, :coords.shape[0]] = coords
     elif len(data.shape) == 2:
-        output = find_extrema2D(data, n=n, minDist=minDist, thres=thres, 
+        output = find_extrema2D(data, n=n, minDist=minDist, thres=thres,
                                     exclBorder=exclBorder, **kwarg)
     else:
         raise ValueError('Data must be 2D or 3D numpy array')
@@ -1628,13 +1666,13 @@ def remove_extrema(data, coords=None, sigma=4, replSigma=None, replDist=None,
                              numpy convention: [(ie), iy, ix].  Note: if not
                              provided coordinates are found automatically using
                              stmpy.tools.find_extrema(data, **kwarg), see docs
-                             for infomation. 
+                             for infomation.
         sigma   - Optional : Float for the FWHM value of the gaussian area
                             replaced.
         replSigma - Optional : Float for the FWHM of the weighting gaussian for
-                               finding the replacement value. 
+                               finding the replacement value.
         replDist - Optional : Float for the distance away from the defect to
-                              average over when finding a replacement value. 
+                              average over when finding a replacement value.
         **kwarg - Optional : Sent to stmpy.tools.find_extrema() if coords is
                              not provided
 
@@ -1663,7 +1701,7 @@ def remove_extrema(data, coords=None, sigma=4, replSigma=None, replDist=None,
     if replSigma is None:
         replSigma = sigma
     if replDist is None:
-        replDist = 5*replSigma 
+        replDist = 5*replSigma
     out = np.zeros_like(data)
     if len(data.shape) == 3:
         if len(coords.shape) == 3:
@@ -1718,15 +1756,15 @@ def get_qscale(data, isReal=True, cix=1, n=(3,0), thres=(1e-10,1), show=False,
         ax=None, **kwarg):
     '''
     Find the radial coordinate of the Bragg peak in a 2D FFT. This defines
-    the scale in q-space. 
+    the scale in q-space.
 
     Inputs:
         data    - Required : a 2D numpy array containing the real-space data,
-                             can be the topography or an LIY layer. 
+                             can be the topography or an LIY layer.
         isReal  - Optional : Boolean to specify is data is in real-space
-                             (default) or in q-space. 
+                             (default) or in q-space.
         cix     - Optional : Integer to choose between peaks to find the Bragg
-                             peak. 
+                             peak.
         n       - Optional : Tuple of integers that defines the number of peaks
                              and dipe to find in q-space as: (nPeaks, nDips)
         thres   - Optional : Tuple for relative threshold to search for peaks.
@@ -1739,13 +1777,13 @@ def get_qscale(data, isReal=True, cix=1, n=(3,0), thres=(1e-10,1), show=False,
 
     Returns:
         r, phi - Floats containing the angular coordinates of a Bragg peak
-                 (usually lower left in q-space). 
-                 Note: The angle is in degrees. 
+                 (usually lower left in q-space).
+                 Note: The angle is in degrees.
 
     History:
         2017-10-20  - HP : Initial commit.
         2017-11-19  - HP : Added manual way to choose which peak is the Bragg
-                           peak. 
+                           peak.
     '''
     if len(data.shape) != 2:
         raise ValueError('Data must be 2D numpy array')
@@ -1779,9 +1817,9 @@ def get_qscale(data, isReal=True, cix=1, n=(3,0), thres=(1e-10,1), show=False,
 def find_intersect(x, y1, y2):
     '''
     Find the intersection between two curves. Note that the curves must be of
-    the form y1(x), y2(x), that is, they must share the same x values.  
-    
-    Inputs: 
+    the form y1(x), y2(x), that is, they must share the same x values.
+
+    Inputs:
         x   - Required : 1D array containing shared x values.
         y1  - Required : 1D array containing y values of the first curve.
         y2  - Required : 1D array containing y values of the second curve.
@@ -1803,64 +1841,64 @@ def find_intersect(x, y1, y2):
 def thermal_broaden(en, didv, T, N=10000, mode='reflect', offset=None):
     '''
     Temperature causes spectral features to become broader.  This function
-    mimiks the effect of higher temperatures by convoluting a didv data 
+    mimiks the effect of higher temperatures by convoluting a didv data
     with the derivatice of the Fermi-Dirac distribution. This function works to
     temperatures as low as 1mK.  To go lower in temperature is risky, because
     the kernel become sharply peaked and requires and extremely dense set of
     data points to accurately compute it.  To avoid long computation times this
     function refuses to use more than 1e7 points, though you're welcome to try
     and trick it by reducing 'N'. I wouldn't recommend ridiculously high (>300)
-    temperatures either. 
-    
+    temperatures either.
+
     To smooth edge effects, the data is reflected onto itself at both ends.
 
     Inputs:
         en      - Required : Array containing energy values.
         didv    - Required : 1D array with the spectrum to be smeared.
-        T       - Required : Float for temperature (in Kelvin) to smear to. 
+        T       - Required : Float for temperature (in Kelvin) to smear to.
         N       - Optional : Integer for number of points for temperatures
                              greater than 1K.  Temperature less than 1K will
                              use N*1/T points.
         mode    - Optional : String describing mode of convolution. Only option
-                             available is 'reflect'. 
+                             available is 'reflect'.
         offset  - Optional : Integer to shift the convoluted spectra to the
                              left or right. No, I do not know why you need to
-                             do that, but you do. 
+                             do that, but you do.
 
     Returns:
         smearedData - Array same size as didv containing broadened data.
 
     History:
-        2018-02-01  - HP : Initial commit. 
-        
-    
+        2018-02-01  - HP : Initial commit.
+
+
     '''
-    
+
     def fermi_derivative(en, T):
         '''This is the Kernel for thermal smearing.'''
         kT = 8.617330350e-5 * T * 1e3 # in meV
         y = (1 - np.tanh((en/(2*kT)))**2) / (4*kT)
         return y * (en[1]-en[0])
-    
+
     if mode == 'reflect':
         dv =  np.concatenate([didv[::-1][:-1], didv, didv[::-1][1:]])
         De = en[-1]-en[0]
         ev = np.linspace(en[0]-De, en[-1]+De, 3*len(en)-2)
     else:
         raise(ValueError('Mode must be reflect. (I have not coded any others).'))
-    
+
     if offset is None:
         if len(en)%2 == 0:
             offset = -1
         else:
             offset = 1
-            
+
     n = int(N*max(1/T, 1))
     if n>1e7:
         raise(ValueError('Too many points for interpolation.  Probably caused by '
                         + 'the temperature being too extreme. '))
-    
-    x = np.linspace(ev[0], ev[-1], n) 
+
+    x = np.linspace(ev[0], ev[-1], n)
     dx = x[1] - x[0]
     f = fermi_derivative(x, T)
     norm = sum(f)
@@ -1872,7 +1910,7 @@ def thermal_broaden(en, didv, T, N=10000, mode='reflect', offset=None):
     g = interp1d(ev, dv, kind='linear')
     fg = fftconvolve(f, g(x), 'same')
     y = interp1d(x, fg, kind='linear')
-    sampled = y(ev) 
+    sampled = y(ev)
     return sampled[len(en)+offset:2*len(en)+offset]
 
 
@@ -1904,18 +1942,18 @@ def remove_edges(data, edges=None, sigmaRemove=2.0, sigmaFind=2.0, **kwargs):
 def narrow2oct(freq, asd, n=3, fbase=1.0):
     '''
     narrow band ASD data to 3rd octave ASD data
-    
-    Input: 
+
+    Input:
     freq, asd - frequency and amplitude spectral density data, e.g. in Hz and V/sqrt(Hz)
     n - order of octave band, e.g. n=1 octave bands; n=3 one-third octave bands
     fbase - reference frequency, default is 1.0 Hz
-    
+
     Output:
     f_center - center frequency of nth octave bands
-    asd_oct - amplitude spectral density array in each octave bands, in e.g. V/sqrt(Hz) 
+    asd_oct - amplitude spectral density array in each octave bands, in e.g. V/sqrt(Hz)
     [you need to integrate to get band RMS by sum(asd_oct**2 * bw)]
     bw - width array of each octave band
-    
+
     Usage:
     f_center, V_octave, bw = narrow2oct(freq, asd, n=3, fbase=1.0)
     plot(freq, asd, 'b.')
@@ -1953,15 +1991,15 @@ def xcorr(data1, data2, norm=True):
     Inputs:
         data1   - Required : Numpy ndarray containing variable 1.
         data2   - Required : Numpy ndarray containing variable 2.  For auto
-                             correlation use data2=data1. 
+                             correlation use data2=data1.
         norm    - Optional : Normalize the output so that the autocorrelation
                              is 1 in the center.  Not 100% sure this works...
 
-    Returns: 
-        out     - Numpy ndarray containing correlation coefficients. 
+    Returns:
+        out     - Numpy ndarray containing correlation coefficients.
 
     History:
-        2019-03-10  - HP : Initial commit. 
+        2019-03-10  - HP : Initial commit.
 
     '''
     out = correlate(data1-np.mean(data1), data2-np.mean(data2), mode='same')
@@ -1980,15 +2018,15 @@ def remove_piezo_drift(data):
     average y values to a logistic function (fundamental model for piezo
     drift).
 
-    Inputs: 
+    Inputs:
         data    - Required : Numpy array containing image data (must be 2D).
 
-    Returns: 
+    Returns:
         out     - Numpy 2D array with drift removed. The mean is set to zero,
                   but the units are retained.
 
     History:
-        2019-10-02  - HP : Initial commit. 
+        2019-10-02  - HP : Initial commit.
 
     '''
     datan = (data-np.min(data)) / np.max(data-np.min(data))
@@ -2009,24 +2047,24 @@ def bias_offset_map(en, I, I2=None):
     Calculate zero-bias offset for I(V) map or for a two-setpoint map. If only
     one map is provided, the zero-bais point is when the I(V) curve crosses
     0pA. If two maps are provided, it is the intersection of the two I(V)
-    curves. 
-    
-    Inputs: 
+    curves.
+
+    Inputs:
         en      - Required : Numpy array containing voltage data (must be 1D).
         I       - Required : Numpy array containing current data (must be 3D).
         I2      - Optional : Numpy array containing current data from second
-                             map (must be same size as I). 
+                             map (must be same size as I).
 
-    Returns: 
+    Returns:
         mu      - Numpy 2D array of the zero-bias voltage point at each point
                   in space.
-        g       - Numpy 2D array of the slope at each point. 
+        g       - Numpy 2D array of the slope at each point.
         g2      - (optional) If I2 is not None, also return the slope for the
                   second I(V) map.
 
     History:
-        2019-10-15  - HP : Initial commit. 
-        2019-11-04  - HP : Add compatibility for a two-setpoint map. 
+        2019-10-15  - HP : Initial commit.
+        2019-11-04  - HP : Add compatibility for a two-setpoint map.
 
     '''
     mu = np.zeros_like(I[0])
@@ -2041,8 +2079,7 @@ def bias_offset_map(en, I, I2=None):
                 g[iy,ix] = p2[0]
                 p -= p2
             mu[iy,ix] =  (-p[1]) / (p[0])
-    if I2 is None: 
+    if I2 is None:
         return mu, g
-    else: 
+    else:
         return mu, g, g2
- 
