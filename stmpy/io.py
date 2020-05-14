@@ -711,9 +711,17 @@ def load_dat(filePath):
             if flag == 1:
                 print('WARNING: Ignoring backward sweeps.')
         self.LIY = np.zeros([len(self.en), sweeps])
+        self.I = np.zeros([len(self.en), sweeps])
         for ix in range(1, sweeps+1):
             s = str(ix).zfill(5)
-            self.LIY[:,ix-1] = self.channels['LIY 1 omega [' + s + '] (A)']
+            try:
+                self.LIY[:,ix-1] = self.channels['LIY 1 omega [' + s + '] (A)']
+                self.I[:,ix-1] = self.channels['Current [' + s + '] (A)']
+            except KeyError:
+                print('WARNING: Number of sweeps less than expected.\n' +
+                     'Found {:d}, expected {:d}.\t'.format(ix-1, sweeps) +
+                     'Consequently, data.didvStd is not correct. ')
+                break
         self.didvStd = np.std(self.LIY, axis=1)
     return self
 
