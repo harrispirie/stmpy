@@ -91,7 +91,7 @@ def getAttrs(obj, a0, size=None, pixels=None):
 
 #2. - findBraggs
 def findBraggs(A, obj=None, rspace=True, min_dist=5, thres=0.25, r=0.25, \
-    w=None, maskon=True, show=False, angle=0, even_out=True, update_obj=True):
+    w=None, maskon=True, show=False, angle=0, update_obj=True):
     '''
     Find Bragg peaks in the unit of pixels of topo or FT pattern A using peak_local_max. If obj is offered,
     an attribute of bp will be created for obj.
@@ -164,10 +164,6 @@ def findBraggs(A, obj=None, rspace=True, min_dist=5, thres=0.25, r=0.25, \
         for ix, iy in enumerate(coords):
             print(ix, end='\t')
             print(iy)
-    if even_out is True:
-        center = np.array(np.shape(A)[::-1]) // 2
-        for i, ix in enumerate(coords):
-            coords[i] = center + (ix - center) // 2 * 2
     if obj is not None:
         if update_obj is True:
             obj.bp = coords
@@ -551,7 +547,8 @@ def sortBraggs(br, s):
     return Br_s
 
 #9. - cropedge
-def cropedge(A, n, obj=None, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=False, update_obj=True):
+def cropedge(A, n, obj=None, bp=None, corner=None, c1=2, c2=2, a1=None, a2=None,
+            force_commen=False, update_obj=True):
     """
     Crop out bad pixels or highly drifted regions from topo/dos map.
 
@@ -560,6 +557,11 @@ def cropedge(A, n, obj=None, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=
         n           - Required : List of integers specifying how many bad pixels to crop on each side.
                                     Order: [left, right, down, up].
         obj         - Optional : Spy object of topo (2D) or map (3D).
+        corner      - Optional : Deprecated. String specifying which corner will
+                                 be cropped out, default "0". If specified,
+                                 "n" must be an integer. Options for "corner" are:
+                                 "0" - all four edges, "1" - lower left corner,
+                                 "2" - upper left, "3" - upper right, "4" - lower right
         force_commen- Optional : Boolean determining if the atomic lattice is commensurate with
                                     the output image.
 
@@ -575,7 +577,22 @@ def cropedge(A, n, obj=None, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=
     History:
         06/04/2019      RL : Initial commit.
         11/30/2019      RL : Add support for non-square dataset
+        27/03/2020      HP : Added "corner" kwarg for backwards compatibility.
     """
+    if corner is not None:
+        if type(n) != int:
+            raise AttributeError('"n" must be an integer if "corner" is specified')
+        if corner == '0':
+            n = [n,n,n,n]
+        elif corner == '1':
+            n = [n,0,n,0]
+        elif corner == '2':
+            n = [n,0,0,n]
+        elif corner == '3':
+            n = [0,n,0,n]
+        elif corner == '4':
+            n = [0,n,n,0]
+
     if force_commen is not True:
         B = _rough_cut(A, n=n)
         print('Shape before crop:', end=' ')
@@ -902,9 +919,6 @@ def display(A, B=None, sigma=3, clim_same=True):
         ax[0,1].imshow(A_fft, cmap=stmpy.cm.gray_r, origin='lower', clim=[0,c1+sigma*s1])
         ax[1,0].imshow(B, cmap=stmpy.cm.blue2, origin='lower')
         ax[1,1].imshow(B_fft, cmap=stmpy.cm.gray_r, origin='lower', clim=[0,c2+sigma*s2])
-        for axis in ax.flatten():
-            axis.set_aspect(1)
-        plt.tight_layout()
 
 
 def quick_linecut(A, width=2, n=4, bp=None, ax=None, thres=3):
@@ -982,9 +996,7 @@ def quick_show(A, en, thres=5, rspace=True, saveon=False, qlimit=1.2, imgName=''
                 ax[i//4,i%4].imshow(A[i*skip],extent=[-ext,ext,-ext,ext,],clim=[0,c+thres*s],cmap=stmpy.cm.gray_r)
                 ax[i//4,i%4].set_xlim(-qlimit,qlimit)
                 ax[i//4,i%4].set_ylim(-qlimit,qlimit)
-            ax[i//4,i%4].set_aspect(1)
             stmpy.image.add_label("${}$ mV".format(int(en[i*skip])), ax=ax[i//4,i%4])
-        plt.tight_layout()
     except IndexError:
         pass
     if saveon is True:
@@ -1028,7 +1040,7 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
             ext = qscale
     if len(np.shape(A)) == 3:
         for i in range(layers):
-            plt.figure(figsize=[5,5])
+            plt.figure(figsize=[4,4])
             c = np.mean(A[i])
             s = np.std(A[i])
             if rspace is True:
@@ -1041,11 +1053,10 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
             plt.gca().axes.get_xaxis().set_visible(False)
             plt.gca().axes.get_yaxis().set_visible(False)
             plt.gca().set_frame_on(False)
-            plt.gca().set_aspect(1)
             if saveon is True:
-                plt.savefig("{} at {}mV.{}".format(imgName, int(en[i]), extension), dpi=400, bbox_inches='tight',pad_inches=0)
+                plt.savefig("{} at {}mV.{}".format(imgName, int(en[i]), extension), bbox_inches='tight',pad_inches=0)
     elif len(np.shape(A)) == 2:
-        plt.figure(figsize=[5,5])
+        plt.figure(figsize=[4,4])
         c = np.mean(A)
         s = np.std(A)
         if rspace is True:
@@ -1058,6 +1069,5 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
         plt.gca().axes.get_xaxis().set_visible(False)
         plt.gca().axes.get_yaxis().set_visible(False)
         plt.gca().set_frame_on(False)
-        plt.gca().set_aspect(1)
         if saveon is True:
-            plt.savefig("{} at {}mV.{}".format(imgName, int(en), extension), dpi=400, bbox_inches='tight',pad_inches=0)
+            plt.savefig("{} at {}mV.{}".format(imgName, int(en), extension), bbox_inches='tight',pad_inches=0)
