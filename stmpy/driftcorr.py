@@ -576,6 +576,8 @@ def cropedge(A, n, obj=None, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=
         06/04/2019      RL : Initial commit.
         11/30/2019      RL : Add support for non-square dataset
     """
+    if not isinstance(n, list):
+        n = [n]
     if force_commen is not True:
         B = _rough_cut(A, n=n)
         print('Shape before crop:', end=' ')
