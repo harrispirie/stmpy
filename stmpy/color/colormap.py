@@ -6,19 +6,19 @@ import os as _os
 
 '''
 A collection of nice colormaps combining those from stmview, the default
-matplotlib ones and custom stmpy colormaps. 
+matplotlib ones and custom stmpy colormaps.
 
 Usage:
     When making a colormap, ensure it is correcly named (i.e. it must have a
     cmap.name attrubute), then add it to the list at the bottom of the file to
-    create the reversed colormap. 
+    create the reversed colormap.
 
  History:
     2016-11-10  - HP : Initial commit.
-    2017-10-31  - HP : Incorporated all matplotlib colormaps. 
+    2017-10-31  - HP : Incorporated all matplotlib colormaps.
 '''
 
-_path = _os.path.dirname(__file__) + '/maps/' 
+_path = _os.path.join(_os.path.dirname(__file__), 'maps', '')
 
 def invert_cmap(cmap, name='my_cmap'):
     '''
@@ -60,18 +60,18 @@ def _write_cmap_to_file(fileName, cmap):
             if ix != 255:
                 fileID.write('\n ')
 
-def _reverse_LSC(cmap):     
+def _reverse_LSC(cmap):
     reverse = []
-    k = []   
-    for key in cmap._segmentdata:    
+    k = []
+    for key in cmap._segmentdata:
         k.append(key)
         channel = cmap._segmentdata[key]
         data = []
-        for t in channel:                    
-            data.append((1-t[0],t[2],t[1]))            
-        reverse.append(sorted(data))    
+        for t in channel:
+            data.append((1-t[0],t[2],t[1]))
+        reverse.append(sorted(data))
     LinearL = dict(zip(k,reverse))
-    my_cmap_r = _LSC(cmap.name + '_r', LinearL) 
+    my_cmap_r = _LSC(cmap.name + '_r', LinearL)
     return my_cmap_r
 
 def _make_diverging_colormap(i, f, m=[1,1,1], name='my_cmap'):
@@ -79,7 +79,7 @@ def _make_diverging_colormap(i, f, m=[1,1,1], name='my_cmap'):
     Creates a three-color diverging colormap by interpolating smoothly between
     the RGB inputs. Output is a LinearSegmentedColormap from Matplotlib, which
     can be easily reversed using: cmap_r = _reverse_LSC(cmap), which is a
-    function written in this module. 
+    function written in this module.
     Inputs:
         i - Initial color as RGB or RGBA tuple or list
         f - Final color as RGB or RGBA tuple or list
@@ -95,7 +95,7 @@ def _make_diverging_colormap(i, f, m=[1,1,1], name='my_cmap'):
 
 cm.BuGy = _make_diverging_colormap(cm.RdGy(0.99), cm.RdBu(0.99), name='BuGy')
 cm.GnGy = _make_diverging_colormap(cm.RdGy(0.99), cm.BuGn(0.99), name='GnGy')
-cm.redblue = _make_diverging_colormap(i=(0.230, 0.299, 0.754), f=(0.706, 0.016,0.150), 
+cm.redblue = _make_diverging_colormap(i=(0.230, 0.299, 0.754), f=(0.706, 0.016,0.150),
                                       m=(0.865, 0.865, 0.865), name='redblue')
 cm.autumn = _make_STMView_colormap('Autumn.mat', name='autumn')
 cm.blue1 = _make_STMView_colormap('Blue1.mat', name='blue1')
@@ -110,7 +110,7 @@ cm.gray = _make_STMView_colormap('Gray.mat', name='gray')
 cm.PuGn = _make_STMView_colormap('PuGn.txt', name='PuGn')
 
 cm.sailingMod2 = _make_STMView_colormap('SailingMod2.mat', name='sailingMod2')
-cm.jackyYRK = _make_diverging_colormap([1, 1, 0], [0, 0, 0.5], 
+cm.jackyYRK = _make_diverging_colormap([1, 1, 0], [0, 0, 0.5],
                                         m=[0.7, 0.2, 0], name='jackyYRK')
 cm.jackyCopper = _make_diverging_colormap([0.2, 0.1, 0], [1, 0.95, 0.6],
                                         m=[1, 0.65, 0.25], name='jackyCopper')
@@ -146,7 +146,7 @@ cm.mhblue = _make_STMView_colormap('mhblue.mat', name='mhblue')
 
 
 
-# Reverse Cmaps: Add new cmap name to the list. 
+# Reverse Cmaps: Add new cmap name to the list.
 cmaps = [cm.BuGy, cm.GnGy, cm.redblue, cm.autumn, cm.blue1, cm.blue2, cm.blue3,
          cm.defect0, cm.defect1, cm.defect2, cm.defect4, cm.gray,
          cm.sailingMod2, cm.jackyYRK, cm.jackyCopper, cm.jackyRdGy,
@@ -159,16 +159,13 @@ for cmap in cmaps:
 
 
 # Remove non-cmap attributes and methods from cm
-removeall = ['colors', 'absolute_import', 'cmaps_listed', 'cmapname', 'cmap_d', 'datad', 
-          'division', 'get_cmap', 'LUTSIZE', 'ma', 'mpl', 'np', 'print_function', 'os', 
+removeall = ['colors', 'absolute_import', 'cmaps_listed', 'cmapname', 'cmap_d', 'datad',
+          'division', 'get_cmap', 'LUTSIZE', 'ma', 'mpl', 'np', 'print_function', 'os',
           'register_cmap', 'revcmap', 'ScalarMappable', 'six', 'unicode_literals', 'cbook']
 
-remove = ['colors', 'absolute_import', 'cmaps_listed', 'cmapname', 'cmap_d', 'datad', 
-          'division', 'get_cmap', 'LUTSIZE', 'ma', 'mpl', 'np', 'print_function', 'os', 
+remove = ['colors', 'absolute_import', 'cmaps_listed', 'cmapname', 'cmap_d', 'datad',
+          'division', 'get_cmap', 'LUTSIZE', 'ma', 'mpl', 'np', 'print_function', 'os',
           'register_cmap', 'revcmap', 'six', 'unicode_literals', 'cbook']
 
 #for name in remove:
 #    delattr(cm, name)
-
-
-

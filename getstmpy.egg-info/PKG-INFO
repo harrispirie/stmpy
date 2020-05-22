@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: getstmpy
-Version: 0.1
+Version: 0.1.5
 Summary: Scanning tunneling microscopy data analysis suite
 Home-page: https://github.com/harrispirie/stmpy
 Author: Harris Pirie

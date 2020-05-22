@@ -2,8 +2,8 @@ from setuptools import setup
 
 setup(
   name = 'getstmpy',
-  packages = ['stmpy'],
-  version = '0.1',
+  packages = ['stmpy', 'stmpy.color', 'stmpy.hp'],
+  version = '0.1.5',
   license='MIT',
   description = 'Scanning tunneling microscopy data analysis suite',
   author = 'Harris Pirie',

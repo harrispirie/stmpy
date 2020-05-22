@@ -1,0 +1,3 @@
+include *.txt *.md
+global-include *.txt *.mat
+global-exclude *.py[cod]
