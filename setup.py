@@ -1,9 +1,13 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
   name = 'getstmpy',
-  packages = ['stmpy', 'stmpy.color', 'stmpy.hp'],
-  version = '0.1.5',
+  version = '0.1.7',
+  packages = find_packages(),
+  package_data = {
+    "":["*.txt", "*.mat"]
+    },
+  include_package_data=True,
   license='MIT',
   description = 'Scanning tunneling microscopy data analysis suite',
   author = 'Harris Pirie',
