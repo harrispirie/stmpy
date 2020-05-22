@@ -1,8 +1,8 @@
 # stmpy
 
-Stmpy is a python-based data analysis package for stmpy images.
+Stmpy is a python-based data analysis package for scanning tunneling microscopy data.
 
-  - Load default Nanonis filetypes
+  - Load all default Nanonis filetypes
   - Analysis tools: curve fitting, linecuts, drift correction and more.
   - Easily create movies and high-quality figures
 
@@ -18,7 +18,7 @@ For developers
 $ python setup.py develop
 ```
 
-For users
+For users (in progress)
 
 ```sh
 $ pip install getstmpy
