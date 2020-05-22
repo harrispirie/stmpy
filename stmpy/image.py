@@ -337,7 +337,7 @@ def add_label(label, loc=0, ax=None, fs=20, txOptions=None, bbox=None):
 
     return tx
 
-def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit='nm',
+def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, ax=None, unit='nm',
         loc='lower right', color='w', fs=20, pad=0.5, tex=True, **kwargs):
     """
     Add scale bar to images.
@@ -349,7 +349,7 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
         imgpixels   - Required : Float. The size of image in unit of pixels.
         barheight   - Optional : Float. The ratio between height of scale bar
                                 and the height of the whole image. Default: 1.5 %.
-        axes        - Optional : Axes object. It controls which axis the scale
+        ax          - Optional : Axes object. It controls which axis the scale
                                 bar is added to. If not given, gca() will be the
                                 default value.
         unit        - Optional : String. Unit that will be shown in the text of
@@ -383,14 +383,15 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
     History:
         2018-11-02  - RL : Initial commit.
         2019-10-22  - HP : Add option to *not* use tex formatting!
+        2020-05-22  - RL : Fix the bug for gca(), and change axes to ax
     """
 
-    if axes is None:
-        axes = gca()
+    if ax is None:
+        ax = mpl.pyplot.gca()
     to_distance = imgsize/imgpixels
     fontprops = fm.FontProperties(size=fs)
     if tex:
-        scalebar = AnchoredSizeBar(axes.transData,
+        scalebar = AnchoredSizeBar(ax.transData,
             length/to_distance, r'$\mathbf{{{}''\ {}}}$'.format(length, unit), loc,
             pad=pad,
             color=color,
@@ -400,7 +401,7 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
             **kwargs
             )
     else:
-        scalebar = AnchoredSizeBar(axes.transData,
+        scalebar = AnchoredSizeBar(ax.transData,
             length/to_distance, '{} {}'.format(length, unit), loc,
             pad=pad,
             color=color,
@@ -410,7 +411,7 @@ def add_scale_bar(length, imgsize, imgpixels, barheight=1.5e-2, axes=None, unit=
             **kwargs
             )
 
-    axes.add_artist(scalebar)
+    ax.add_artist(scalebar)
     return scalebar
 
 def get_cbar(cmap, figsize=[0.36,0.07], color='k', orientation='horizontal',
