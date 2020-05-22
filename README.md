@@ -1,16 +1,32 @@
 # stmpy
-`stmpy` is a package for visulaizing and analyzing Scanning Tunning Micropscopy (STM) data in python. 
 
-## Installation
-### Method 1
-1. **Clone** or **download** `stmpy` to local drive.
-2. For developers: navigate to within local copy of stmpy. 
-```python python setup.py develop```
-For users:
-```python python setup.py install```
-### Method 2
-1. Use **pip** to download and install at the same time (also works for colab environment)
-```pip3 install -e git+https://github.com/harrispirie/stmpy.git#egg=stmpy```
+Stmpy is a python-based data analysis package for stmpy images.
 
-## Features
+  - Load default Nanonis filetypes
+  - Analysis tools: curve fitting, linecuts, drift correction and more.
+  - Easily create movies and high-quality figures
 
+Get started with the stmpy 101 tutorial in `stmpy/doc/`
+
+### Installation
+
+For developers
+
+1. **Clone** or **download** `stmpy` to your local drive.
+2. Navigate to within local copy of stmpy.
+```sh
+$ python setup.py develop
+```
+
+For users
+
+```sh
+$ pip install getstmpy
+```
+
+
+
+License
+----
+
+MIT

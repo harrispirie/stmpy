@@ -429,7 +429,7 @@ def get_cbar(cmap, figsize=[0.36,0.07], color='k', orientation='horizontal',
         cb - matplotlib colorbar instance.
 
     History:
-    2020-04-25  - HP : Initial commit.    
+    2020-04-25  - HP : Initial commit.
     """
     a = np.array([[0,1]])
     fig = plt.figure(figsize=figsize)
