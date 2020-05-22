@@ -1,0 +1,17 @@
+README.md
+setup.cfg
+setup.py
+getstmpy.egg-info/PKG-INFO
+getstmpy.egg-info/SOURCES.txt
+getstmpy.egg-info/dependency_links.txt
+getstmpy.egg-info/requires.txt
+getstmpy.egg-info/top_level.txt
+stmpy/__init__.py
+stmpy/cv.py
+stmpy/driftcorr.py
+stmpy/image.py
+stmpy/io.py
+stmpy/matio.py
+stmpy/read_STMView.py
+stmpy/read_all.py
+stmpy/tools.py
