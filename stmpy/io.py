@@ -493,22 +493,38 @@ def load_stmview(name, path=''):
 
     History:
             2020-02-12  - HP : Initial commit
+            2020-05-27  - WT : Added compatibility for the missing files
     '''
     def matigo(name, path='', extension=''):
         raw = stmpy.matio.loadmat(path + name + extension)
         end = extension.split('.')[0][1:]
         mat = raw['obj_' + name + '_' + end]
         return mat
+    
     self = stmpy.io.Spy()
-    matG = matigo(name, path, '-G.mat')
-    matI = matigo(name, path, '-I.mat')
-    matZ = matigo(name, path, '-T.mat')
-    self.LIY = np.moveaxis(matG['map'], -1, 0)
-    self.en = matG['e'][0]
-    self.didv = matG['ave']
-    self.I = np.moveaxis(matI['map'], -1, 0)
-    self.Z = matZ['map']
+    try:
+        matZ = matigo(name, path, '-T.mat')
+        self.Z = matZ['map']
+    except FileNotFoundError:
+        print('WARNING {:} not found'.format(path+name+'-T.mat'))    
+    try:
+        matG = matigo(name, path, '-G.mat')
+        self.LIY = np.moveaxis(matG['map'], -1, 0)
+        self.en = matG['e'][0]
+        self.didv = matG['ave']
+    except FileNotFoundError:
+        print('WARNING {:} not found'.format(path+name+'-G.mat'))
+    try:
+        matI = matigo(name, path, '-I.mat')
+        self.I = np.moveaxis(matI['map'], -1, 0)
+        if not hasattr(self, 'en'):
+            self.en = matI['e'][0]      
+    except FileNotFoundError:
+        print('WARNING {:} not found'.format(path+name+'-I.mat'))
     return self
+    
+    
+    
 
 def load_3ds(filePath):
     '''Load Nanonis 3ds into python.'''
