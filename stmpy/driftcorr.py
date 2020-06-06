@@ -24,9 +24,11 @@ History:
     2017-04-28      CREATED BY JIANFENG GE
     04/29/2019      RL : Add documents for all functions. Add another method to calculate phasemap.
                             Add inverse FFT method to apply the drift field.
-'''      
-        
+'''
+
 #1. - getAttrs
+
+
 def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
     '''
     Create attributes of lattice constant, map size, number of pixels, and qscale for Spy object.
@@ -53,9 +55,11 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
         except KeyError:
             try:
                 #size = float(obj.header['Grid settings'].split(";")[-2])
-                size = [float(k) for k in obj.header['Grid settings'].split(";")[-2:]]
+                size = [float(k)
+                        for k in obj.header['Grid settings'].split(";")[-2:]]
             except:
-                print("Error: Cannot find map size from header. Please input it manually.")
+                print(
+                    "Error: Cannot find map size from header. Please input it manually.")
     if pixels is None:
         try:
             #pixels = int(obj.header['scan_pixels'][-1])
@@ -64,7 +68,8 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
             try:
                 pixels = int(obj.header['Grid dim'].split()[-1][:-1])
             except:
-                print("Error: Cannot find number of pixels from header. Please input it manually.")
+                print(
+                    "Error: Cannot find number of pixels from header. Please input it manually.")
     if not isinstance(size, list):
         sizex, sizey = size, size
     else:
@@ -77,13 +82,13 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
 
     # parameters related to the map itself
     obj.parameters = {
-    'a0' : a0,
-    'size' : np.array([sizex, sizey]),
-    'pixels' : np.array([pixelx, pixely]),
-    'qmag' : np.array([sizex, sizey]) / a0,
-    'qscale' : np.array([pixelx, pixely]) / (2*np.array([sizex, sizey]) / a0),
-    'angle' : angle, 
-    'use_a0' : use_a0,
+        'a0': a0,
+        'size': np.array([sizex, sizey]),
+        'pixels': np.array([pixelx, pixely]),
+        'qmag': np.array([sizex, sizey]) / a0,
+        'qscale': np.array([pixelx, pixely]) / (2*np.array([sizex, sizey]) / a0),
+        'angle': angle,
+        'use_a0': use_a0,
     }
 
     # parameters for findBraggs()
@@ -106,20 +111,23 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
     obj.qy = None
     return obj
 
+
 def __update_parameters(obj, a0=None, bp=None, pixels=None, size=None, use_a0=True):
 
     if use_a0 is True:
-        center = np.array(pixels) // 2
+        center = (np.array(pixels)-1) // 2
         Q = bp - center
         q1, q2, q3, q4, *_ = Q
         delta_qx = (np.absolute(q1[0]-q3[0])+np.absolute(q2[0]-q4[0])) / 2
         delta_qy = (np.absolute(q1[1]-q3[1])+np.absolute(q2[1]-q4[1])) / 2
-        sizex = np.absolute(delta_qx / (4 * a0 * np.cos(obj.parameters['angle'])))
-        sizey = np.absolute(delta_qy / (4 * a0 * np.cos(obj.parameters['angle'])))
+        sizex = np.absolute(
+            delta_qx / (4 * a0 * np.cos(obj.parameters['angle'])))
+        sizey = np.absolute(
+            delta_qy / (4 * a0 * np.cos(obj.parameters['angle'])))
 
-        bp_x = np.min(bp[:,0])
+        bp_x = np.min(bp[:, 0])
         ext_x = pixels[0] / (pixels[0] - 2*bp_x)
-        bp_y = np.min(bp[:,1])
+        bp_y = np.min(bp[:, 1])
         ext_y = pixels[1] / (pixels[1] - 2*bp_y)
 
         obj.parameters['size'] = np.array([sizex, sizey])
@@ -128,22 +136,25 @@ def __update_parameters(obj, a0=None, bp=None, pixels=None, size=None, use_a0=Tr
 
         obj.qx = bp[0] - center
         obj.qy = bp[1] - center
-        
+
     else:
-        bp_x = np.min(bp[:,0])
+        bp_x = np.min(bp[:, 0])
         ext_x = pixels[0] / (pixels[0] - 2*bp_x)
-        bp_y = np.min(bp[:,1])
+        bp_y = np.min(bp[:, 1])
         ext_y = pixels[1] / (pixels[1] - 2*bp_y)
 
-        obj.parameters['size'] = np.array(pixels) / obj.parameters['pixels'] * obj.parameters['size']
+        obj.parameters['size'] = np.array(
+            pixels) / obj.parameters['pixels'] * obj.parameters['size']
         obj.parameters['pixels'] = np.array(pixels)
         obj.parameters['qscale'] = np.array([ext_x, ext_y])
         obj.qx = bp[0] - center
         obj.qy = bp[1] - center
 
 #2. - findBraggs
-def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None, \
-    w=None, mask3=None, even_out=False, show=False, obj=None, update_obj=False):
+
+
+def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
+               w=None, mask3=None, even_out=False, show=False, obj=None, update_obj=False):
     '''
     Find Bragg peaks in the unit of pixels of topo or FT pattern A using peak_local_max. If obj is offered,
     an attribute of bp will be created for obj.
@@ -177,8 +188,8 @@ def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None, \
 
     '''
     if obj is None:
-        return __findBraggs(A, rspace=rspace, min_dist=min_dist, thres=thres, r=r, \
-    w=w, mask3=mask3, even_out=even_out, show=show)
+        return __findBraggs(A, rspace=rspace, min_dist=min_dist, thres=thres, r=r,
+                            w=w, mask3=mask3, even_out=even_out, show=show)
 
     else:
         if update_obj is not False:
@@ -193,12 +204,13 @@ def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None, \
             }
         bp = __findBraggs(A, show=show, **obj.bp_parameters)
         pixels = np.shape(A)[::-1]
-        __update_parameters(obj, a0=obj.parameters['a0'], bp=bp, pixels=pixels, \
-                                size=obj.parameters['size'], use_a0=obj.parameters['use_a0'])
+        __update_parameters(obj, a0=obj.parameters['a0'], bp=bp, pixels=pixels,
+                            size=obj.parameters['size'], use_a0=obj.parameters['use_a0'])
         return bp
 
-def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None, \
-    w=None, mask3=None, even_out=False, show=False):
+
+def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
+                 w=None, mask3=None, even_out=False, show=False):
     """
     Actual function that finds Bragg peaks with peak_local_max() function.
     """
@@ -219,8 +231,8 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None, \
         G = 1
     if w is not None:
         mask2 = np.ones([Y, X])
-        mask2[Y//2-int(Y*w):Y//2+int(Y*w),:] = 0
-        mask2[:,X//2-int(X*w):X//2+int(X*w)] = 0
+        mask2[Y//2-int(Y*w):Y//2+int(Y*w), :] = 0
+        mask2[:, X//2-int(X*w):X//2+int(X*w)] = 0
     else:
         mask2 = 1
     if mask3 is None:
@@ -230,17 +242,32 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None, \
     coords = peak_local_max(F, min_distance=min_dist, threshold_rel=thres)
 
     coords = np.fliplr(coords)
-    # coords = sortBraggs(coords, s=np.shape(A))
+
+    def round_out(data):
+        if data > 0:
+            return data + 1
+        elif data < 0:
+            return data - 1
+        else:
+            return data
+
     if even_out is not False:
-        center = np.array(np.shape(A)[::-1]) // 2
-        for i, ix in enumerate(coords):
-            coords[i] = center + (ix - center) // 2 * 2
+        center = (np.array(np.shape(A)[::-1])-1) // 2
+        coords_temp = coords - center
+        for i, ix in enumerate(coords_temp):
+            for j, num in enumerate(ix):
+                if (num % 2) != 0:
+                    coords_temp[i, j] = round_out(num)
+                else:
+                    pass
+        coords = coords_temp + center
 
     if show is not False:
-        plt.figure(figsize=[4,4])
+        plt.figure(figsize=[4, 4])
         c = np.mean(F)
         s = np.std(F)
-        plt.imshow(F, cmap=plt.cm.gray_r, interpolation='None', origin='lower left', clim=[0,c+5*s], aspect=1)
+        plt.imshow(F, cmap=plt.cm.gray_r, interpolation='None',
+                   origin='lower left', clim=[0, c+5*s], aspect=1)
         plt.plot(coords[:, 0], coords[:, 1], 'r.')
         plt.gca().set_aspect(1)
         plt.axis('tight')
@@ -249,6 +276,7 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None, \
             print(ix, end='\t')
             print(iy)
     return coords
+
 
 def check_bp(A, bp, obj=None):
     '''
@@ -268,10 +296,11 @@ def check_bp(A, bp, obj=None):
     History:
         05-25-2020      RL : Initial commit.
     '''
-    center = np.array(np.shape(A)[::-1]) // 2
+    center = (np.array(np.shape(A)[::-1])-1) // 2
     Q = bp-center
     print(Q)
     print(np.dot(Q[0], Q[1]))
+
 
 def generate_bp(A, qx, qy, obj=None, update_obj=False):
     '''
@@ -293,7 +322,7 @@ def generate_bp(A, qx, qy, obj=None, update_obj=False):
     History:
         05-25-2020      RL : Initial commit.
     '''
-    center = np.array(np.shape(A)[::-1]) // 2
+    center = (np.array(np.shape(A)[::-1])-1) // 2
     out = np.array([
         np.array(qx),
         np.array(qy),
@@ -303,13 +332,15 @@ def generate_bp(A, qx, qy, obj=None, update_obj=False):
     if update_obj is not False:
         if obj is not None:
             pixels = np.shape(A)[::-1]
-            __update_parameters(obj, a0=obj.parameters['a0'], bp=out, pixels=pixels, \
+            __update_parameters(obj, a0=obj.parameters['a0'], bp=out, pixels=pixels,
                                 size=obj.parameters['size'], use_a0=obj.parameters['use_a0'])
     return out
 
 #9. - cropedge
-def cropedge(A, n, bp=None, obj=None, update_obj=False, c1=2,c2=2, \
-                    a1=None, a2=None, force_commen=False):
+
+
+def cropedge(A, n, bp=None, obj=None, update_obj=False, c1=2, c2=2,
+             a1=None, a2=None, force_commen=False):
     """
     Crop out bad pixels or highly drifted regions from topo/dos map.
 
@@ -335,18 +366,19 @@ def cropedge(A, n, bp=None, obj=None, update_obj=False, c1=2,c2=2, \
         11/30/2019      RL : Add support for non-square dataset
     """
     if obj is None:
-        return __cropedge(A, n=n, bp=bp, c1=c1,c2=c2, \
-                    a1=a1, a2=a2, force_commen=force_commen)
+        return __cropedge(A, n=n, bp=bp, c1=c1, c2=c2,
+                          a1=a1, a2=a2, force_commen=force_commen)
     else:
         if update_obj is not False:
             pixels = np.shape(A)[::-1]
-            __update_parameters(obj, a0=obj.parameters['a0'], bp=bp, pixels=pixels, \
+            __update_parameters(obj, a0=obj.parameters['a0'], bp=bp, pixels=pixels,
                                 size=obj.parameters['size'], use_a0=obj.parameters['use_a0'])
-        return __cropedge(A, n=n, bp=bp, c1=c1,c2=c2, \
-                    a1=a1, a2=a2, force_commen=force_commen)
+        return __cropedge(A, n=n, bp=bp, c1=c1, c2=c2,
+                          a1=a1, a2=a2, force_commen=force_commen)
 
-def __cropedge(A, n, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=False):
-    
+
+def __cropedge(A, n, bp=None, c1=2, c2=2, a1=None, a2=None, force_commen=False):
+
     if not isinstance(n, list):
         n = [n]
     if force_commen is not True:
@@ -364,10 +396,10 @@ def __cropedge(A, n, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=False):
         *_, L2, L1 = np.shape(A)
         if bp is None:
             bp = findBraggs(A, show=False)
-        bp = sortBraggs(bp, s=np.array([L2,L1]))
-        bp_new = bp - np.array([int(L1/2), int(L2/2)])
-        N1 = np.absolute(bp_new[0,0] - bp_new[1,0])
-        N2 = np.absolute(bp_new[0,1] - bp_new[-1,1])
+        bp = sortBraggs(bp, s=np.array([L2, L1]))
+        bp_new = bp - (np.array([L1, L2])-1) // 2
+        N1 = np.absolute(bp_new[0, 0] - bp_new[1, 0])
+        N2 = np.absolute(bp_new[0, 1] - bp_new[-1, 1])
         offset = 0
 
         if a1 is None:
@@ -398,6 +430,7 @@ def __cropedge(A, n, bp=None, c1=2,c2=2, a1=None, a2=None, force_commen=False):
             print('ERR: Input must be 2D or 3D numpy array!')
         return z_new
 
+
 def _rough_cut(A, n):
     B = np.copy(A)
     if len(n) == 1:
@@ -415,9 +448,11 @@ def _rough_cut(A, n):
             n2 = -B.shape[2]
         if n4 == 0:
             n4 = -B.shape[1]
-        return B[:,n3:-n4, n1:-n2]
+        return B[:, n3:-n4, n1:-n2]
 
 #11. - global_corr
+
+
 def global_corr(A, bp=None, show=False, angle=np.pi/4, obj=None, update_obj=False, **kwargs):
     """
     Global shear correct the 2D topo automatically.
@@ -447,17 +482,19 @@ def global_corr(A, bp=None, show=False, angle=np.pi/4, obj=None, update_obj=Fals
     else:
         if bp is None:
             bp = findBraggs(A, obj=obj)
-        matrix, A_gcorr = __global_corr(A, bp=bp, show=show, angle=angle, **kwargs)
+        matrix, A_gcorr = __global_corr(
+            A, bp=bp, show=show, angle=angle, **kwargs)
         if update_obj is not False:
             obj.matrix.append(matrix)
             bp_new = findBraggs(A_gcorr, obj=obj)
             pixels = np.shape(A_gcorr)[::-1]
-            __update_parameters(obj, a0=obj.parameters['a0'], bp=bp_new, pixels=pixels, \
+            __update_parameters(obj, a0=obj.parameters['a0'], bp=bp_new, pixels=pixels,
                                 size=obj.parameters['size'], use_a0=obj.parameters['use_a0'])
         return matrix, A_gcorr
 
+
 def __global_corr(A, bp=None, show=False, angle=np.pi/4, **kwargs):
-    
+
     *_, s2, s1 = np.shape(A)
     if bp is None:
         bp_1 = findBraggs(A, thres=0.2, show=show)
@@ -465,31 +502,34 @@ def __global_corr(A, bp=None, show=False, angle=np.pi/4, **kwargs):
         bp_1 = bp
     m, data_1 = gshearcorr(A, bp_1, rspace=True, angle=angle, **kwargs)
     if show is True:
-        fig,ax=plt.subplots(1,2,figsize=[8,4])
-        ax[0].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
-        ax[0].set_xlim(0,s1)
-        ax[0].set_ylim(0,s2)
-        ax[1].imshow(stmpy.tools.fft(data_1, zeroDC=True), cmap=stmpy.cm.gray_r,origin='lower')
+        fig, ax = plt.subplots(1, 2, figsize=[8, 4])
+        ax[0].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[0].set_xlim(0, s1)
+        ax[0].set_ylim(0, s2)
+        ax[1].imshow(stmpy.tools.fft(data_1, zeroDC=True),
+                     cmap=stmpy.cm.gray_r, origin='lower')
         fig.suptitle('After global shear correction', fontsize=14)
-        fig,ax=plt.subplots(2,2,figsize=[8,8])
-        ax[0,0].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
-        ax[0,1].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
-        ax[1,0].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
-        ax[1,1].imshow(data_1, cmap=stmpy.cm.blue2,origin='lower')
-        ax[0,0].set_xlim(0, s1/10)
-        ax[0,0].set_ylim(s2-s2/10, s2)
-        ax[0,1].set_xlim(s1-s1/10, s1)
-        ax[0,1].set_ylim(s2-s2/10, s2)
-        ax[1,0].set_xlim(0, s1/10)
-        ax[1,0].set_ylim(0, s2/10)
-        ax[1,1].set_xlim(s1-s1/10, s1)
-        ax[1,1].set_ylim(0, s2/10)
+        fig, ax = plt.subplots(2, 2, figsize=[8, 8])
+        ax[0, 0].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[0, 1].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[1, 0].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[1, 1].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[0, 0].set_xlim(0, s1/10)
+        ax[0, 0].set_ylim(s2-s2/10, s2)
+        ax[0, 1].set_xlim(s1-s1/10, s1)
+        ax[0, 1].set_ylim(s2-s2/10, s2)
+        ax[1, 0].set_xlim(0, s1/10)
+        ax[1, 0].set_ylim(0, s2/10)
+        ax[1, 1].set_xlim(s1-s1/10, s1)
+        ax[1, 1].set_ylim(0, s2/10)
         fig.suptitle('Bad pixels in 4 corners', fontsize=14)
     return m, data_1
 
 #12. - local_corr
-def local_corr(A, bp=None, sigma=10, method="lockin", fixMethod='unwrap', \
-                    obj=None, update_obj=False, show=False):
+
+
+def local_corr(A, bp=None, sigma=10, method="lockin", fixMethod='unwrap',
+               obj=None, update_obj=False, show=False):
     """
     Locally drift correct 2D topo automatically.
 
@@ -522,53 +562,59 @@ def local_corr(A, bp=None, sigma=10, method="lockin", fixMethod='unwrap', \
     """
     if obj is None:
         return __local_corr(A, bp=bp, sigma=sigma, method=method, fixMethod=fixMethod, show=show)
-    else: 
+    else:
         if bp is None:
             bp = findBraggs(A, obj=obj)
-        ux, uy, A_corr = __local_corr(A, bp=bp, sigma=sigma, method=method, \
-                                    fixMethod=fixMethod, show=show)
+        ux, uy, A_corr = __local_corr(A, bp=bp, sigma=sigma, method=method,
+                                      fixMethod=fixMethod, show=show)
         if update_obj is not False:
             obj.ux.append(ux)
             obj.uy.append(uy)
         return ux, uy, A_corr
 
+
 def __local_corr(A, bp=None, sigma=10, method="lockin", fixMethod='unwrap', show=False):
-    
+
     *_, s2, s1 = np.shape(A)
     if bp is None:
         bp_2 = findBraggs(A, thres=0.2, show=show)
     else:
         bp_2 = bp
-    thetax, thetay, Q1, Q2= phasemap(A, bp=bp_2, method=method, sigma=sigma)
+    thetax, thetay, Q1, Q2 = phasemap(A, bp=bp_2, method=method, sigma=sigma)
     if show is True:
-        fig,ax=plt.subplots(1,2,figsize=[8,4])
+        fig, ax = plt.subplots(1, 2, figsize=[8, 4])
         ax[0].imshow(thetax, origin='lower')
         ax[1].imshow(thetay, origin='lower')
         fig.suptitle('Raw phase maps')
     thetaxf = fixphaseslip(thetax, method=fixMethod)
     thetayf = fixphaseslip(thetay, method=fixMethod)
     if show is True:
-        fig,ax=plt.subplots(1,2,figsize=[8,4])
+        fig, ax = plt.subplots(1, 2, figsize=[8, 4])
         ax[0].imshow(thetaxf, origin='lower')
         ax[1].imshow(thetayf, origin='lower')
         fig.suptitle('After fixing phase slips')
     ux, uy = driftmap(thetaxf, thetayf, Q1, Q2, method=method)
-    if method=='lockin':
-        data_corr = driftcorr(A, ux, uy, method='lockin', interpolation='cubic')
-    elif method=='convolution':
+    if method == 'lockin':
+        data_corr = driftcorr(A, ux, uy, method='lockin',
+                              interpolation='cubic')
+    elif method == 'convolution':
         data_corr = driftcorr(A, ux, uy, method='convolution',)
     else:
         print("Error: Only two methods are available, lockin or convolution.")
     if show is True:
-        fig,ax=plt.subplots(2,2,figsize=[8, 8])
-        ax[1, 0].imshow(data_corr, cmap=stmpy.cm.blue1,origin='lower')
-        ax[1, 1].imshow(stmpy.tools.fft(data_corr, zeroDC=True), cmap=stmpy.cm.gray_r,origin='lower')
-        ax[0, 0].imshow(A, cmap=stmpy.cm.blue1,origin='lower')
-        ax[0, 1].imshow(stmpy.tools.fft(A, zeroDC=True), cmap=stmpy.cm.gray_r,origin='lower')
+        fig, ax = plt.subplots(2, 2, figsize=[8, 8])
+        ax[1, 0].imshow(data_corr, cmap=stmpy.cm.blue1, origin='lower')
+        ax[1, 1].imshow(stmpy.tools.fft(data_corr, zeroDC=True),
+                        cmap=stmpy.cm.gray_r, origin='lower')
+        ax[0, 0].imshow(A, cmap=stmpy.cm.blue1, origin='lower')
+        ax[0, 1].imshow(stmpy.tools.fft(A, zeroDC=True),
+                        cmap=stmpy.cm.gray_r, origin='lower')
         fig.suptitle('Before and after local drift correction')
     return ux, uy, data_corr
 
 #14. - apply_dfc_3d
+
+
 def apply_dfc_3d(A, ux=None, uy=None, matrix=None, bp=None, n1=None, n2=None, obj=None, update_obj=False, method='lockin'):
     """
     Apply drift field (both global and local) found in 2D to corresponding 3D map.
@@ -607,6 +653,7 @@ def apply_dfc_3d(A, ux=None, uy=None, matrix=None, bp=None, n1=None, n2=None, ob
         bp = obj.bp if bp is None else bp
         return __apply_dfc_3d(A, ux=ux, uy=uy, matrix=matrix, bp=bp, n1=n1, n2=n2, method=method)
 
+
 def __apply_dfc_3d(A, ux, uy, matrix, bp=None, n1=None, n2=None, method='lockin'):
 
     data_c = np.zeros_like(A)
@@ -614,12 +661,13 @@ def __apply_dfc_3d(A, ux, uy, matrix, bp=None, n1=None, n2=None, method='lockin'
         data_c = np.copy(A)
     else:
         for i in range(len(A)):
-            _, data_c[i]  = gshearcorr(A[i], matrix=matrix, rspace=True)
+            _, data_c[i] = gshearcorr(A[i], matrix=matrix, rspace=True)
     if n1 is None:
         data_c = data_c
     else:
         data_c = cropedge(data_c, n=n1)
-    data_corr = driftcorr(data_c, ux=ux, uy=uy, method=method, interpolation='cubic')
+    data_corr = driftcorr(data_c, ux=ux, uy=uy,
+                          method=method, interpolation='cubic')
     if n2 is None:
         data_out = data_corr
     else:
@@ -627,6 +675,8 @@ def __apply_dfc_3d(A, ux, uy, matrix, bp=None, n1=None, n2=None, method='lockin'
     return data_out
 
 #3. - gshearcorr
+
+
 def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/4, matrix=None):
     '''
     Global shear correction based on position of Bragg peaks in FT of 2D or 3D array A
@@ -658,7 +708,8 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/4, mat
             bp = sortBraggs(bp, s=np.shape(A))
             s = np.array(np.shape(A))
             bp_temp = bp * s
-            center = [int(s[0]*s[1]/2), int(s[0]*s[1]/2)]
+            # center = [int(s[0]*s[1]/2), int(s[0]*s[1]/2)]
+            center = (np.array([s[0]*s[1], s[0]*s[1]])-1) // 2
             Q1, Q2, Q3, Q4, *_ = bp_temp
             Qx_mag = compute_dist(Q1, center)
             Qy_mag = compute_dist(Q2, center)
@@ -668,32 +719,33 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/4, mat
             Q1, Q2, Q3, Q4, *_ = bp
             Qc2 = Qc2 / s
             Qc1 = Qc1 / s
-            center = [int(s2/2),int(s1/2)]
-            pts1 = np.float32([center,Q1,Q2])
+            # center = [int(s2/2),int(s1/2)]
+            center = (np.array([s2, s1])-1) // 2
+            pts1 = np.float32([center, Q1, Q2])
         else:
             pts1 = pts1.astype(np.float32)
         if pts2 is None:
-            pts2 = np.float32([center,Qc1,Qc2])
+            pts2 = np.float32([center, Qc1, Qc2])
         else:
             pts2 = pts2.astype(np.float32)
-        M = cv2.getAffineTransform(pts1,pts2)
+        M = cv2.getAffineTransform(pts1, pts2)
     else:
         M = matrix
 
     if rspace is not True:
-        A_corr = cv2.warpAffine(A, M, (s2,s1),
-                        flags=(cv2.INTER_CUBIC + cv2.BORDER_CONSTANT))
+        A_corr = cv2.warpAffine(A, M, (s2, s1),
+                                flags=(cv2.INTER_CUBIC + cv2.BORDER_CONSTANT))
     else:
-        M[:,-1] = np.array([0,0])
+        M[:, -1] = np.array([0, 0])
         offset = np.min(A)
         A = A - offset
-        A_corr = cv2.warpAffine(np.flipud(A.T), M, (s2,s1),
-                        flags=(cv2.INTER_CUBIC + cv2.BORDER_CONSTANT))
+        A_corr = cv2.warpAffine(np.flipud(A.T), M, (s2, s1),
+                                flags=(cv2.INTER_CUBIC + cv2.BORDER_CONSTANT))
         A_corr = np.flipud(A_corr).T + offset
     return M, A_corr
 
 
-#4. phasemap
+# 4. phasemap
 def phasemap(A, bp, sigma=10, method="lockin"):
     '''
     Calculate local phase and phase shift maps. Two methods are available now: spatial lockin or Gaussian mask convolution
@@ -728,8 +780,10 @@ def phasemap(A, bp, sigma=10, method="lockin"):
     t1 = np.arange(s1, dtype='float')
     t2 = np.arange(s2, dtype='float')
     x, y = np.meshgrid(t1, t2)
-    Q1 = 2*np.pi*np.array([(bp[0][0]-int(s1/2))/s1, (bp[0][1]-int(s2/2))/s2])
-    Q2 = 2*np.pi*np.array([(bp[1][0]-int(s1/2))/s1, (bp[1][1]-int(s2/2))/s2])
+    Q1 = 2*np.pi*np.array([(bp[0][0]-int((s1-1)/2))/s1,
+                           (bp[0][1]-int((s2-1)/2))/s2])
+    Q2 = 2*np.pi*np.array([(bp[1][0]-int((s1-1)/2))/s1,
+                           (bp[1][1]-int((s2-1)/2))/s2])
     if method is "lockin":
         Axx = A * np.sin(Q1[0]*x+Q1[1]*y)
         Axy = A * np.cos(Q1[0]*x+Q1[1]*y)
@@ -746,14 +800,16 @@ def phasemap(A, bp, sigma=10, method="lockin"):
         t_x = np.arange(s1)
         t_y = np.arange(s2)
         xcoords, ycoords = np.meshgrid(t_x, t_y)
-        exponent_x = (Q1[0] * xcoords + Q1[1] * ycoords)#(2.* np.pi/s)*(Q1[0] * xcoords + Q1[1] * ycoords)
-        exponent_y = (Q2[0] * xcoords + Q2[1] * ycoords)#(2.* np.pi/s)*(Q2[0] * xcoords + Q2[1] * ycoords)
-        A_x = A * np.exp(np.complex(0,-1)*exponent_x)
-        A_y = A * np.exp(np.complex(0,-1)*exponent_y)
+        # (2.* np.pi/s)*(Q1[0] * xcoords + Q1[1] * ycoords)
+        exponent_x = (Q1[0] * xcoords + Q1[1] * ycoords)
+        # (2.* np.pi/s)*(Q2[0] * xcoords + Q2[1] * ycoords)
+        exponent_y = (Q2[0] * xcoords + Q2[1] * ycoords)
+        A_x = A * np.exp(np.complex(0, -1)*exponent_x)
+        A_y = A * np.exp(np.complex(0, -1)*exponent_y)
         sx = sigma
         sy = sigma * s1 / s2
         Amp = 1/(4*np.pi*sx*sy)
-        p0 = [int(s/2), int(s/2), sx, sy, Amp, np.pi/2]
+        p0 = [int((s-1)/2), int((s-1)/2), sx, sy, Amp, np.pi/2]
         G = stmpy.tools.gauss2d(t_x, t_y, p=p0, symmetric=True)
         T_x = sp.signal.fftconvolve(A_x, G, mode='same',)
         T_y = sp.signal.fftconvolve(A_y, G, mode='same',)
@@ -765,7 +821,9 @@ def phasemap(A, bp, sigma=10, method="lockin"):
     else:
         print('Only two methods are available now:\n1. lockin\n2. convolution')
 
-#5. fixphaseslip
+# 5. fixphaseslip
+
+
 def fixphaseslip(A, thres=None, maxval=None, method='unwrap', orient=0):
     '''
     Fix phase slip by adding 2*pi at phase jump lines.
@@ -790,14 +848,17 @@ def fixphaseslip(A, thres=None, maxval=None, method='unwrap', orient=0):
         04/28/2017      JG : Initial commit.
         04/29/2019      RL : Add "unwrap" method, and add documents.
     '''
-    output = np.copy(A[::-1,::-1])
+    output = np.copy(A[::-1, ::-1])
     if len(np.shape(A)) == 2:
         *_, s2, s1 = np.shape(A)
         for i in range(s2):
-            output[i,:] = unwrap_phase(output[i,:], tolerance=thres, maxval=maxval)
+            output[i, :] = unwrap_phase(
+                output[i, :], tolerance=thres, maxval=maxval)
         for i in range(s1):
-            output[:,i] = unwrap_phase(output[:,i], tolerance=thres, maxval=maxval)
-        return output[::-1,::-1]
+            output[:, i] = unwrap_phase(
+                output[:, i], tolerance=thres, maxval=maxval)
+        return output[::-1, ::-1]
+
 
 def unwrap_phase(ph, tolerance=None, maxval=None):
     maxval = 2 * np.pi if maxval is None else maxval0
@@ -812,7 +873,9 @@ def unwrap_phase(ph, tolerance=None, maxval=None):
     ph[1:] += maxval * np.cumsum(dph)
     return ph
 
-#6. driftmap
+# 6. driftmap
+
+
 def driftmap(phix=None, phiy=None, Q1=None, Q2=None, method="lockin"):
     '''
     Calculate drift fields based on phase shift maps, with Q1 and Q2 generated by phasemap.
@@ -849,10 +912,10 @@ def driftmap(phix=None, phiy=None, Q1=None, Q2=None, method="lockin"):
         #s = np.shape(thetax)[-1]
         Qx_mag = np.sqrt((Q1[0])**2 + (Q1[1])**2)
         Qy_mag = np.sqrt((Q2[0])**2 + (Q2[1])**2)
-        Qx_ang = np.arctan2(Q1[1],Q1[0]) # in radians
-        Qy_ang = np.arctan2(Q2[1],Q2[0]) # in radians
-        Qxdrift = 1/(Qx_mag) * phix#s/(2*np.pi*Qx_mag) * thetax
-        Qydrift = 1/(Qy_mag) * phiy#s/(2*np.pi*Qy_mag) * thetay
+        Qx_ang = np.arctan2(Q1[1], Q1[0])  # in radians
+        Qy_ang = np.arctan2(Q2[1], Q2[0])  # in radians
+        Qxdrift = 1/(Qx_mag) * phix  # s/(2*np.pi*Qx_mag) * thetax
+        Qydrift = 1/(Qy_mag) * phiy  # s/(2*np.pi*Qy_mag) * thetay
         ux = Qxdrift * np.cos(Qx_ang) - Qydrift * np.sin(Qy_ang-np.pi/2)
         uy = Qxdrift * np.sin(Qx_ang) + Qydrift * np.cos(Qy_ang-np.pi/2)
         return -ux, -uy
@@ -860,6 +923,8 @@ def driftmap(phix=None, phiy=None, Q1=None, Q2=None, method="lockin"):
         print("Only two methods are available now:\n1. lockin\n2. convolution")
 
 #7. - driftcorr
+
+
 def driftcorr(A, ux=None, uy=None, method="lockin", interpolation='cubic'):
     '''
     Correct the drift in the topo according to drift fields
@@ -907,7 +972,8 @@ def driftcorr(A, ux=None, uy=None, method="lockin", interpolation='cubic'):
                 for ix in range(tmp.size):
                     tmp[ix] = tmp_f(xnew[ix], ynew[ix])
                 A_corr[iz] = tmp.reshape(s2, s1)
-                print('Processing slice %d/%d...'%(iz+1, A.shape[0]), end='\r')
+                print('Processing slice %d/%d...' %
+                      (iz+1, A.shape[0]), end='\r')
             return A_corr
         else:
             print('ERR: Input must be 2D or 3D numpy array!')
@@ -917,11 +983,14 @@ def driftcorr(A, ux=None, uy=None, method="lockin", interpolation='cubic'):
             return _apply_drift_field(A, ux=ux, uy=uy, zeroOut=True)
         elif len(A.shape) is 3:
             for iz, layer in enumerate(A):
-                A_corr[iz] = _apply_drift_field(layer, ux=ux, uy=uy, zeroOut=True)
-                print('Processing slice %d/%d...'%(iz+1, A.shape[0]), end='\r')
+                A_corr[iz] = _apply_drift_field(
+                    layer, ux=ux, uy=uy, zeroOut=True)
+                print('Processing slice %d/%d...' %
+                      (iz+1, A.shape[0]), end='\r')
             return A_corr
         else:
             print('ERR: Input must be 2D or 3D numpy array!')
+
 
 def _apply_drift_field(A, ux, uy, zeroOut=True):
     A_corr = np.copy(A)
@@ -960,17 +1029,20 @@ def _apply_drift_field(A, ux, uy, zeroOut=True):
 ##################################################################################
 
 #8. - sortBraggs
+
+
 def sortBraggs(br, s):
     ''' Sort the Bragg peaks in the order of "lower left, lower right, upper right, and upper left" '''
     *_, s2, s1 = s
     Br_s = np.zeros_like(br)
-    index_corr = [[-1,-1],[1,-1],[1,1],[-1,1]]
-    center = np.array([int(s1/2),int(s2/2)])
-    for i,ix in enumerate(index_corr):
-        for j,jy in enumerate(np.sign(br-center)):
-            if np.all(jy==ix):
+    index_corr = [[-1, -1], [1, -1], [1, 1], [-1, 1]]
+    center = np.array([int((s1-1)/2), int((s2-1)/2)])
+    for i, ix in enumerate(index_corr):
+        for j, jy in enumerate(np.sign(br-center)):
+            if np.all(jy == ix):
                 Br_s[i] = br[j]
     return Br_s
+
 
 def Gaussian2d(x, y, sigma_x, sigma_y, theta, x0, y0, Amp):
     '''
@@ -984,6 +1056,7 @@ def Gaussian2d(x, y, sigma_x, sigma_y, theta, x0, y0, Amp):
     X, Y = np.meshgrid(x, y)
     z = Amp * np.exp(-(a*(X-x0)**2 + 2*b*(X-x0)*(Y-y0) + c*(Y-y0)**2))
     return z
+
 
 def FTDCfilter(A, sigma):
     '''
@@ -1001,17 +1074,20 @@ def FTDCfilter(A, sigma):
     Af = np.fft.ifft2(np.fft.ifftshift(ft_Af))
     return np.real(Af)
 
+
 def unwrap_phase_2d(A, thres=None):
-    output = np.copy(A[::-1,::-1])
+    output = np.copy(A[::-1, ::-1])
     if len(np.shape(A)) == 2:
         n = np.shape(A)[-1]
         for i in range(n):
-            output[i,:] = unwrap_phase(output[i,:], tolerance=thres)
+            output[i, :] = unwrap_phase(output[i, :], tolerance=thres)
         for i in range(n):
-            output[:,i] = unwrap_phase(output[:,i], tolerance=thres)
-        return output[::-1,::-1]
+            output[:, i] = unwrap_phase(output[:, i], tolerance=thres)
+        return output[::-1, ::-1]
 
 #10. - compute_dist
+
+
 def compute_dist(x1, x2, p=None):
 
     if p is None:
@@ -1021,6 +1097,8 @@ def compute_dist(x1, x2, p=None):
     return np.sqrt(((x1[0]-x2[0])*p1)**2+((x1[1]-x2[1])*p2)**2)
 
 #15. - display
+
+
 def display(A, B=None, sigma=3, clim_same=True):
     '''
     Display or compare images in both real space and q-space.
@@ -1044,9 +1122,10 @@ def display(A, B=None, sigma=3, clim_same=True):
         A_fft = stmpy.tools.fft(A, zeroDC=True)
         c = np.mean(A_fft)
         s = np.std(A_fft)
-        fig,ax=plt.subplots(1,2,figsize=[8, 4])
+        fig, ax = plt.subplots(1, 2, figsize=[8, 4])
         ax[0].imshow(A, cmap=stmpy.cm.blue2, origin='lower')
-        ax[1].imshow(A_fft, cmap=stmpy.cm.gray_r, origin='lower', clim=[0,c+sigma*s])
+        ax[1].imshow(A_fft, cmap=stmpy.cm.gray_r,
+                     origin='lower', clim=[0, c+sigma*s])
     else:
         A_fft = stmpy.tools.fft(A, zeroDC=True)
         B_fft = stmpy.tools.fft(B, zeroDC=True)
@@ -1058,11 +1137,13 @@ def display(A, B=None, sigma=3, clim_same=True):
         else:
             c2 = np.mean(B_fft)
             s2 = np.std(B_fft)
-        fig,ax=plt.subplots(2,2,figsize=[8, 8])
-        ax[0,0].imshow(A, cmap=stmpy.cm.blue2, origin='lower')
-        ax[0,1].imshow(A_fft, cmap=stmpy.cm.gray_r, origin='lower', clim=[0,c1+sigma*s1])
-        ax[1,0].imshow(B, cmap=stmpy.cm.blue2, origin='lower')
-        ax[1,1].imshow(B_fft, cmap=stmpy.cm.gray_r, origin='lower', clim=[0,c2+sigma*s2])
+        fig, ax = plt.subplots(2, 2, figsize=[8, 8])
+        ax[0, 0].imshow(A, cmap=stmpy.cm.blue2, origin='lower')
+        ax[0, 1].imshow(A_fft, cmap=stmpy.cm.gray_r,
+                        origin='lower', clim=[0, c1+sigma*s1])
+        ax[1, 0].imshow(B, cmap=stmpy.cm.blue2, origin='lower')
+        ax[1, 1].imshow(B_fft, cmap=stmpy.cm.gray_r,
+                        origin='lower', clim=[0, c2+sigma*s2])
 
 
 def quick_linecut(A, width=2, n=4, bp=None, ax=None, thres=3):
@@ -1086,11 +1167,11 @@ def quick_linecut(A, width=2, n=4, bp=None, ax=None, thres=3):
     X = np.shape(A)[-1] / 2
     r = []
     cut = []
-    start = [[0,Y],[X,0],[0,0],[0,Y*2]]
-    end = [[X*2, Y],[X, Y*2],[X*2, Y*2], [X*2, 0]]
-    color = ['r','g','b','k']
+    start = [[0, Y], [X, 0], [0, 0], [0, Y*2]]
+    end = [[X*2, Y], [X, Y*2], [X*2, Y*2], [X*2, 0]]
+    color = ['r', 'g', 'b', 'k']
 
-    plt.figure(figsize=[4,4])
+    plt.figure(figsize=[4, 4])
     if len(np.shape(A)) == 3:
         if bp is None:
             bp_x = np.min(findBraggs(np.mean(A, axis=0), rspace=False))
@@ -1098,7 +1179,7 @@ def quick_linecut(A, width=2, n=4, bp=None, ax=None, thres=3):
             bp_x = bp
         cm = np.mean(np.mean(A, axis=0))
         cs = np.std(np.mean(A, axis=0))
-        plt.imshow(np.mean(A, axis=0), clim=[0,cm+thres*cs])
+        plt.imshow(np.mean(A, axis=0), clim=[0, cm+thres*cs])
     elif len(np.shape(A)) == 2:
         if bp is None:
             bp_x = np.min(findBraggs(A, rspace=False))
@@ -1112,63 +1193,74 @@ def quick_linecut(A, width=2, n=4, bp=None, ax=None, thres=3):
 
     for i in range(n):
         r1, cut1 = stmpy.tools.linecut(A, start[i], end[i],
-            width = width, show=True, ax=plt.gca(), color=color[i])
+                                       width=width, show=True, ax=plt.gca(), color=color[i])
         r.append(r1)
         cut.append(cut1)
     plt.gca().set_xlim(-1, X*2+1)
     plt.gca().set_ylim(-1, Y*2+1)
     return qscale, cut
 
+
 def quick_show(A, en, thres=5, rspace=True, saveon=False, qlimit=1.2, imgName='', extension='png'):
     layers = len(A)
     if rspace is False:
         imgsize = np.shape(A)[-1]
-        bp_x = np.min(findBraggs(np.mean(A, axis=0), min_dist=int(imgsize/10), rspace=rspace))
+        bp_x = np.min(findBraggs(np.mean(A, axis=0),
+                                 min_dist=int(imgsize/10), rspace=rspace))
         ext = imgsize / (imgsize - 2*bp_x)
     if layers > 12:
         skip = layers // 12
     else:
         skip = 1
-    fig,ax=plt.subplots(3,4,figsize=[16,12])
+    fig, ax = plt.subplots(3, 4, figsize=[16, 12])
     try:
         for i in range(12):
             c = np.mean(A[i*skip])
             s = np.std(A[i*skip])
             if rspace is True:
-                ax[i//4,i%4].imshow(A[i*skip], clim=[c-thres*s,c+thres*s],cmap=stmpy.cm.jackyPSD)
+                ax[i//4, i % 4].imshow(A[i*skip], clim=[c -
+                                                        thres*s, c+thres*s], cmap=stmpy.cm.jackyPSD)
             else:
-                ax[i//4,i%4].imshow(A[i*skip],extent=[-ext,ext,-ext,ext,],clim=[0,c+thres*s],cmap=stmpy.cm.gray_r)
-                ax[i//4,i%4].set_xlim(-qlimit,qlimit)
-                ax[i//4,i%4].set_ylim(-qlimit,qlimit)
-            stmpy.image.add_label("${}$ mV".format(int(en[i*skip])), ax=ax[i//4,i%4])
+                ax[i//4, i % 4].imshow(A[i*skip], extent=[-ext, ext, -ext, ext, ],
+                                       clim=[0, c+thres*s], cmap=stmpy.cm.gray_r)
+                ax[i//4, i % 4].set_xlim(-qlimit, qlimit)
+                ax[i//4, i % 4].set_ylim(-qlimit, qlimit)
+            stmpy.image.add_label("${}$ mV".format(
+                int(en[i*skip])), ax=ax[i//4, i % 4])
     except IndexError:
         pass
     if saveon is True:
         plt.savefig("{}.{}".format(imgName, extension), bbox_inches='tight')
 
+
 def quick_show_cut(A, en, qscale, thres=5, thres2=None, saveon=False, qlimit=1.2, imgName='', extension="png"):
-    fname = ["M-0", "M-90", "X-45","X-135"]
+    fname = ["M-0", "M-90", "X-45", "X-135"]
     X1, Y1 = np.shape(A[0])
     X2, Y2 = np.shape(A[-1])
     q1 = np.linspace(-qscale, qscale, num=Y1)
     q2 = np.linspace(-qscale*np.sqrt(2), qscale*np.sqrt(2), num=Y2)
     if thres2 is None:
         thres2 = thres
-    for i,ix in enumerate(A):
-        plt.figure(figsize=[6,3])
+    for i, ix in enumerate(A):
+        plt.figure(figsize=[6, 3])
         c = np.mean(ix)
         s = np.std(ix)
-        if i in [0,1]:
-            plt.pcolormesh(q1, en, ix,cmap=stmpy.cm.gray_r, vmin=0, vmax=c+thres*s)
+        if i in [0, 1]:
+            plt.pcolormesh(q1, en, ix, cmap=stmpy.cm.gray_r,
+                           vmin=0, vmax=c+thres*s)
         else:
-            plt.pcolormesh(q2, en, ix,cmap=stmpy.cm.gray_r, vmin=0, vmax=c+thres2*s)
-        plt.gca().set_xlim(-qlimit,qlimit)
+            plt.pcolormesh(q2, en, ix, cmap=stmpy.cm.gray_r,
+                           vmin=0, vmax=c+thres2*s)
+        plt.gca().set_xlim(-qlimit, qlimit)
         plt.axvline(-1, linestyle='--')
         plt.axvline(1, linestyle='--')
         if saveon is True:
-            plt.savefig(imgName + " along {}.{}".format(fname[i], extension), facecolor='w')
+            plt.savefig(
+                imgName + " along {}.{}".format(fname[i], extension), facecolor='w')
 
 # Quick show single images
+
+
 def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, qlimit=1.2, imgName='', extension='png'):
     layers = len(A)
     if rspace is False:
@@ -1178,40 +1270,46 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
                 A_topo = np.mean(A, axis=0)
             else:
                 A_topo = A
-            bp_x = np.min(findBraggs(A_topo, min_dist=int(imgsize/10), rspace=rspace))
+            bp_x = np.min(findBraggs(
+                A_topo, min_dist=int(imgsize/10), rspace=rspace))
             ext = imgsize / (imgsize - 2*bp_x)
         else:
             ext = qscale
     if len(np.shape(A)) == 3:
         for i in range(layers):
-            plt.figure(figsize=[4,4])
+            plt.figure(figsize=[4, 4])
             c = np.mean(A[i])
             s = np.std(A[i])
             if rspace is True:
-                plt.imshow(A[i], clim=[c-thres*s,c+thres*s],cmap=stmpy.cm.jackyPSD)
+                plt.imshow(A[i], clim=[c-thres*s, c+thres*s],
+                           cmap=stmpy.cm.jackyPSD)
             else:
-                plt.imshow(A[i],extent=[-ext,ext,-ext,ext,],clim=[0,c+thres*s],cmap=stmpy.cm.gray_r)
-                plt.xlim(-qlimit,qlimit)
-                plt.ylim(-qlimit,qlimit)
+                plt.imshow(A[i], extent=[-ext, ext, -ext, ext, ],
+                           clim=[0, c+thres*s], cmap=stmpy.cm.gray_r)
+                plt.xlim(-qlimit, qlimit)
+                plt.ylim(-qlimit, qlimit)
             stmpy.image.add_label("${}$ mV".format(int(en[i])), ax=plt.gca())
             plt.gca().axes.get_xaxis().set_visible(False)
             plt.gca().axes.get_yaxis().set_visible(False)
             plt.gca().set_frame_on(False)
             if saveon is True:
-                plt.savefig("{} at {}mV.{}".format(imgName, int(en[i]), extension), bbox_inches='tight',pad_inches=0)
+                plt.savefig("{} at {}mV.{}".format(imgName, int(
+                    en[i]), extension), bbox_inches='tight', pad_inches=0)
     elif len(np.shape(A)) == 2:
-        plt.figure(figsize=[4,4])
+        plt.figure(figsize=[4, 4])
         c = np.mean(A)
         s = np.std(A)
         if rspace is True:
-            plt.imshow(A, clim=[c-thres*s,c+thres*s],cmap=stmpy.cm.jackyPSD)
+            plt.imshow(A, clim=[c-thres*s, c+thres*s], cmap=stmpy.cm.jackyPSD)
         else:
-            plt.imshow(A,extent=[-ext,ext,-ext,ext,],clim=[0,c+thres*s],cmap=stmpy.cm.gray_r)
-            plt.xlim(-qlimit,qlimit)
-            plt.ylim(-qlimit,qlimit)
+            plt.imshow(A, extent=[-ext, ext, -ext, ext, ],
+                       clim=[0, c+thres*s], cmap=stmpy.cm.gray_r)
+            plt.xlim(-qlimit, qlimit)
+            plt.ylim(-qlimit, qlimit)
         stmpy.image.add_label("${}$ mV".format(int(en)), ax=plt.gca())
         plt.gca().axes.get_xaxis().set_visible(False)
         plt.gca().axes.get_yaxis().set_visible(False)
         plt.gca().set_frame_on(False)
         if saveon is True:
-            plt.savefig("{} at {}mV.{}".format(imgName, int(en), extension), bbox_inches='tight',pad_inches=0)
+            plt.savefig("{} at {}mV.{}".format(imgName, int(en),
+                                               extension), bbox_inches='tight', pad_inches=0)
