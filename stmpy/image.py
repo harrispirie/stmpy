@@ -2,9 +2,10 @@ import numpy as np
 import pylab as plt
 import matplotlib as mpl
 from matplotlib.animation import FuncAnimation
-from mpl_toolkits.axes_grid1 import make_axes_locatable, inset_locator
-from matplotlib import cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from matplotlib import cm
 import matplotlib.font_manager as fm
 
 boxProperties = dict(boxstyle='square', facecolor='w', alpha=0.7, linewidth=0.0)
@@ -251,7 +252,7 @@ def add_cbar(ax=None, im=None, orient='v', length='45%', thickness='7%',
         if vPos is None:
             vPos = 0.12
         hPos += pad
-        axins = inset_locator.inset_axes(ax, width=thickness, height=length,
+        axins = inset_axes(ax, width=thickness, height=length,
                         loc='lower left', bbox_to_anchor=(hPos, vPos, 1, 1),
                         bbox_transform=ax.transAxes, borderpad=0)
         cb = mpl.pyplot.colorbar(im, cax=axins, orientation='vertical')
@@ -266,7 +267,7 @@ def add_cbar(ax=None, im=None, orient='v', length='45%', thickness='7%',
         if vPos is None:
             vPos = 0
         vPos -= pad
-        axins = inset_locator.inset_axes(ax, width=length, height=thickness,
+        axins = inset_axes(ax, width=length, height=thickness,
                         loc='lower left', bbox_to_anchor=(hPos, vPos, 1, 1),
                         bbox_transform=ax.transAxes, borderpad=0)
         cb = mpl.pyplot.colorbar(im, cax=axins, orientation='horizontal')
