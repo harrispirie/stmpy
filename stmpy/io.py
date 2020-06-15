@@ -500,13 +500,13 @@ def load_stmview(name, path=''):
         end = extension.split('.')[0][1:]
         mat = raw['obj_' + name + '_' + end]
         return mat
-    
+
     self = stmpy.io.Spy()
     try:
         matZ = matigo(name, path, '-T.mat')
         self.Z = matZ['map']
     except FileNotFoundError:
-        print('WARNING {:} not found'.format(path+name+'-T.mat'))    
+        print('WARNING {:} not found'.format(path+name+'-T.mat'))
     try:
         matG = matigo(name, path, '-G.mat')
         self.LIY = np.moveaxis(matG['map'], -1, 0)
@@ -518,13 +518,13 @@ def load_stmview(name, path=''):
         matI = matigo(name, path, '-I.mat')
         self.I = np.moveaxis(matI['map'], -1, 0)
         if not hasattr(self, 'en'):
-            self.en = matI['e'][0]      
+            self.en = matI['e'][0]
     except FileNotFoundError:
         print('WARNING {:} not found'.format(path+name+'-I.mat'))
     return self
-    
-    
-    
+
+
+
 
 def load_3ds(filePath):
     '''Load Nanonis 3ds into python.'''
@@ -824,7 +824,12 @@ def load_nvl(filePath):
     self.en = self._raw.energies[0]
     self.map = self._raw.fwddata[0]
     self.ave = [np.mean(layer) for layer in self.map]
-    self.header = {name:self._raw.header[0][name][0] for name in self._raw.header[0].dtype.names}
+    try:
+        self.header = {name:self._raw.header[0][name][0] for name in self._raw.header[0].dtype.names}
+    except AttributeError:
+        # This error means nothing is in the original header
+        # (ie. NoneType has no attribute dtype.names)
+        self.header = {}
     for name in self._raw.dtype.names:
         if name not in self.header.keys():
             self.header[name] = self._raw[name][0]
