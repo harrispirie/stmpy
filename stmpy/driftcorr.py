@@ -13,6 +13,8 @@ import scipy.ndimage as snd
 from scipy.interpolate import interp1d, interp2d
 from skimage import transform as tf
 from skimage.feature import peak_local_max
+from pprint import pprint
+import types
 
 '''
 
@@ -29,7 +31,7 @@ History:
 #1. - getAttrs
 
 
-def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
+def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, even_out=False, use_a0=True):
     '''
     Create attributes of lattice constant, map size, number of pixels, and qscale for Spy object.
 
@@ -40,6 +42,7 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
                                     automatically from header file.
         pixels      - Optional : Number of pixels of the topo/map. If not offered, it'll be created
                                     automatically from header file.
+        even_out    - Optional : Boolean, if True then Bragg peaks will be rounded to the make sure there are even number of lattice
 
     Returns:
         N/A
@@ -80,6 +83,10 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
     else:
         pixelx, pixely = pixels
 
+    if a0 is None:
+        use_a0 = False
+        a0 = 1
+
     # parameters related to the map itself
     obj.parameters = {
         'a0': a0,
@@ -89,28 +96,149 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, use_a0=True):
         'qscale': np.array([pixelx, pixely]) / (2*np.array([sizex, sizey]) / a0),
         'angle': angle,
         'use_a0': use_a0,
+        'even_out': even_out,
     }
+    obj.find_drift = types.MethodType(find_drift, obj)
+    obj.correct = types.MethodType(correct, obj)
 
-    # parameters for findBraggs()
-    obj.bp_parameters = {
-        'rspace': True,
-        'min_dist': 5,
-        'thres': 0.25,
-        'r':  0.25,
-        'w': None,
-        'mask3': None,
-        'even_out': False,
+
+def find_drift(self, A, r=0.1, w=0.1, mask3=None, cut1=None, cut2=None, \
+                sigma=10, method='convolution', even_out=False, show=True, **kwargs):
+    '''
+    This method find drift field from a 2D map automatically.
+
+    Input:
+        A           - Required : 2D array of topo or LIY in real space.
+        r           - Optional : width of the gaussian mask to remove low-q noise, =r*width
+                                    Set r=None will disable this mask.
+        w           - Optional : width of the mask that filters out noise along qx=0 and qy=0 lines.
+                                    Set w=None will disable this mask.
+        mask3       - Optional : Array, a user-defined mask before finding Bragg peaks in FT space.
+                                    Set mask3=None will disable it.
+        even_out    - Optional : Boolean, if True then Bragg peaks will be rounded to the make sure there are even number of lattice
+        cut1        - Optional : List of length 1 or length 4, specifying after global shear correction how much to crop on the edge
+        cut2        - Optional : List of length 1 or length 4, specifying after local drift correction how much to crop on the edge
+        sigma       - Optional : Floating number specifying the size of mask to be used in phasemap()
+        method      - Optional : Specifying which method to apply the drift correction
+                                    "lockin": Interpolate A and then apply it to a new set of coordinates,
+                                                    (x-ux, y-uy)
+                                    "convolution": Used inversion fft to apply the drift fields
+        show        - Optional : Boolean, if True then A and Bragg peaks will be plotted out.
+        **kwargs    - Optional : key word arguments for findBraggs function
+
+    Returns:
+        coords      -  (4x2) array contains Bragg peaks in the format of [[x1,y1],[x2,y2],...,[x4,y4]]
+
+    Usage:
+        t.find_drift(t.z, sigma=4, cut1=None, cut2=[0,7,0,7], show=True)
+
+    History:
+        06/09/2020  - RL : Initial commit. 
+    '''
+
+    if not hasattr(self, 'parameters'):
+        self = getAttrs(self, a0=None, size=None, angle=None, pixels=np.shape(A)[::-1], \
+                            even_out=even_out, use_a0=None)
+    # Find Bragg peaks that will be used in the drift correction part
+    self.dfcPara = {
+        'cut1': cut1,
+        'cut2': cut2,
+        'method': method,
+        'sigma': sigma,
     }
+    if cut1 is not None:
+        A = cropedge(A, n=cut1)
+    if not hasattr(self, 'bp_parameters'):
+        self.bp1 = findBraggs(A, r=r, w=w, mask3=mask3, update_obj=True, obj=self,  \
+                                show=show, even_out=even_out, **kwargs)
+    else:
+        self.bp1 = findBraggs(A, obj=self, show=show)
+    if self.parameters['angle'] is None:
+        N = len(self.bp1)
+        Q = bp_to_q(self.bp1, A)
+        angles = []
+        for ix in Q:
+            angles.append((np.arctan2(*ix) % (2*np.pi/N)))
 
-    # parameters useful in the process of drift correction
-    obj.matrix = []
-    obj.ux = []
-    obj.uy = []
-    obj.bp = None
-    obj.qx = None
-    obj.qy = None
-    return obj
+        angle_list = np.array([0, np.pi/6, np.pi/4, np.pi/3, np.pi/2])
+        offset = np.absolute(np.mean(angles) - angle_list)
+        index = np.argmin(offset)
+        self.parameters['angle'] = angle_list[index]
+    
+    # This is the correct value for the Bragg peak
+    self.bp2 = generate_bp(A, self.bp1, angle=self.parameters['angle'], even_out=self.parameters['even_out'], obj=self)
+    
+    # This part corrects for the drift 
+    thetax, thetay, Q1, Q2 = phasemap(A, bp=self.bp2, method=method, sigma=sigma)
 
+    self.phix = fixphaseslip(thetax, method='unwrap')
+    self.phiy = fixphaseslip(thetay, method='unwrap')
+    self.ux, self.uy = driftmap(self.phix, self.phiy, Q1, Q2, method=method)
+    ztemp = driftcorr(A, self.ux, self.uy, method=method, interpolation='cubic')
+    
+    # This part interpolates the drift corrected maps
+    self.bp3 = findBraggs(ztemp, obj=self)
+    if cut2 is None:
+        cut2 = 0
+    self.zc = cropedge(ztemp, n=cut2, bp=self.bp3, force_commen=True)
+    
+    
+    # This part displays the intermediate maps in the process of drift correction
+    if show is True:
+        fig, ax = plt.subplots(1, 2, figsize=[8, 4])
+        c = np.mean(self.phix)
+        s = np.std(self.phix)
+        fig.suptitle('Phasemaps after fixing phase slips:')
+        ax[0].imshow(self.phix, origin='lower', clim=[c-5*s, c+5*s])
+        ax[1].imshow(self.phiy, origin='lower', clim=[c-5*s, c+5*s])
+        
+        A_fft = stmpy.tools.fft(A, zeroDC=True)
+        B_fft = stmpy.tools.fft(self.zc, zeroDC=True)
+        c1 = np.mean(A_fft)
+        s1 = np.std(A_fft)
+        
+        c2 = np.mean(A)
+        s2 = np.std(A)
+
+        fig, ax = plt.subplots(2, 2, figsize=[8, 8])
+        fig.suptitle('Maps before and after drift correction:')
+        ax[0,0].imshow(A, cmap=stmpy.cm.blue2, origin='lower', clim=[c2-5*s2, c2+5*s2])
+        ax[0,1].imshow(A_fft, cmap=stmpy.cm.gray_r, origin='lower', clim=[0, c1+5*s1])
+        ax[1,0].imshow(self.zc, cmap=stmpy.cm.blue2, origin='lower', clim=[c2-5*s2, c2+5*s2])
+        ax[1,1].imshow(B_fft, cmap=stmpy.cm.gray_r, origin='lower', clim=[0, c1+5*s1])
+        
+    self.bp = findBraggs(self.zc, obj=self)
+
+
+def correct(self, use):
+    '''
+    Use attributes of object "self" to correc the 3D map use.
+
+    Input:
+        self        - Required : Spy object of topo (2D) or map (3D).
+        use         - Required : 3D map to be corrected with attributes of the object.
+        
+    Returns:
+        N/A
+
+    Usage:
+        d.correct(d.LIY)
+
+    History:
+        06/09/2020  - RL : Initial commit. 
+    '''    
+    data_c = np.copy(use)
+    if self.dfcPara['cut1'] is None:
+        data_c = data_c
+    else:
+        data_c = cropedge(data_c, n=self.dfcPara['cut1'])
+    data_corr = driftcorr(data_c, ux=self.ux, uy=self.uy,
+                          method=self.dfcPara['method'], interpolation='cubic')
+    if self.dfcPara['cut2'] is None:
+        data_out = cropedge(data_corr, bp=self.bp3, n=0, force_commen=True)
+    else:
+        data_out = cropedge(data_corr, bp=self.bp3, n=self.dfcPara['cut2'], force_commen=True)
+    self.liy_c = data_out
 
 def __update_parameters(obj, a0=None, bp=None, pixels=None, size=None, use_a0=True):
 
@@ -138,6 +266,7 @@ def __update_parameters(obj, a0=None, bp=None, pixels=None, size=None, use_a0=Tr
         obj.qy = bp[1] - center
 
     else:
+        center = (np.array(pixels)-1) // 2
         bp_x = np.min(bp[:, 0])
         ext_x = pixels[0] / (pixels[0] - 2*bp_x)
         bp_y = np.min(bp[:, 1])
@@ -218,7 +347,7 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
         F = stmpy.tools.fft(A, zeroDC=True)
     else:
         F = np.copy(A)
-    # Remove low-q high intensity data with Gaussian mask
+    # Remove low-q high intensity data with multiple masks
     *_, Y, X = np.shape(A)
     if r is not None:
         Lx = X * r
@@ -243,25 +372,12 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
 
     coords = np.fliplr(coords)
 
-    def round_out(data):
-        if data > 0:
-            return data + 1
-        elif data < 0:
-            return data - 1
-        else:
-            return data
+    # This part is to make sure the Bragg peaks are located at even number of pixels
 
     if even_out is not False:
-        center = (np.array(np.shape(A)[::-1])-1) // 2
-        coords_temp = coords - center
-        for i, ix in enumerate(coords_temp):
-            for j, num in enumerate(ix):
-                if (num % 2) != 0:
-                    coords_temp[i, j] = round_out(num)
-                else:
-                    pass
-        coords = coords_temp + center
+        coords = __even_bp(coords, s=np.shape(A))
 
+    # This part shows the Bragg peak positions
     if show is not False:
         plt.figure(figsize=[4, 4])
         c = np.mean(F)
@@ -271,10 +387,14 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
         plt.plot(coords[:, 0], coords[:, 1], 'r.')
         plt.gca().set_aspect(1)
         plt.axis('tight')
-        print('#:\t[x y]')
-        for ix, iy in enumerate(coords):
-            print(ix, end='\t')
-            print(iy)
+
+        center = (np.array(np.shape(A)[::-1])-1) // 2
+        print('The coordinates of the Bragg peaks are:')
+        pprint(coords)
+        print()
+        print('The coordinates of the Q vectors are:')
+        pprint(coords-center)
+
     return coords
 
 
@@ -302,39 +422,63 @@ def check_bp(A, bp, obj=None):
     print(np.dot(Q[0], Q[1]))
 
 
-def generate_bp(A, qx, qy, obj=None, update_obj=False):
+def __even_bp(bp, s):
+    '''
+    This internal function rounds the Bragg peaks to their nearest even number of Q vectors.
+    '''
+    *_, s2, s1 = s
+    center = (np.array([s1, s2])-1) // 2
+    bp_temp = bp - center
+    for i, ix in enumerate(bp_temp):
+        for j, num in enumerate(ix):
+            if (num % 2) != 0:
+                if num > 0:
+                    bp_temp[i, j] = num + 1
+                elif num <0:
+                    bp_temp[i, j] = num - 1
+            else:
+                pass
+    bp_even = bp_temp + center
+    return bp_even
+
+def generate_bp(A, bp, angle=np.pi/4, even_out=False, obj=None):
     '''
     Generate Bragg peaks with given q-vectorss
 
     Input:
         A           - Required : 2D array of topo in real space, or FFT in q space.
-        qx          - Required : Bragg peak 1 position with respect to the center of image
-        qy          - Required : Bragg peak 2 position with respect to the center of image
+        bp          - Required : Bragg peaks associated with A, to be checked
+        angle       - Optional : orientation of the Bragg peaks, default as pi/4. Will be passed to gshearcorr
         obj         - Optional : Data object that has bp_parameters with it,
-        update_obj  - Optional : Boolean, determines if the bp_parameters attribute will be updated according to current input.
 
     Return:
         bp_new      : new Bragg peak generated from q-vectors
 
     Usage:
-        bp_new = dfc.check_bp(A, qx=[qx1,qx2], qy=[qy1,qy2], obj=obj, update_obj=True)
+        bp_new = dfc.check_bp(A, qx=[qx1,qx2], qy=[qy1,qy2], obj=obj)
 
     History:
         05-25-2020      RL : Initial commit.
+        06-08-2020      RL : Add the ability to compute correct Bragg peaks automatically
     '''
-    center = (np.array(np.shape(A)[::-1])-1) // 2
-    out = np.array([
-        np.array(qx),
-        np.array(qy),
-        -np.array(qx),
-        -np.array(qy)
-    ]) + center
-    if update_obj is not False:
-        if obj is not None:
-            pixels = np.shape(A)[::-1]
-            __update_parameters(obj, a0=obj.parameters['a0'], bp=out, pixels=pixels,
-                                size=obj.parameters['size'], use_a0=obj.parameters['use_a0'])
-    return out
+    *_, s2, s1 = np.shape(A)
+    bp = sortBraggs(bp, s=np.shape(A))
+    center = (np.array([s1, s2])-1) // 2
+    Q1, Q2, Q3, Q4, *_ = bp
+    Qx_mag = compute_dist(Q1, center)
+    Qy_mag = compute_dist(Q2, center)
+    Q_corr = np.mean([Qx_mag, Qy_mag])
+    Qc1 = np.array([int(k) for k in Q_corr*np.array([-np.cos(angle), -np.sin(angle)])])
+    Qc2 = np.array([int(k) for k in Q_corr*np.array([np.sin(angle), -np.cos(angle)])])
+    bp_out = np.array([Qc1, Qc2, -Qc1, -Qc2]) + center
+    if even_out is not False:
+        bp_out = __even_bp(bp_out, s=np.shape(A))
+                
+    if obj is not None:
+        pixels = np.shape(A)[::-1]
+        __update_parameters(obj, a0=obj.parameters['a0'], bp=bp_out, pixels=pixels,
+                            size=obj.parameters['size'], use_a0=obj.parameters['use_a0'])
+    return bp_out
 
 #9. - cropedge
 
@@ -396,10 +540,15 @@ def __cropedge(A, n, bp=None, c1=2, c2=2, a1=None, a2=None, force_commen=False):
         *_, L2, L1 = np.shape(A)
         if bp is None:
             bp = findBraggs(A, show=False)
-        bp = sortBraggs(bp, s=np.array([L2, L1]))
+        # bp = sortBraggs(bp, s=np.array([L2, L1]))
+        bp = sortBraggs(bp, s=np.shape(A))
         bp_new = bp - (np.array([L1, L2])-1) // 2
-        N1 = np.absolute(bp_new[0, 0] - bp_new[1, 0])
-        N2 = np.absolute(bp_new[0, 1] - bp_new[-1, 1])
+        #N1 = np.absolute(bp_new[0, 0] - bp_new[1, 0])
+        #N2 = np.absolute(bp_new[0, 1] - bp_new[-1, 1])
+        N1 = compute_dist(bp_new[0], bp_new[1])
+        N2 = compute_dist(bp_new[0], bp_new[-1])
+        #print(N1, N2)
+
         offset = 0
 
         if a1 is None:
@@ -418,13 +567,15 @@ def __cropedge(A, n, bp=None, c1=2, c2=2, a1=None, a2=None, force_commen=False):
             f = interp2d(t1, t2, B, kind='cubic')
             t_new1 = np.linspace(delta1, L_new1+delta1, num=L1-offset+1)
             t_new2 = np.linspace(delta2, L_new2+delta2, num=L2-offset+1)
+            #t_new1 = np.linspace(0, L_new1, num=L1-offset+1)
+            #t_new2 = np.linspace(0, L_new2, num=L2-offset+1)
             z_new = f(t_new1[:-1], t_new2[:-1])
         elif len(np.shape(A)) == 3:
             z_new = np.zeros([np.shape(A)[0], L2-offset, L1-offset])
             for i in range(len(A)):
                 f = interp2d(t1, t2, B[i], kind='cubic')
-                t_new1 = np.linspace(0, L_new1, num=L1-offset+1)
-                t_new2 = np.linspace(0, L_new2, num=L2-offset+1)
+                t_new1 = np.linspace(delta1, L_new1+delta1, num=L1-offset+1)
+                t_new2 = np.linspace(delta2, L_new2+delta2, num=L2-offset+1)
                 z_new[i] = f(t_new1[:-1], t_new2[:-1])
         else:
             print('ERR: Input must be 2D or 3D numpy array!')
@@ -705,23 +856,34 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/4, mat
     bp_temp = bp
     if matrix is None:
         if pts1 is None:
-            bp = sortBraggs(bp, s=np.shape(A))
-            s = np.array(np.shape(A))
-            bp_temp = bp * s
-            # center = [int(s[0]*s[1]/2), int(s[0]*s[1]/2)]
-            center = (np.array([s[0]*s[1], s[0]*s[1]])-1) // 2
-            Q1, Q2, Q3, Q4, *_ = bp_temp
-            Qx_mag = compute_dist(Q1, center)
-            Qy_mag = compute_dist(Q2, center)
-            Q_corr = np.mean([Qx_mag, Qy_mag])
-            Qc1 = Q_corr*np.array([-np.cos(angle), -np.sin(angle)]) + center
-            Qc2 = Q_corr*np.array([np.sin(angle), -np.cos(angle)]) + center
-            Q1, Q2, Q3, Q4, *_ = bp
-            Qc2 = Qc2 / s
-            Qc1 = Qc1 / s
-            # center = [int(s2/2),int(s1/2)]
-            center = (np.array([s2, s1])-1) // 2
-            pts1 = np.float32([center, Q1, Q2])
+            if s1 == s2:
+                bp = sortBraggs(bp, s=np.shape(A))
+                center = (np.array([s1, s2])-1) // 2
+                Q1, Q2, Q3, Q4, *_ = bp
+                Qx_mag = compute_dist(Q1, center)
+                Qy_mag = compute_dist(Q2, center)
+                Q_corr = np.mean([Qx_mag, Qy_mag])
+                Qc1 = np.array([int(k) for k in Q_corr*np.array([-np.cos(angle), -np.sin(angle)])]) + center
+                Qc2 = np.array([int(k) for k in Q_corr*np.array([np.sin(angle), -np.cos(angle)])]) + center
+                pts1 = np.float32([center, Qc1, Qc2])
+            else:
+                bp = sortBraggs(bp, s=np.shape(A))
+                s = np.array(np.shape(A))
+                bp_temp = bp * s
+                # center = [int(s[0]*s[1]/2), int(s[0]*s[1]/2)]
+                center = (np.array([s[0]*s[1], s[0]*s[1]])-1) // 2
+                Q1, Q2, Q3, Q4, *_ = bp_temp
+                Qx_mag = compute_dist(Q1, center)
+                Qy_mag = compute_dist(Q2, center)
+                Q_corr = np.mean([Qx_mag, Qy_mag])
+                Qc1 = Q_corr*np.array([-np.cos(angle), -np.sin(angle)]) + center
+                Qc2 = Q_corr*np.array([np.sin(angle), -np.cos(angle)]) + center
+                Q1, Q2, Q3, Q4, *_ = bp
+                Qc2 = np.array([int(k) for k in Qc2 / s])
+                Qc1 = np.array([int(k) for k in Qc1 / s])
+                # center = [int(s2/2),int(s1/2)]
+                center = (np.array([s1, s2])-1) // 2
+                pts1 = np.float32([center, Q1, Q2])
         else:
             pts1 = pts1.astype(np.float32)
         if pts2 is None:
@@ -1031,17 +1193,12 @@ def _apply_drift_field(A, ux, uy, zeroOut=True):
 #8. - sortBraggs
 
 
-def sortBraggs(br, s):
+def sortBraggs(bp, s):
     ''' Sort the Bragg peaks in the order of "lower left, lower right, upper right, and upper left" '''
     *_, s2, s1 = s
-    Br_s = np.zeros_like(br)
-    index_corr = [[-1, -1], [1, -1], [1, 1], [-1, 1]]
-    center = np.array([int((s1-1)/2), int((s2-1)/2)])
-    for i, ix in enumerate(index_corr):
-        for j, jy in enumerate(np.sign(br-center)):
-            if np.all(jy == ix):
-                Br_s[i] = br[j]
-    return Br_s
+    center = np.array([(s1 - 1) // 2, (s2 - 1) // 2])
+    out = np.array(sorted(bp-center, key=lambda x: np.arctan2(*x))) + center
+    return out
 
 
 def Gaussian2d(x, y, sigma_x, sigma_y, theta, x0, y0, Amp):
@@ -1095,6 +1252,35 @@ def compute_dist(x1, x2, p=None):
     else:
         p1, p2 = p
     return np.sqrt(((x1[0]-x2[0])*p1)**2+((x1[1]-x2[1])*p2)**2)
+
+def bp_to_q(bp, A):
+    '''
+    Convert the Bragg peaks to Q vectors by subtracting the center of the image.
+    Input:
+    bp      - Required : Array of Bragg peaks
+    A       - Required : 
+    '''
+    center = (np.array(np.shape(A)[::-1])-1) // 2
+    return bp - center
+
+def __even_bp(bp, s):
+    '''
+    This internal function rounds the Bragg peaks to their nearest even number of Q vectors.
+    '''
+    *_, s2, s1 = s
+    center = (np.array([s2, s1])-1) // 2
+    bp_temp = bp - center
+    for i, ix in enumerate(bp_temp):
+        for j, num in enumerate(ix):
+            if (num % 2) != 0:
+                if num > 0:
+                    bp_temp[i, j] = num + 1
+                elif num <0:
+                    bp_temp[i, j] = num - 1
+            else:
+                pass
+    bp_even = bp_temp + center
+    return bp_even
 
 #15. - display
 
