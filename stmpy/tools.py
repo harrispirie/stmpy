@@ -2042,7 +2042,8 @@ def remove_piezo_drift(data):
     outn = out * np.max(data-np.min(data)) + np.min(data)
     return outn - np.mean(outn)
 
-def bias_offset_map(en, I, I2=None):
+
+def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
     '''
     Calculate zero-bias offset for I(V) map or for a two-setpoint map. If only
     one map is provided, the zero-bais point is when the I(V) curve crosses
@@ -2051,35 +2052,95 @@ def bias_offset_map(en, I, I2=None):
 
     Inputs:
         en      - Required : Numpy array containing voltage data (must be 1D).
-        I       - Required : Numpy array containing current data (must be 3D).
+        I       - Required : Numpy array containing current data (1D, 2D or 3D).
         I2      - Optional : Numpy array containing current data from second
                              map (must be same size as I).
+        npts    - Optional : integer or 'all' describing the number of points
+                             to include either side of the minimum current.
+        i0      - Optional : float for the current offset (if known).
+        deg     - Optional : Integer for the degree of polynomial to fit.
 
     Returns:
-        mu      - Numpy 2D array of the zero-bias voltage point at each point
+        m       - Numpy 2D array of the zero-bias voltage point at each point
                   in space.
-        g       - Numpy 2D array of the slope at each point.
-        g2      - (optional) If I2 is not None, also return the slope for the
+        g0      - Numpy 2D array of the slope at each point.
+        g1      - (optional) If I2 is not None, also return the slope for the
                   second I(V) map.
 
     History:
         2019-10-15  - HP : Initial commit.
         2019-11-04  - HP : Add compatibility for a two-setpoint map.
-
+        2020-06-19  - HP : Add support for fitting n-degree polynomials and
+                           handling 1D, 2D or 3D current maps. 
     '''
-    mu = np.zeros_like(I[0])
-    g = np.zeros_like(mu)
-    g2 = np.zeros_like(g)
-    for ix in range(I.shape[-1]):
-        for iy in range(I.shape[1]):
-            p = np.polyfit(en, I[:,iy,ix], 1)
-            g[iy,ix] = p[0]
-            if I2 is not None:
-                p2 = np.polyfit(en, I2[:,iy,ix], 1)
-                g[iy,ix] = p2[0]
-                p -= p2
-            mu[iy,ix] =  (-p[1]) / (p[0])
-    if I2 is None:
-        return mu, g
-    else:
-        return mu, g, g2
+    def find_v0(en, iv, iv2=None, npts='all', i0=0, deg=1):
+        '''Find the local slope and offset for a single IV curve'''
+        if iv2 is None:
+            if npts == 'all':
+                x, y1 = en, iv - i0
+            else:
+                imin = np.argmin(np.absolute(iv - i0))
+                x = en[max(imin-npts,0):min(imin+npts,len(en))]
+                y1 = iv[max(imin-npts,0):min(imin+npts,len(en))] - i0
+            p = np.polyfit(x, y1, 1)
+            g0 = p[0]
+            v0 = -p[1] / p[0]
+            if deg > 1:
+                pd = np.polyfit(x, y1, deg)
+                r = np.roots(pd)
+                rr = np.real(r[np.isreal(r)])
+                v0 = rr[np.argmin(np.absolute(rr - v0))]
+                pdd = np.polyder(pd, 1)
+                g0 = np.polyval(pdd, v0)
+            return v0, g0
+        else:
+            if npts == 'all':
+                x, y1, y2 = en, iv - i0, iv2 - i0
+            else:
+                imin = np.argmin(np.absolute(iv - i0))
+                x = en[max(imin-npts,0):min(imin+npts,len(en))]
+                y1 = iv[max(imin-npts,0):min(imin+npts,len(en))] - i0
+                y2 = iv2[max(imin-npts,0):min(imin+npts,len(en))] - i0
+            p = np.polyfit(x, y1, 1)
+            p2 = np.polyfit(x, y2, 1)
+            g0 = p[0]
+            g1 = p2[0]
+            p -= p2
+            v0 = -p[1] / p[0]
+            if deg > 1:
+                print('Warning: 2-setpoint map assumes deg=1.')
+            return v0, g0, g1
+    if len(I.shape) == 1:
+        out = find_v0(en, I, iv2=I2, npts=npts, i0=i0, deg=deg)
+    elif len(I.shape) == 2:
+        m = np.zeros_like(I[0])
+        g0 = np.zeros_like(m)
+        g1 = np.zeros_like(g0)
+        for ix in range(I.shape[1]):
+            if I2 is None:
+                res = find_v0(en, I[:,ix], npts=npts, i0=i0, deg=deg)
+                m[ix], g0[ix] = res[0], res[1]
+            else:
+                res = find_v0(en, I[:,ix], iv2=I2[:,ix], npts=npts, i0=i0, deg=deg)
+                m[ix], g0[ix], g1[ix] = res[0], res[1], res[2]
+        if I2 is None:
+            out = m, g0
+        else:
+            out = m, g0, g1
+    elif len(I.shape) == 3:
+        m = np.zeros_like(I[0])
+        g0 = np.zeros_like(m)
+        g1 = np.zeros_like(g0)
+        for ix in range(I.shape[1]):
+            for iy in range(I.shape[2]):
+                if I2 is None:
+                    res = find_v0(en, I[:,ix,iy], npts=npts, i0=i0, deg=deg)
+                    m[ix, iy], g0[ix, iy] = res[0], res[1]
+                else:
+                    res = find_v0(en, I[:,ix,iy], iv2=I2[:,ix,iy], npts=npts, i0=i0, deg=deg)
+                    m[ix, iy], g0[ix, iy], g1[ix, iy] = res[0], res[1], res[2]
+        if I2 is None:
+            out = m, g0
+        else:
+            out = m, g0, g1
+    return out
