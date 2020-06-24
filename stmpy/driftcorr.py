@@ -31,7 +31,7 @@ History:
 #1. - getAttrs
 
 
-def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, even_out=False, use_a0=True):
+def getAttrs(obj, a0=None, size=None, angle=np.pi/2, orient=np.pi/4, pixels=None, even_out=False, use_a0=True):
     '''
     Create attributes of lattice constant, map size, number of pixels, and qscale for Spy object.
 
@@ -40,6 +40,9 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, even_out=False, u
         a0          - Optional : Lattice constant in the unit of nm.
         size        - Optional : Size of the map in the unit of nm. If not offered, it'll be created
                                     automatically from header file.
+        angle       - Optional : Angle of the lattice. If the lattice is n-fold symmetry, then angle = 2*pi/n
+        orient      - Optional : Angle of the 1st Bragg peak. It's actually the orientation of the scan frame 
+                                    with respect to the Lattice.
         pixels      - Optional : Number of pixels of the topo/map. If not offered, it'll be created
                                     automatically from header file.
         even_out    - Optional : Boolean, if True then Bragg peaks will be rounded to the make sure there are even number of lattice
@@ -95,6 +98,7 @@ def getAttrs(obj, a0=None, size=None, angle=None, pixels=None, even_out=False, u
         'qmag': np.array([sizex, sizey]) / a0,
         'qscale': np.array([pixelx, pixely]) / (2*np.array([sizex, sizey]) / a0),
         'angle': angle,
+        'orient': orient,
         'use_a0': use_a0,
         'even_out': even_out,
     }
@@ -113,8 +117,9 @@ def find_drift(self, A, r=0.1, w=0.1, mask3=None, cut1=None, cut2=None, \
                                     Set r=None will disable this mask.
         w           - Optional : width of the mask that filters out noise along qx=0 and qy=0 lines.
                                     Set w=None will disable this mask.
-        mask3       - Optional : Array, a user-defined mask before finding Bragg peaks in FT space.
-                                    Set mask3=None will disable it.
+        mask3       - Optional : Tuple for custom-defined mask. mask3 = [n, offset, width], where n is order of symmetry, offset is initial angle, width is 
+                                    the width of the mask. e.g., mask3 = [4, np.pi/4, 5], or mask3 = [6, 0, 10]
+                                    Set mask3=None will disable this mask.
         even_out    - Optional : Boolean, if True then Bragg peaks will be rounded to the make sure there are even number of lattice
         cut1        - Optional : List of length 1 or length 4, specifying after global shear correction how much to crop on the edge
         cut2        - Optional : List of length 1 or length 4, specifying after local drift correction how much to crop on the edge
@@ -137,7 +142,7 @@ def find_drift(self, A, r=0.1, w=0.1, mask3=None, cut1=None, cut2=None, \
     '''
 
     if not hasattr(self, 'parameters'):
-        self = getAttrs(self, a0=None, size=None, angle=None, pixels=np.shape(A)[::-1], \
+        self = getAttrs(self, a0=None, size=None, angle=np.pi/2, orient=np.pi/4, pixels=np.shape(A)[::-1], \
                             even_out=even_out, use_a0=None)
     # Find Bragg peaks that will be used in the drift correction part
     self.dfcPara = {
@@ -152,7 +157,9 @@ def find_drift(self, A, r=0.1, w=0.1, mask3=None, cut1=None, cut2=None, \
         self.bp1 = findBraggs(A, r=r, w=w, mask3=mask3, update_obj=True, obj=self,  \
                                 show=show, even_out=even_out, **kwargs)
     else:
-        self.bp1 = findBraggs(A, obj=self, show=show)
+        self.bp1 = findBraggs(A, r=r, w=w, mask3=mask3, update_obj=True, obj=self,  \
+                                show=show, even_out=even_out, **kwargs)
+        # self.bp1 = findBraggs(A, obj=self, show=show)
     if self.parameters['angle'] is None:
         N = len(self.bp1)
         Q = bp_to_q(self.bp1, A)
@@ -166,7 +173,8 @@ def find_drift(self, A, r=0.1, w=0.1, mask3=None, cut1=None, cut2=None, \
         self.parameters['angle'] = angle_list[index]
     
     # This is the correct value for the Bragg peak
-    self.bp2 = generate_bp(A, self.bp1, angle=self.parameters['angle'], even_out=self.parameters['even_out'], obj=self)
+    self.bp2 = generate_bp(A, self.bp1, angle=self.parameters['angle'], orient= self.parameters['orient'], 
+                            even_out=self.parameters['even_out'], obj=self)
     
     # This part corrects for the drift 
     thetax, thetay, Q1, Q2 = phasemap(A, bp=self.bp2, method=method, sigma=sigma)
@@ -180,7 +188,10 @@ def find_drift(self, A, r=0.1, w=0.1, mask3=None, cut1=None, cut2=None, \
     self.bp3 = findBraggs(ztemp, obj=self)
     if cut2 is None:
         cut2 = 0
-    self.zc = cropedge(ztemp, n=cut2, bp=self.bp3, force_commen=True)
+        force_commen = False
+    else:
+        force_commen = True
+    self.zc = cropedge(ztemp, n=cut2, bp=self.bp3, force_commen=force_commen)
     
     
     # This part displays the intermediate maps in the process of drift correction
@@ -235,7 +246,7 @@ def correct(self, use):
     data_corr = driftcorr(data_c, ux=self.ux, uy=self.uy,
                           method=self.dfcPara['method'], interpolation='cubic')
     if self.dfcPara['cut2'] is None:
-        data_out = cropedge(data_corr, bp=self.bp3, n=0, force_commen=True)
+        data_out = cropedge(data_corr, bp=self.bp3, n=0, force_commen=False)
     else:
         data_out = cropedge(data_corr, bp=self.bp3, n=self.dfcPara['cut2'], force_commen=True)
     self.liy_c = data_out
@@ -297,8 +308,9 @@ def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
                                     Set r=None will disable this mask.
         w           - Optional : width of the mask that filters out noise along qx=0 and qy=0 lines.
                                     Set w=None will disable this mask.
-        mask3       - Optional : Array, a user-defined mask before finding Bragg peaks in FT space.
-                                    Set mask3=None will disable it.
+        mask3       - Optional : Tuple for custom-defined mask. mask3 = [n, offset, width], where n is order of symmetry, offset is initial angle, width is 
+                                    the width of the mask. e.g., mask3 = [4, np.pi/4, 5], or mask3 = [6, 0, 10]
+                                    Set mask3=None will disable this mask.
         even_out    - Optional : Boolean, if True then Bragg peaks will be rounded to the make sure there are even number of lattice
         show        - Optional : Boolean, if True then A and Bragg peaks will be plotted out.
         obj         - Optional : Data object that has bp_parameters with it,
@@ -366,6 +378,8 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
         mask2 = 1
     if mask3 is None:
         mask3 = 1
+    else:
+        mask3 = mask_bp(A, p=mask3)
     F *= G * mask2 * mask3
 
     coords = peak_local_max(F, min_distance=min_dist, threshold_rel=thres)
@@ -397,6 +411,21 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
 
     return coords
 
+def mask_bp(A, p):
+
+    n, offset, thres, *_ = p
+    s = np.shape(A)[-1]
+    t = np.arange(s)
+    x, y = np.meshgrid(t, t)
+    center = (np.array([s, s])-1) // 2
+    mask = np.ones_like(x)
+    theta = 2 * np.pi / n
+    for i in range(n):
+        angle = theta * i + offset
+        index = np.where(np.absolute(np.cos(angle)*(y-center[1]) - \
+                                     np.sin(angle)*(x-center[0])) < thres)
+        mask[index] = 0
+    return mask
 
 def check_bp(A, bp, obj=None):
     '''
@@ -441,14 +470,15 @@ def __even_bp(bp, s):
     bp_even = bp_temp + center
     return bp_even
 
-def generate_bp(A, bp, angle=np.pi/4, even_out=False, obj=None):
+def generate_bp(A, bp, angle=np.pi/2, orient=np.pi/4, even_out=False, obj=None):
     '''
     Generate Bragg peaks with given q-vectorss
 
     Input:
         A           - Required : 2D array of topo in real space, or FFT in q space.
         bp          - Required : Bragg peaks associated with A, to be checked
-        angle       - Optional : orientation of the Bragg peaks, default as pi/4. Will be passed to gshearcorr
+        angle       - Optional : Angle of the lattice. If the lattice is n-fold symmetry, then angle = 2*pi/n
+        orient      - Optional : Initial angle of Bragg peak, or orientation of the scan. Default is np.pi/4
         obj         - Optional : Data object that has bp_parameters with it,
 
     Return:
@@ -468,8 +498,8 @@ def generate_bp(A, bp, angle=np.pi/4, even_out=False, obj=None):
     Qx_mag = compute_dist(Q1, center)
     Qy_mag = compute_dist(Q2, center)
     Q_corr = np.mean([Qx_mag, Qy_mag])
-    Qc1 = np.array([int(k) for k in Q_corr*np.array([-np.cos(angle), -np.sin(angle)])])
-    Qc2 = np.array([int(k) for k in Q_corr*np.array([np.sin(angle), -np.cos(angle)])])
+    Qc1 = np.array([int(k) for k in Q_corr*np.array([np.cos(orient+np.pi), np.sin(orient+np.pi)])])
+    Qc2 = np.array([int(k) for k in Q_corr*np.array([np.cos(-angle+orient+np.pi), np.sin(-angle+orient+np.pi)])])
     bp_out = np.array([Qc1, Qc2, -Qc1, -Qc2]) + center
     if even_out is not False:
         bp_out = __even_bp(bp_out, s=np.shape(A))
@@ -604,7 +634,7 @@ def _rough_cut(A, n):
 #11. - global_corr
 
 
-def global_corr(A, bp=None, show=False, angle=np.pi/4, obj=None, update_obj=False, **kwargs):
+def global_corr(A, bp=None, show=False, angle=np.pi/2, orient=np.pi/4, obj=None, update_obj=False, **kwargs):
     """
     Global shear correct the 2D topo automatically.
 
@@ -612,7 +642,8 @@ def global_corr(A, bp=None, show=False, angle=np.pi/4, obj=None, update_obj=Fals
         A           - Required : 2D array of topo to be shear corrected.
         bp          - Optional : Bragg points. If not offered, it will calculated from findBraggs(A)
         show        - Optional : Boolean specifying if the results are plotted or not
-        angle       - Optional : orientation of the Bragg peaks, default as pi/4. Will be passed to gshearcorr
+        angle       - Optional : Angle of the lattice. If the lattice is n-fold symmetry, then angle = 2*pi/n
+        orient      - Optional : orientation of the Bragg peaks, default as pi/4. Will be passed to gshearcorr
         **kwargs    - Optional : keyword arguments for gshearcorr function
         obj         - Optional : Data object that has bp_parameters with it,
         update_obj  - Optional : Boolean, determines if the bp_parameters attribute will be updated according to current input.
@@ -629,12 +660,12 @@ def global_corr(A, bp=None, show=False, angle=np.pi/4, obj=None, update_obj=Fals
         04/29/2019      RL : Initial commit.
     """
     if obj is None:
-        return __global_corr(A, bp=bp, show=show, angle=angle, **kwargs)
+        return __global_corr(A, bp=bp, show=show, angle=angle, orient=orient, **kwargs)
     else:
         if bp is None:
             bp = findBraggs(A, obj=obj)
         matrix, A_gcorr = __global_corr(
-            A, bp=bp, show=show, angle=angle, **kwargs)
+            A, bp=bp, show=show, angle=angle, orient=orient, **kwargs)
         if update_obj is not False:
             obj.matrix.append(matrix)
             bp_new = findBraggs(A_gcorr, obj=obj)
@@ -644,14 +675,14 @@ def global_corr(A, bp=None, show=False, angle=np.pi/4, obj=None, update_obj=Fals
         return matrix, A_gcorr
 
 
-def __global_corr(A, bp=None, show=False, angle=np.pi/4, **kwargs):
+def __global_corr(A, bp=None, show=False, angle=np.pi/2, orient=np.pi/4, **kwargs):
 
     *_, s2, s1 = np.shape(A)
     if bp is None:
         bp_1 = findBraggs(A, thres=0.2, show=show)
     else:
         bp_1 = bp
-    m, data_1 = gshearcorr(A, bp_1, rspace=True, angle=angle, **kwargs)
+    m, data_1 = gshearcorr(A, bp_1, rspace=True, angle=angle, orient=orient, **kwargs)
     if show is True:
         fig, ax = plt.subplots(1, 2, figsize=[8, 4])
         ax[0].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
@@ -828,7 +859,7 @@ def __apply_dfc_3d(A, ux, uy, matrix, bp=None, n1=None, n2=None, method='lockin'
 #3. - gshearcorr
 
 
-def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/4, matrix=None):
+def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/2, orient=np.pi/4, matrix=None):
     '''
     Global shear correction based on position of Bragg peaks in FT of 2D or 3D array A
 
@@ -841,7 +872,8 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/4, mat
         pts2        - Optional : 3x2 array containing coordinates of three corresponding points in the corrected
                                     FT (i.e., model center and bg_x and bg_y coordinates).
         angle       - Optional : Specify angle between scan direction and lattice unit vector direction (x and ux direction)
-                                    in the unit of radian. Default is pi/4 -- 45 degrees rotated.
+                                    in the unit of radian. Default is pi/2 -- 90 degrees rotated.
+        orient      - Optional : Initial angle of Bragg peak, or orientation of the scan. Default is np.pi/4
         matrix      - Optional : If provided, matrix will be used to transform the dataset directly.
 
     Returns:
@@ -863,8 +895,10 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/4, mat
                 Qx_mag = compute_dist(Q1, center)
                 Qy_mag = compute_dist(Q2, center)
                 Q_corr = np.mean([Qx_mag, Qy_mag])
-                Qc1 = np.array([int(k) for k in Q_corr*np.array([-np.cos(angle), -np.sin(angle)])]) + center
-                Qc2 = np.array([int(k) for k in Q_corr*np.array([np.sin(angle), -np.cos(angle)])]) + center
+                Qc1 = np.array([int(k) for k in Q_corr*np.array([np.cos(orient+np.pi), \
+                                                                 np.sin(orient+np.pi)])]) + center
+                Qc2 = np.array([int(k) for k in Q_corr*np.array([np.cos(-angle+orient+np.pi), \
+                                                                 np.sin(-angle+orient+np.pi)])]) + center
                 pts1 = np.float32([center, Qc1, Qc2])
             else:
                 bp = sortBraggs(bp, s=np.shape(A))
@@ -876,8 +910,10 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/4, mat
                 Qx_mag = compute_dist(Q1, center)
                 Qy_mag = compute_dist(Q2, center)
                 Q_corr = np.mean([Qx_mag, Qy_mag])
-                Qc1 = Q_corr*np.array([-np.cos(angle), -np.sin(angle)]) + center
-                Qc2 = Q_corr*np.array([np.sin(angle), -np.cos(angle)]) + center
+                Qc1 = Q_corr*np.array([np.cos(orient+np.pi), \
+                                       np.sin(orient+np.pi)]) + center
+                Qc2 = Q_corr*np.array([np.cos(-angle+orient+np.pi), \
+                                       np.sin(-angle+orient+np.pi)]) + center
                 Q1, Q2, Q3, Q4, *_ = bp
                 Qc2 = np.array([int(k) for k in Qc2 / s])
                 Qc1 = np.array([int(k) for k in Qc1 / s])
@@ -1312,6 +1348,8 @@ def display(A, B=None, sigma=3, clim_same=True):
         ax[0].imshow(A, cmap=stmpy.cm.blue2, origin='lower')
         ax[1].imshow(A_fft, cmap=stmpy.cm.gray_r,
                      origin='lower', clim=[0, c+sigma*s])
+        for ix in ax:
+            ix.set_aspect(1)
     else:
         A_fft = stmpy.tools.fft(A, zeroDC=True)
         B_fft = stmpy.tools.fft(B, zeroDC=True)
@@ -1330,7 +1368,8 @@ def display(A, B=None, sigma=3, clim_same=True):
         ax[1, 0].imshow(B, cmap=stmpy.cm.blue2, origin='lower')
         ax[1, 1].imshow(B_fft, cmap=stmpy.cm.gray_r,
                         origin='lower', clim=[0, c2+sigma*s2])
-
+        for ix in ax.flatten():
+            ix.set_aspect(1)
 
 def quick_linecut(A, width=2, n=4, bp=None, ax=None, thres=3):
     """
@@ -1478,6 +1517,7 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
             plt.gca().axes.get_xaxis().set_visible(False)
             plt.gca().axes.get_yaxis().set_visible(False)
             plt.gca().set_frame_on(False)
+            plt.gca().set_aspect(1)
             if saveon is True:
                 plt.savefig("{} at {}mV.{}".format(imgName, int(
                     en[i]), extension), bbox_inches='tight', pad_inches=0)
@@ -1496,6 +1536,7 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
         plt.gca().axes.get_xaxis().set_visible(False)
         plt.gca().axes.get_yaxis().set_visible(False)
         plt.gca().set_frame_on(False)
+        plt.gca().set_aspect(1)
         if saveon is True:
             plt.savefig("{} at {}mV.{}".format(imgName, int(en),
                                                extension), bbox_inches='tight', pad_inches=0)
