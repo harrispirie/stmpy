@@ -839,7 +839,7 @@ def load_nvl(filePath):
 def load_asc(filePath):
     '''UNTESTED - Load ASCII files into python.'''
     try:
-        fileObj = open(filePath, 'rb')
+        fileObj = open(filePath, 'r')
     except:
         raise NameError('File not found.')
     self = Spy()
