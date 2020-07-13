@@ -106,7 +106,7 @@ def getAttrs(obj, a0=None, size=None, angle=np.pi/2, orient=np.pi/4, pixels=None
     obj.correct = types.MethodType(correct, obj)
 
 
-def find_drift(self, A, r=0.1, w=0.1, mask3=None, cut1=None, cut2=None, \
+def find_drift(self, A, r=None, w=None, mask3=None, cut1=None, cut2=None, \
                 sigma=10, method='convolution', even_out=False, show=True, **kwargs):
     '''
     This method find drift field from a 2D map automatically.
@@ -717,7 +717,7 @@ def local_corr(A, bp=None, sigma=10, method="lockin", fixMethod='unwrap',
 
     Inputs:
         A           - Required : 2D array of topo after global shear correction, with bad pixels removed on the edge
-        sigma       - Optional : Floating number specifying the size of mask to be used in phasemap()
+        sigma       - Optional : Floating number or list specifying the size of mask to be used in phasemap()
         bp          - Optional : Bragg points. If not offered, it will calculated from findBraggs(A)
         method      - Optional : Specifying which method to in phasemap()
                                 "lockin": Spatial lock-in method to find phase map
@@ -973,6 +973,12 @@ def phasemap(A, bp, sigma=10, method="lockin"):
     '''
 
     *_, s2, s1 = A.shape
+    if not isinstance(sigma, list):
+        sigma = [sigma]
+    if len(sigma) == 1:
+        sigmax = sigmay = sigma[0]
+    else:
+        sigmax, sigmay, *_ = sigma
     s = np.minimum(s1, s2)
     bp = sortBraggs(bp, s=np.shape(A))
     t1 = np.arange(s1, dtype='float')
@@ -987,10 +993,10 @@ def phasemap(A, bp, sigma=10, method="lockin"):
         Axy = A * np.cos(Q1[0]*x+Q1[1]*y)
         Ayx = A * np.sin(Q2[0]*x+Q2[1]*y)
         Ayy = A * np.cos(Q2[0]*x+Q2[1]*y)
-        Axxf = FTDCfilter(Axx, sigma)
-        Axyf = FTDCfilter(Axy, sigma)
-        Ayxf = FTDCfilter(Ayx, sigma)
-        Ayyf = FTDCfilter(Ayy, sigma)
+        Axxf = FTDCfilter(Axx, sigmax, sigmay)
+        Axyf = FTDCfilter(Axy, sigmax, sigmay)
+        Ayxf = FTDCfilter(Ayx, sigmax, sigmay)
+        Ayyf = FTDCfilter(Ayy, sigmax, sigmay)
         thetax = np.arctan2(Axxf, Axyf)
         thetay = np.arctan2(Ayxf, Ayyf)
         return thetax, thetay, Q1, Q2
@@ -1004,8 +1010,10 @@ def phasemap(A, bp, sigma=10, method="lockin"):
         exponent_y = (Q2[0] * xcoords + Q2[1] * ycoords)
         A_x = A * np.exp(np.complex(0, -1)*exponent_x)
         A_y = A * np.exp(np.complex(0, -1)*exponent_y)
-        sx = sigma
-        sy = sigma * s1 / s2
+        # sx = sigma
+        # sy = sigma * s1 / s2
+        sx = sigmax
+        sy = sigmay
         Amp = 1/(4*np.pi*sx*sy)
         p0 = [int((s-1)/2), int((s-1)/2), sx, sy, Amp, np.pi/2]
         G = stmpy.tools.gauss2d(t_x, t_y, p=p0, symmetric=True)
@@ -1047,19 +1055,40 @@ def fixphaseslip(A, thres=None, maxval=None, method='unwrap', orient=0):
         04/29/2019      RL : Add "unwrap" method, and add documents.
     '''
     output = np.copy(A[::-1, ::-1])
+    maxval = 2 * np.pi
+    tol = 0.25 * maxval
     if len(np.shape(A)) == 2:
         *_, s2, s1 = np.shape(A)
+        mid2 = s2 // 2
+        mid1 = s1 // 2
         for i in range(s2):
             output[i, :] = unwrap_phase(
                 output[i, :], tolerance=thres, maxval=maxval)
         for i in range(s1):
             output[:, i] = unwrap_phase(
                 output[:, i], tolerance=thres, maxval=maxval)
+        linex = output[:, mid1]
+        liney = output[mid2, :]
+        dphx = np.diff(linex)
+        dphy = np.diff(liney)
+
+        dphx[np.where(np.abs(dphx) < tol)] = 0
+        dphx[np.where(dphx < -tol)] = 1
+        dphx[np.where(dphx > tol)] = -1
+
+        dphy[np.where(np.abs(dphy) < tol)] = 0
+        dphy[np.where(dphy < -tol)] = 1
+        dphy[np.where(dphy > tol)] = -1
+
+        for i in range(s2):
+            output[i, 1:] += 2*np.pi * np.cumsum(dphy)
+        for i in range(s1):
+            output[1:, i] += 2*np.pi * np.cumsum(dphx)
         return output[::-1, ::-1]
 
 
 def unwrap_phase(ph, tolerance=None, maxval=None):
-    maxval = 2 * np.pi if maxval is None else maxval0
+    maxval = 2 * np.pi if maxval is None else maxval
     tol = 0.25*maxval if tolerance is None else tolerance*maxval
     if len(ph) < 2:
         return ph
@@ -1251,7 +1280,7 @@ def Gaussian2d(x, y, sigma_x, sigma_y, theta, x0, y0, Amp):
     return z
 
 
-def FTDCfilter(A, sigma):
+def FTDCfilter(A, sigma1, sigma2):
     '''
     Filtering DC component of Fourier transform and inverse FT, using a gaussian with one parameter sigma
     A is a 2D array, sigma is in unit of px
@@ -1259,8 +1288,8 @@ def FTDCfilter(A, sigma):
     *_, s2, s1 = A.shape
     m1, m2 = np.arange(s1, dtype='float'), np.arange(s2, dtype='float')
     c1, c2 = np.float((s1-1)/2), np.float((s2-1)/2)
-    sigma1 = sigma
-    sigma2 = sigma * s1 / s2
+    # sigma1 = sigma
+    # sigma2 = sigma * s1 / s2
     g = Gaussian2d(m1, m2, sigma1, sigma2, 0, c1, c2, 1)
     ft_A = np.fft.fftshift(np.fft.fft2(A))
     ft_Af = ft_A * g
