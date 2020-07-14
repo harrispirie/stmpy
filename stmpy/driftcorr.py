@@ -294,7 +294,8 @@ def __update_parameters(obj, a0=None, bp=None, pixels=None, size=None, use_a0=Tr
 
 
 def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
-               w=None, mask3=None, even_out=False, show=False, obj=None, update_obj=False):
+               w=None, mask3=None, even_out=False, precise=False, 
+               width=10, p0=None, show=False, obj=None, update_obj=False):
     '''
     Find Bragg peaks in the unit of pixels of topo or FT pattern A using peak_local_max. If obj is offered,
     an attribute of bp will be created for obj.
@@ -312,6 +313,9 @@ def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
                                     the width of the mask. e.g., mask3 = [4, np.pi/4, 5], or mask3 = [6, 0, 10]
                                     Set mask3=None will disable this mask.
         even_out    - Optional : Boolean, if True then Bragg peaks will be rounded to the make sure there are even number of lattice
+        precise     - Optional : Boolean, if True then a 2D Gaussian fit will be used to find the precise location of Bragg peaks
+        width       - Optional : Integer, defines how large the 2D Gaussian fit will be performed around each Bragg peaks
+        p0          - Optional : List of initial parameters for fitting. Default: p0 = [amplitude,x0,y0,sigmaX,sigmaY,offset]=[1, width, width, 1, 1, 0]
         show        - Optional : Boolean, if True then A and Bragg peaks will be plotted out.
         obj         - Optional : Data object that has bp_parameters with it,
         update_obj  - Optional : Boolean, determines if the bp_parameters attribute will be updated according to current input.
@@ -330,7 +334,8 @@ def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
     '''
     if obj is None:
         return __findBraggs(A, rspace=rspace, min_dist=min_dist, thres=thres, r=r,
-                            w=w, mask3=mask3, even_out=even_out, show=show)
+                            w=w, mask3=mask3, even_out=even_out, precise=precise, 
+                            width=width, p0=p0, show=show)
 
     else:
         if update_obj is not False:
@@ -351,7 +356,8 @@ def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
 
 
 def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
-                 w=None, mask3=None, even_out=False, show=False):
+                 w=None, mask3=None, even_out=False, precise=False, 
+                 width=10, p0=None, show=False):
     """
     Actual function that finds Bragg peaks with peak_local_max() function.
     """
@@ -391,6 +397,16 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
     if even_out is not False:
         coords = __even_bp(coords, s=np.shape(A))
 
+    if precise is not False:
+        coords = np.asarray(coords, dtype='float32')
+        if p0 is None:
+            p0 = [1, width, width, 1, 1, 0]
+        for i in range(len(coords)):
+            area = stmpy.tools.crop(F/np.sum(F), cen=[int(k) for k in coords[i]], width=width)
+            popt, g = fitGaussian2d(area, p0=p0)
+            coords[i][0] += popt[1] - width
+            coords[i][1] += popt[2] - width
+
     # This part shows the Bragg peak positions
     if show is not False:
         plt.figure(figsize=[4, 4])
@@ -410,6 +426,24 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
         pprint(coords-center)
 
     return coords
+
+import scipy.optimize as opt
+def fitGaussian2d(data, p0):
+    ''' Fit a 2D gaussian to the data with initial parameters p0. '''
+    data = np.array(data)
+    def gauss(xy,amplitude,x0,y0,sigmaX,sigmaY,offset):
+        x,y = xy
+        theta = 90
+        x0=float(x0);y0=float(y0)
+        a =  0.5*(np.cos(theta)/sigmaX)**2 + 0.5*(np.sin(theta)/sigmaY)**2 
+        b = -np.sin(2*theta)/(2*sigmaX)**2 + np.sin(2*theta)/(2*sigmaY)**2
+        c =  0.5*(np.sin(theta)/sigmaX)**2 + 0.5*(np.cos(theta)/sigmaY)**2
+        g = offset+amplitude*np.exp(-( a*(x-x0)**2 -2*b*(x-x0)*(y-y0) + c*(y-y0)**2 ))
+        return g.ravel()
+    x = np.arange(data.shape[0]);  y = np.arange(data.shape[1])
+    X,Y = np.meshgrid(x,y)
+    popt, pcov = opt.curve_fit(gauss, (X,Y), data.ravel(), p0=p0)
+    return popt, gauss((X,Y),*popt).reshape(data.shape)
 
 def mask_bp(A, p):
 
