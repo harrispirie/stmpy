@@ -87,8 +87,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2018-11-13  - HP : Add nice_units to .dat files
         2019-01-09  - BB : Generalize file extension extraction
         2019-02-28  - HP : Loads multisweep .dat files even if missing header.
-        2020-07-11  - WT : Added support for sm4 file from rhk system.
-
+        2020-07-12  - WT : Added support for sm4 file from rhk system.
 
     '''
     try:
