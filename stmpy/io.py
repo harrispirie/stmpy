@@ -870,8 +870,7 @@ def load_asc(filePath):
     fileObj.close()
     return self
 
-# Wan-Ting add getting the sm4 file extension
-
+        
 def load_sm4(filePath):
     ''' Load RHK SM4 files into python. '''
     import stmpy.read_rhk_sm4 as sm4
@@ -879,15 +878,56 @@ def load_sm4(filePath):
     self = Spy()
     self.info = {}
     self.info = f.print_info()
-    self.data = {} #S.I. unit
+    
+    name = f.print_info().iloc[:, 0].to_numpy()
+    it = f.print_info().iloc[:, 1].to_numpy()
+    namef = np.char.strip(it.astype(str), 'DATA_')
+    names = namef + name
+        
+    label = {}
+    for ix, item in zip(range(0,len(names)), names):
+        label[ix] = item
+        
+    self.data = {}
     for ix, line in enumerate(f):
         self.data[ix] = f[ix].data  
+        
     self.header = {}
     for ix, line in enumerate(f):
-        self.header[ix] = line.attrs
-    self.en = {} #S.I. unit
-    for ix, line in enumerate(f):
-        self.en[ix] = line.coords[1][1]
+        self.header[ix] = f[ix].attrs 
+        
+    def getf(channel):
+        res = 100
+        for key in label: 
+            if(label[key] == channel): 
+                res = list(label.values()).index(channel) 
+        return(res)
+                       
+    liy = getf('LINELIA Current')
+    i = getf('LINECurrent')
+    z = getf('IMAGETopography')
+        
+    self.en = {}
+    if liy < 100:
+        self.en = f[liy].coords[1][1]
+    else:
+        self.en = f[0].coords[1][1]
+        
+    if _make_attr(self, 'LIY', [liy], 'data'):
+        self.didv = np.mean(self.LIY, axis=0)
+        self.didvStd = np.std(self.LIY, axis=0)
+    else:
+        print('ERR: LIY channel not found')
+        
+    if _make_attr(self, 'I', [i], 'data'):
+        self.iv = np.mean(self.I,  axis=0)
+    else:
+        print('ERR: Current not found')
+                  
+    if _make_attr(self, 'Z', [z], 'data'):
+        self.Z = self.Z
+    else:
+        print('ERR: Z channel not found')
     return self
 
 
