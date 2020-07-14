@@ -87,6 +87,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2018-11-13  - HP : Add nice_units to .dat files
         2019-01-09  - BB : Generalize file extension extraction
         2019-02-28  - HP : Loads multisweep .dat files even if missing header.
+        2020-07-11  - WT : Added support for sm4 file from rhk system.
 
 
     '''
@@ -105,7 +106,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
             dataObject = _nice_units(dataObject, extension)
         return dataObject
 
-    elif extension in ['spy', 'sxm', 'nvi', 'nvl', 'nsp', 'asc']:
+    elif extension in ['spy', 'sxm', 'nvi', 'nvl', 'nsp', 'asc', 'sm4']:
         return eval(loadFn)(filePath)
 
   #  elif filePath.endswith('.mat'):
@@ -868,6 +869,27 @@ def load_asc(filePath):
     self.channels = channels
     fileObj.close()
     return self
+
+# Wan-Ting add getting the sm4 file extension
+
+def load_sm4(filePath):
+    ''' Load RHK SM4 files into python. '''
+    import stmpy.read_rhk_sm4 as sm4
+    f = sm4.load_sm4(filePath)
+    self = Spy()
+    self.info = {}
+    self.info = f.print_info()
+    self.data = {} #S.I. unit
+    for ix, line in enumerate(f):
+        self.data[ix] = f[ix].data  
+    self.header = {}
+    for ix, line in enumerate(f):
+        self.header[ix] = line.attrs
+    self.en = {} #S.I. unit
+    for ix, line in enumerate(f):
+        self.en[ix] = line.coords[1][1]
+    return self
+
 
 
 ####    ____CLASS DEFINITIONS____   ####
