@@ -48,7 +48,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         .nvi    -   NISTview image data, used for topography data.
         .nvl    -   NISTview layer data, used for 3D DOS maps.
         .asc    -   ASCII file type.
-
+        .sm4    -   RHK sm4 file type.
 
     For .3ds and .dat file types there is an optional flag to correct for bias offset
     that is true by default.  This does not correct for a current offset, and
