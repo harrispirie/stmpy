@@ -413,7 +413,7 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
         c = np.mean(F)
         s = np.std(F)
         plt.imshow(F, cmap=plt.cm.gray_r, interpolation='None',
-                   origin='lower left', clim=[0, c+5*s], aspect=1)
+                   origin='lower', clim=[0, c+5*s], aspect=1)
         plt.plot(coords[:, 0], coords[:, 1], 'r.')
         plt.gca().set_aspect(1)
         plt.axis('tight')
