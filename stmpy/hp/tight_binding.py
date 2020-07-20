@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 from scipy.special import j0
 import scipy.constants as const
 
-k = np.linspace(0, 1, 5e3)
+k = np.linspace(0, 1, 5000)
 enh = np.linspace(-100,100,500)
 
 def nonlocal_shift(p,en, get_G=False, get_N=False):
@@ -22,13 +22,13 @@ def nonlocal_shift(p,en, get_G=False, get_N=False):
         w0 = enval + 1j*g0
         w1 = enval + 1j*g1
         w2 = enval + 1j*g2
-        denominator =  (c - w0) * (f1 - w1) * (f2 - w2) - (v2**2 * (f1 - w1) + 
+        denominator =  (c - w0) * (f1 - w1) * (f2 - w2) - (v2**2 * (f1 - w1) +
                 v1**2 * (f2 - w2)) * (np.sin(np.pi*k)**2)
         G[0,ix] = (-(f1 - w1) * (f2 - w2)) /denominator
         G[1,ix] = (-(c - w0) * (f2 - w2) + v2**2 * np.sin(np.pi*k)**2) /denominator
         G[2,ix] = (-(c - w0) * (f1 - w1) + v1**2 * np.sin(np.pi*k)**2) /denominator
         G[3,ix] = -(v1 * (f2 - w2)) /denominator
-        G[4,ix] = -(v2 * (f1 - w1)) /denominator 
+        G[4,ix] = -(v2 * (f1 - w1)) /denominator
         G[5,ix] = -v1*v2*np.sin(np.pi*k)**2 /denominator
     if get_G:
         return G
@@ -44,7 +44,7 @@ def nonlocal_shift(p,en, get_G=False, get_N=False):
     N[8] = (0.25/np.pi)*np.sum((1-k)*G[4]*(1-j0(2*(1-k))), axis=1)
     if get_N:
         return N
-    didv = -1*(np.imag(N[0]) + 2*t1**2*np.imag(N[1]) + 
+    didv = -1*(np.imag(N[0]) + 2*t1**2*np.imag(N[1]) +
             2*t2**2*np.imag(N[2]) + 8*t1*t2*np.imag(N[3]) -
             4*t1**2*np.imag(N[4]) - 4*t2**2*np.imag(N[5]) -
             8*t1*t2*np.imag(N[6]) + 8*t1*np.imag(N[7]) + 8*t2*np.imag(N[8]))
@@ -65,13 +65,13 @@ def nonlocal_model(p, en, get_G=False, get_N=False, pristine=False):
         w0 = enval + 1j*g0
         w1 = enval + 1j*g1
         w2 = enval + 1j*g2
-        denominator =  (c - w0) * (f1 - w1) * (f2 - w2) - (v2**2 * (f1 - w1) + 
+        denominator =  (c - w0) * (f1 - w1) * (f2 - w2) - (v2**2 * (f1 - w1) +
                 v1**2 * (f2 - w2)) * (np.sin(np.pi*k)**2)
         G[0,ix] = (-(f1 - w1) * (f2 - w2)) /denominator
         G[1,ix] = (-(c - w0) * (f2 - w2) + v2**2 * np.sin(np.pi*k)**2) /denominator
         G[2,ix] = (-(c - w0) * (f1 - w1) + v1**2 * np.sin(np.pi*k)**2) /denominator
         G[3,ix] = -(v1 * (f2 - w2)) /denominator
-        G[4,ix] = -(v2 * (f1 - w1)) /denominator 
+        G[4,ix] = -(v2 * (f1 - w1)) /denominator
         G[5,ix] = -v1*v2*np.sin(np.pi*k)**2 /denominator
     if get_G:
         return G
@@ -88,13 +88,13 @@ def nonlocal_model(p, en, get_G=False, get_N=False, pristine=False):
     if get_N:
         return N
     if pristine:
-        didv = -1*(np.imag(N[0]) + 4*t1**2*np.imag(N[1]) + 
+        didv = -1*(np.imag(N[0]) + 4*t1**2*np.imag(N[1]) +
             4*t2**2*np.imag(N[2]) + 8*t1*t2*np.imag(N[3]) -
             4*t1**2*np.imag(N[4]) - 4*t2**2*np.imag(N[5]) -
             8*t1*t2*np.imag(N[6]) + 8*t1*np.imag(N[7]) + 8*t2*np.imag(N[8]))
 
     else:
-        didv = -1*(np.imag(N[0]) + 2*t1**2*np.imag(N[1]) + 
+        didv = -1*(np.imag(N[0]) + 2*t1**2*np.imag(N[1]) +
             2*t2**2*np.imag(N[2]) + 8*t1*t2*np.imag(N[3]) -
             4*t1**2*np.imag(N[4]) - 4*t2**2*np.imag(N[5]) -
             8*t1*t2*np.imag(N[6]) + 8*t1*np.imag(N[7]) + 8*t2*np.imag(N[8]))
@@ -122,7 +122,7 @@ def nonlocal_bands_slow(p, en):
     for ix, h in enumerate(H):
         bands[ix] = np.linalg.eigvalsh(h)
     return bands
-     
+
 def antitunnel_model(p, en, greens_functions=False,
         anisotropy=(True,True), constrained=False, antitunnel=False, get_N=False):
     if constrained:
@@ -148,7 +148,7 @@ def antitunnel_model(p, en, greens_functions=False,
         s1 *= np.sin(k*np.pi)
     if anisotropy[1]:
         s2 *= np.sin(k*np.pi)
-    
+
     G = np.zeros([6, len(en), len(k)], dtype=np.complex128)
     for ix, enval in enumerate(en):
         w0 = enval + 1j*g0
@@ -206,7 +206,7 @@ def tight_binding_model_1D(p, en, greens_functions=False,
         s1 *= np.sin(k*np.pi)
     if anisotropy[1]:
         s2 *= np.sin(k*np.pi)
-    
+
     G = np.zeros([6, len(en), len(k)], dtype=np.complex128)
     for ix, enval in enumerate(en):
         w0 = enval + 1j*g0
@@ -236,7 +236,7 @@ def tight_binding_model_1D(p, en, greens_functions=False,
         N = 1/(2*np.pi)*np.sum(k*G, axis=2)
         if get_N:
             return N
-        dIdV = -(np.imag(N[0]) +  t1**2*np.imag(N[1]) + t2**2*np.imag(N[2]) 
+        dIdV = -(np.imag(N[0]) +  t1**2*np.imag(N[1]) + t2**2*np.imag(N[2])
                 + 2*t1*np.imag(N[3]) + 2*t2*np.imag(N[4]) + 2*t1*t2*np.imag(N[5]))
     return dIdV
 
@@ -249,7 +249,7 @@ def tight_binding_model_1F(p, en, greens_functions=False, anisotropy=True):
         s1 = v1*np.sin(k*np.pi)
     else:
         s1 = v1
-    
+
     G = np.zeros([3, len(en), len(k)], dtype=np.complex128)
     for ix, enval in enumerate(en):
         w0 = enval + 1j*g0
@@ -258,7 +258,7 @@ def tight_binding_model_1F(p, en, greens_functions=False, anisotropy=True):
         G[0,ix] = (f1-w1) / denominator
         G[1,ix] = (c-w0) / denominator
         G[2,ix] = s1 / denominator
-    
+
     if greens_functions:
         return G
 
@@ -280,7 +280,7 @@ def bands_1D(p, en):
     s2 = v2*np.sin(k*np.pi)
 
     H = np.zeros([len(k), 3, 3])
-    H[:,0,0] = (k**2.-c0**2) * b/c0**2 
+    H[:,0,0] = (k**2.-c0**2) * b/c0**2
     H[:,1,1] = af1*np.cos(k*np.pi) + ef1
     H[:,2,2] = af2*np.cos(k*np.pi) + ef2
     H[:,0,1] = -s1
@@ -297,7 +297,7 @@ def fbands_1D(p, en, anisotropy=(True,True), constrained=False):
     if constrained:
         # af1, af2, v1, v2 = p
         ef1, ef2, c0 = -1.5, -25.5, 0.55
-        
+
         ef1, ef2, c0 = -1.17, -23.25, 0.537
         af1, af2 = 10., -8.
         v1, v2 = p
@@ -310,17 +310,17 @@ def fbands_1D(p, en, anisotropy=(True,True), constrained=False):
         s1 *= np.sin(k*np.pi)
     if anisotropy[1]:
         s2 *= np.sin(k*np.pi)
-    
+
     u = np.zeros([3, len(k)])
     H = np.zeros([3, 3, len(k)])
-    H[0,0,:] = (k**2.-c0**2) * b/c0**2 
+    H[0,0,:] = (k**2.-c0**2) * b/c0**2
     H[1,1,:] = af1*np.cos(k*np.pi) + ef1
     H[2,2,:] = af2*np.cos(k*np.pi) + ef2
     H[0,1,:] = -s1
     H[1,0,:] = -s1
     H[0,2,:] = -s2
     H[2,0,:] = -s2
-    
+
     p1 = H[0,1]**2 + H[0,2]**2 + H[1,2]**2
     pix = np.where(p1 == 0)
     nix = np.where(p1 != 0)
@@ -330,24 +330,24 @@ def fbands_1D(p, en, anisotropy=(True,True), constrained=False):
     u[2, pix] = H[2, 2, pix]
 
     q = (H[0,0,nix] + H[1,1,nix] + H[2,2,nix]) / 3.0
-    p2 = ((H[0,0,nix] - q)**2 + (H[1,1,nix] - q)**2 
+    p2 = ((H[0,0,nix] - q)**2 + (H[1,1,nix] - q)**2
          + (H[2,2,nix] - q)**2 + 2 * p1[nix])
     p = np.sqrt(p2 / 6.0)
 
-    # Construct an Identity matrix at each point. 
+    # Construct an Identity matrix at each point.
     I = np.zeros_like(H)
     for ix in range(3):
         I[ix,ix] = 1.0
 
     B = np.zeros_like(H)
-    B[:,:,nix] = (1.0 / p) * (H[:,:,nix] - q*I[:,:,nix]) 
+    B[:,:,nix] = (1.0 / p) * (H[:,:,nix] - q*I[:,:,nix])
     detB = (B[0,0]*B[1,1]*B[2,2] + B[0,1]*B[1,2]*B[2,0]
             + B[0,2]*B[1,0]*B[2,1] - B[2,0]*B[1,1]*B[0,2]
             - B[2,1]*B[1,2]*B[0,0] - B[2,2]*B[1,0]*B[0,1])
     r = detB / 2.0
     phi = np.zeros_like(r)
     rsmallix = np.where(r <= 1)
-    rsafeix = np.where(np.absolute(r) < 1) 
+    rsafeix = np.where(np.absolute(r) < 1)
     phi[rsmallix] = np.pi/3.0
     phi[rsafeix] = np.arccos(r[rsafeix])/3.0
 
@@ -360,7 +360,7 @@ def bands_1F(p, en):
     af1, ef1, b, c, v1 = p
     c = float(c)
     s1 = v1*np.sin(k*np.pi)
-    
+
     u = np.zeros([2, len(k)])
     H = np.zeros([2, 2, len(k)])
     H[0,0] = (k**2.-c**2.) * b/c**2
@@ -374,7 +374,7 @@ def bands_1F(p, en):
     u[0] = (trH + gapH) / 2.0
     u[1] = (trH - gapH) / 2.0
 
-    return np.sort(u, axis=0) 
+    return np.sort(u, axis=0)
 
 def fBand1(k): return 9*np.cos(k*np.pi)
 def fBand2(k): return -9*np.cos(k*np.pi)-21.0
@@ -416,7 +416,7 @@ def plot_bands(k,  p, anisotropy=(True,False), label=False):
     if label:
         plt.plot(-10, -10, color=my_cmap(0), label='4f')
         plt.plot(-10, -10, color=my_cmap(255), label='5d')
-    return u 
+    return u
 
 
 def hybBands(k,v1,v2=None):
@@ -440,13 +440,13 @@ def plot_band_character(k, v, label=False):
     if label:
         plt.plot(-10, -10, color=my_cmap(0), label='4f')
         plt.plot(-10, -10, color=my_cmap(255), label='5d')
-    return u 
+    return u
 
 
 def fitData(data, X0=None, bounds=None, nix=None, add_constant=True,
         anisotropy=(True, False), antitunnel=False):
     if nix is None:
-        nix = np.where((data.en<-9) | ((data.en>=-5)&(data.en<-3)) | (data.en>3)) 
+        nix = np.where((data.en<-9) | ((data.en>=-5)&(data.en<-3)) | (data.en>3))
     if add_constant:
         def chi_data(X):
             p = X[:-3]
@@ -460,7 +460,7 @@ def fitData(data, X0=None, bounds=None, nix=None, add_constant=True,
         if bounds is None:
             no = (None, None)
             pos = (0, None)
-            bounds = [(8,17), (-5,1), (-10,5), (-25,-20), (0.535,0.555), 
+            bounds = [(8,17), (-5,1), (-10,5), (-25,-20), (0.535,0.555),
                       (20,50), (50,100), pos, pos, no, no, no, no, no]
         data.result = minimize(chi_data, X0, bounds=bounds, method='SLSQP')
         p = data.result.x[:-3]
@@ -484,7 +484,7 @@ def fitData(data, X0=None, bounds=None, nix=None, add_constant=True,
         if bounds is None:
             no = (None, None)
             pos = (0, None)
-            bounds = [(8,17), (-5,1), (-10,5), (-25,-20), (0.535,0.555), 
+            bounds = [(8,17), (-5,1), (-10,5), (-25,-20), (0.535,0.555),
                       (20,50), (50,100), pos, pos, no, no, no, no]
         data.result = minimize(chi_data, X0, bounds=bounds, method='SLSQP')
         p = data.result.x[:-2]
@@ -497,7 +497,7 @@ def fitData(data, X0=None, bounds=None, nix=None, add_constant=True,
     data.bands = fbands_1D(data.result.x[:7], data.en, anisotropy=anisotropy)
 
 
-def plot_bands2(ax=None, bulk=False, xBand=True, gBand=True, bragg=False, 
+def plot_bands2(ax=None, bulk=False, xBand=True, gBand=True, bragg=False,
                c1='lime', c2='r', c3='b', p=None):
     '''Add guidelines for the calculated electronic structure of SmB6.
 
