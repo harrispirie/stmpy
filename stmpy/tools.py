@@ -1358,7 +1358,7 @@ def normalize(data, axis=0, condition='mean'):
     return output
 
 
-def linecut(data, p0, p1, width=1, dl=0, dw=0, kind='linear',
+def linecut(data, p0, p1, width=1, dl=1, dw=1, kind='linear',
                 show=False, ax=None, **kwarg):
     '''Linecut tool for 2D or 3D data.
 
@@ -2071,7 +2071,7 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
         2019-10-15  - HP : Initial commit.
         2019-11-04  - HP : Add compatibility for a two-setpoint map.
         2020-06-19  - HP : Add support for fitting n-degree polynomials and
-                           handling 1D, 2D or 3D current maps. 
+                           handling 1D, 2D or 3D current maps.
     '''
     def find_v0(en, iv, iv2=None, npts='all', i0=0, deg=1):
         '''Find the local slope and offset for a single IV curve'''
