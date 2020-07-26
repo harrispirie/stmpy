@@ -254,7 +254,7 @@ def correct(self, use):
 def __update_parameters(obj, a0=None, bp=None, pixels=None, size=None, use_a0=True):
 
     if use_a0 is True:
-        center = (np.array(pixels)-1) // 2
+        center = (np.array(pixels)) // 2
         Q = bp - center
         q1, q2, q3, q4, *_ = Q
         delta_qx = (np.absolute(q1[0]-q3[0])+np.absolute(q2[0]-q4[0])) / 2
@@ -418,7 +418,7 @@ def __findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
         plt.gca().set_aspect(1)
         plt.axis('tight')
 
-        center = (np.array(np.shape(A)[::-1])-1) // 2
+        center = (np.array(np.shape(A)[::-1])) // 2
         print('The coordinates of the Bragg peaks are:')
         pprint(coords)
         print()
@@ -451,7 +451,7 @@ def mask_bp(A, p):
     s = np.shape(A)[-1]
     t = np.arange(s)
     x, y = np.meshgrid(t, t)
-    center = (np.array([s, s])-1) // 2
+    center = (np.array([s, s])) // 2
     mask = np.ones_like(x)
     theta = 2 * np.pi / n
     for i in range(n):
@@ -479,7 +479,7 @@ def check_bp(A, bp, obj=None):
     History:
         05-25-2020      RL : Initial commit.
     '''
-    center = (np.array(np.shape(A)[::-1])-1) // 2
+    center = (np.array(np.shape(A)[::-1])) // 2
     Q = bp-center
     print(Q)
     print(np.dot(Q[0], Q[1]))
@@ -490,7 +490,7 @@ def __even_bp(bp, s):
     This internal function rounds the Bragg peaks to their nearest even number of Q vectors.
     '''
     *_, s2, s1 = s
-    center = (np.array([s1, s2])-1) // 2
+    center = (np.array([s1, s2])) // 2
     bp_temp = bp - center
     for i, ix in enumerate(bp_temp):
         for j, num in enumerate(ix):
@@ -527,7 +527,7 @@ def generate_bp(A, bp, angle=np.pi/2, orient=np.pi/4, even_out=False, obj=None):
     '''
     *_, s2, s1 = np.shape(A)
     bp = sortBraggs(bp, s=np.shape(A))
-    center = (np.array([s1, s2])-1) // 2
+    center = (np.array([s1, s2])) // 2
     Q1, Q2, Q3, Q4, *_ = bp
     Qx_mag = compute_dist(Q1, center)
     Qy_mag = compute_dist(Q2, center)
@@ -924,7 +924,7 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/2, ori
         if pts1 is None:
             if s1 == s2:
                 bp = sortBraggs(bp, s=np.shape(A))
-                center = (np.array([s1, s2])-1) // 2
+                center = (np.array([s1, s2])) // 2
                 Q1, Q2, Q3, Q4, *_ = bp
                 Qx_mag = compute_dist(Q1, center)
                 Qy_mag = compute_dist(Q2, center)
@@ -939,7 +939,7 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/2, ori
                 s = np.array(np.shape(A))
                 bp_temp = bp * s
                 # center = [int(s[0]*s[1]/2), int(s[0]*s[1]/2)]
-                center = (np.array([s[0]*s[1], s[0]*s[1]])-1) // 2
+                center = (np.array([s[0]*s[1], s[0]*s[1]])) // 2
                 Q1, Q2, Q3, Q4, *_ = bp_temp
                 Qx_mag = compute_dist(Q1, center)
                 Qy_mag = compute_dist(Q2, center)
@@ -952,7 +952,7 @@ def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/2, ori
                 Qc2 = np.array([int(k) for k in Qc2 / s])
                 Qc1 = np.array([int(k) for k in Qc1 / s])
                 # center = [int(s2/2),int(s1/2)]
-                center = (np.array([s1, s2])-1) // 2
+                center = (np.array([s1, s2])) // 2
                 pts1 = np.float32([center, Q1, Q2])
         else:
             pts1 = pts1.astype(np.float32)
@@ -1018,10 +1018,10 @@ def phasemap(A, bp, sigma=10, method="lockin"):
     t1 = np.arange(s1, dtype='float')
     t2 = np.arange(s2, dtype='float')
     x, y = np.meshgrid(t1, t2)
-    Q1 = 2*np.pi*np.array([(bp[0][0]-int((s1-1)/2))/s1,
-                           (bp[0][1]-int((s2-1)/2))/s2])
-    Q2 = 2*np.pi*np.array([(bp[1][0]-int((s1-1)/2))/s1,
-                           (bp[1][1]-int((s2-1)/2))/s2])
+    Q1 = 2*np.pi*np.array([(bp[0][0]-int((s1)/2))/s1,
+                           (bp[0][1]-int((s2)/2))/s2])
+    Q2 = 2*np.pi*np.array([(bp[1][0]-int((s1)/2))/s1,
+                           (bp[1][1]-int((s2)/2))/s2])
     if method is "lockin":
         Axx = A * np.sin(Q1[0]*x+Q1[1]*y)
         Axy = A * np.cos(Q1[0]*x+Q1[1]*y)
@@ -1049,7 +1049,7 @@ def phasemap(A, bp, sigma=10, method="lockin"):
         sx = sigmax
         sy = sigmay
         Amp = 1/(4*np.pi*sx*sy)
-        p0 = [int((s-1)/2), int((s-1)/2), sx, sy, Amp, np.pi/2]
+        p0 = [int((s)/2), int((s)/2), sx, sy, Amp, np.pi/2]
         G = stmpy.tools.gauss2d(t_x, t_y, p=p0, symmetric=True)
         T_x = sp.signal.fftconvolve(A_x, G, mode='same',)
         T_y = sp.signal.fftconvolve(A_y, G, mode='same',)
@@ -1295,7 +1295,7 @@ def _apply_drift_field(A, ux, uy, zeroOut=True):
 def sortBraggs(bp, s):
     ''' Sort the Bragg peaks in the order of "lower left, lower right, upper right, and upper left" '''
     *_, s2, s1 = s
-    center = np.array([(s1 - 1) // 2, (s2 - 1) // 2])
+    center = np.array([(s1) // 2, (s2) // 2])
     out = np.array(sorted(bp-center, key=lambda x: np.arctan2(*x))) + center
     return out
 
@@ -1321,7 +1321,7 @@ def FTDCfilter(A, sigma1, sigma2):
     '''
     *_, s2, s1 = A.shape
     m1, m2 = np.arange(s1, dtype='float'), np.arange(s2, dtype='float')
-    c1, c2 = np.float((s1-1)/2), np.float((s2-1)/2)
+    c1, c2 = np.float((s1)//2), np.float((s2)//2)
     # sigma1 = sigma
     # sigma2 = sigma * s1 / s2
     g = Gaussian2d(m1, m2, sigma1, sigma2, 0, c1, c2, 1)
@@ -1359,7 +1359,7 @@ def bp_to_q(bp, A):
     bp      - Required : Array of Bragg peaks
     A       - Required : 
     '''
-    center = (np.array(np.shape(A)[::-1])-1) // 2
+    center = (np.array(np.shape(A)[::-1])) // 2
     return bp - center
 
 def __even_bp(bp, s):
@@ -1367,7 +1367,7 @@ def __even_bp(bp, s):
     This internal function rounds the Bragg peaks to their nearest even number of Q vectors.
     '''
     *_, s2, s1 = s
-    center = (np.array([s2, s1])-1) // 2
+    center = (np.array([s2, s1])) // 2
     bp_temp = bp - center
     for i, ix in enumerate(bp_temp):
         for j, num in enumerate(ix):
