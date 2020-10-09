@@ -143,6 +143,7 @@ cm.als = _make_STMView_colormap('ALS.txt', name='als')
 cm.hpblue = _make_diverging_colormap([0,0,0],
         [0.14901960784313725, 0.5450980392156862, 0.9176470588235294])
 cm.mhblue = _make_STMView_colormap('mhblue.mat', name='mhblue')
+cm.cemblue2 = _LSC.from_list("", ["k",_np.array([65,67,169])/256,"lavender","white",'yellow','orangered','darkred','k'])
 
 
 
