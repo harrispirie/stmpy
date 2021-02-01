@@ -1,6 +1,19 @@
 import numpy as np
 import math
 
+# def helpfile():
+#     helptext =
+#         "1. Hit Cmd+Q (Mac) or ? (Windows) to quit Python process after use; Otherwise the cell in jupyter notebook would not finish execution.\n 2. Scroll mouse in Topo window to iterate between channels.
+# 3. Scroll mouse in Map window to iterate through bias layers. The vertical green line in Spectrum window will follow and inicate the current bias.
+# 4. Click and drag either one of the yellow cross cursors to show spectra at different locations.
+# 5. Click "Cursor" button to show/hide yellow cursors.
+# 6. Use the native navigation toolbar in the window to zoom, pan, and reset field of views. (Reset somehow freezes the limits of the spectrum plot...)
+# 7. Move mouse over windows, current xy coordinates (and intensity value) will be shown on the native navigation toolbar
+# 8. Click and drag indicators in the colorbars to adjust the contrast of the corresponding image.
+# 9. Click "Fit" button to show/hide fit data (if provided when calling the function)."
+    
+#     return helptext
+
 def volumetype(volume):
     if type(volume) == list:
         if all((type(item) == np.ndarray) for item in volume):

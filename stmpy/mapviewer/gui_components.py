@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 from matplotlib.colors import Colormap
 from matplotlib.widgets import AxesWidget
-from misc import format_eng, grab_bg, blit_bg, volumetype
+from .misc import format_eng, grab_bg, blit_bg, volumetype
 
 class SpecLinkedCursors:
     '''

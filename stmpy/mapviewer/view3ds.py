@@ -9,8 +9,9 @@ from matplotlib.widgets import Button
 from matplotlib.ticker import EngFormatter, AutoMinorLocator, MaxNLocator
 from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 import stmpy
-from gui_components import *
-from misc import grab_bg, blit_bg
+from .gui_components import *
+from .misc import grab_bg, blit_bg
+import os.path as _ospath
 
 def view3ds(data, topos=[], ch_names=[], didv=None, fit_didv=None, extent=[],
             cmap_topo=stmpy.cm.blue1, cmap_didv=stmpy.cm.bone, cbar_topo='salmon', cbar_didv='salmon',
@@ -30,12 +31,10 @@ def view3ds(data, topos=[], ch_names=[], didv=None, fit_didv=None, extent=[],
           use_blit - boolean, use blitting or not. Defaut is False, try switching it to True if interactive tools are sluggish.
     Example in jupyter notebook:
           ...
-          fitmap(data.liy, data.en, model, params)... # use your own fit code
-          data.fit = dynes(data.en, data.gap, data.gamma) # generate fit results
           %matplotlib qt # switch to qt backend
-          from stmpy.3dviewer import view3ds
-          view3ds(data, topos=[data.Z, data.delta, data.gamma,], ch_names=['Topo', 'Gap', 'Gamma'], didv=data.liy, fit_didv=data.fit, extent=[0, 10e-9, 0, 10e-9])
-          %matplotlib inline # (or %pylab inline) switch back to inline
+          from stmpy.mapviewer.view3ds import view3ds
+          view3ds(data, topos=[data.Z,], ch_names=['Topo',], didv=data.liy, fit_didv=data.fit, extent=[0, 10e-9, 0, 10e-9])
+          %matplotlib inline # switch back to inline
           ...
     '''
     # ----- Default rc Parameters -----
@@ -134,13 +133,14 @@ def view3ds(data, topos=[], ch_names=[], didv=None, fit_didv=None, extent=[],
     else:
         fitswitch = LinesVisible(fvis, [slc.spec_fit,])
         fvis.on_clicked(fitswitch.vis)
-    ### File button ###
+    ### Help button ###
     axhelp = plt.axes([0.3, 0, 1, 1])
     iphelp = InsetPosition(axctrl, [0.1, 0.7, 0.3, 0.2])
     axhelp.set_axes_locator(iphelp)
     helpbtn = Button(axhelp, 'Help', color='0.9', hovercolor='0.9')
     helpbtn.label.set_fontsize(12)
-    with open('helptext.txt') as helpfile:
+    helpfile_path = _ospath.join(_ospath.dirname(__file__), 'helptext.txt')
+    with open(helpfile_path) as helpfile:
         helptext = helpfile.read()
     helpwin = HelpWindow(helpbtn, helptext)
     helpbtn.on_clicked(helpwin.helpwindow)
