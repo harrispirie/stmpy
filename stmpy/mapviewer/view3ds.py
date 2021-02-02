@@ -113,6 +113,7 @@ def view3ds(data, topos=[], ch_names=[], didv=None, fit_didv=None, extent=[],
     rs3.on_changed(slc.map_clim_update)
     # ----- Control Aera -----
     axctrl.axis('off')
+    axctrl.set_navigate(False)
     ### Cursor button ###
     axcur = plt.axes([0.1, 0, 1, 1])
     ipcur = InsetPosition(axctrl, [0.1, 0.1, 0.3, 0.2])
@@ -164,12 +165,3 @@ def view3ds(data, topos=[], ch_names=[], didv=None, fit_didv=None, extent=[],
     # radcut.label.set_fontsize(12)
 
     plt.show(block=True)
-
-# fname = '201201_FeSeTe_006_001.3ds'
-# data = stmpy.load(fname, biasOffset=False)
-# data.z = stmpy.tools.lineSubtract(data.Z, n=1) #needs to be passed
-# data.LIX = data.grid['LI Demod 1 X (A)'] /2 + data.grid['LI Demod 1 X [bwd] (A)']/2 #needs to be passed. Hoffman lab uses LIY
-# fit_didv = stmpy.tools.butter_lowpass_filter(data.LIX, ncutoff=0.25, order=3)
-# view3ds(data, didv=data.LIX, fit_didv=fit_didv)
-# # view3ds(data, topos=[data.z, data.I[0],], ch_names=['Topo', 'Iset',], didv=data.LIX, fit_didv=fit_didv, 
-# #         cmap_topo=stmpy.cm.blue1, cmap_didv=stmpy.cm.als, cbar_topo='gold', cbar_didv='gold', use_blit=False)

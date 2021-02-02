@@ -208,6 +208,7 @@ class SpecLinkedCursors:
                 self.spec.set_ydata(self.axmap.volume[:, indices[1], indices[0]])
                 if self.fit_didv is not None:
                     self.spec_fit.set_ydata(self.fit_didv[:, self._last_indices[1], self._last_indices[0]])
+                self.axspec.autoscale(enable=True, axis='both')
                 self.axspec.relim()
                 self.axspec.autoscale_view()
                 if self.use_blit:
