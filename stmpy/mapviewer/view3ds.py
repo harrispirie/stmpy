@@ -25,7 +25,7 @@ def view3ds(data, topos=[], ch_names=[], didv=None, fit_didv=None, extent=[],
           ch_names - list of channel names (str) to be shown in the topo window. If not given, ['Topo',] will be used.
           didv - A 3d array, each slice of which has a same shape as a topo channel, to be shown in the map window. If not given, data.LIY will be shown.
           fit_didv - An additional 3d array, having a same shape as didv, whose same location spectrum to be overlayed in the spectrum window.
-          extent - list of four floats, same the extent argument in plt.imshow, defining the extent of topo and map windows.
+          extent - list of four floats, same the extent argument in plt.imshow, defining the extent of topo and map windows. If not given, scan fields info will be used.
           cmap_topo, cmap_didv - Colormap instances for topo and map window, respectively.
           cbar_topo, cbar_didv - colors to be assigned to the color limit indicators in the colorbars
           use_blit - boolean, use blitting or not. Defaut is False, try switching it to True if interactive tools are sluggish.
@@ -33,7 +33,7 @@ def view3ds(data, topos=[], ch_names=[], didv=None, fit_didv=None, extent=[],
           ...
           %matplotlib qt # switch to qt backend
           from stmpy.mapviewer.view3ds import view3ds
-          view3ds(data, topos=[data.Z,], ch_names=['Topo',], didv=data.liy, fit_didv=data.fit, extent=[0, 10e-9, 0, 10e-9])
+          view3ds(data, topos=[data.Z,], ch_names=['Topo',], didv=data.liy, fit_didv=data.fit)
           %matplotlib inline # switch back to inline
           ...
     '''
