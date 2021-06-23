@@ -2144,3 +2144,43 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
         else:
             out = m, g0, g1
     return out
+
+
+def enhance_resolution(x, y, n):
+    '''
+    Enhances real-space resolution by zero-padding the FT of y(x).
+    Doesn't add any higher harmonics.
+
+    IMPLEMENTED ONLY FOR 1D DATA
+
+    Inputs:
+        x    - Required : 1D array of x values.
+        y    - Required : 1D array of y values (in real space).
+        n    - Required : Integer for enhancement factor.
+                          An odd n will maintain the existing y points.
+
+    Returns:
+        xNew - 1D array containing new x values, will have n*len(x)
+               or n*len(x) + 1 elements for n even or odd.
+        yNew - 1D array of Fourier-interpolated y values.
+
+    History:
+        2021-06-23  - HP : Initial commit.
+    '''
+    N = len(x)
+    w = fftfreq(N, N)
+    dw = w[1]-w[0]
+    dx = x[1]-x[0]
+
+    if n%2 == 0:
+        wNew = np.linspace(n*(w[0]-dw/2), n*(w[-1]+dw/2), n*N+1)
+        xNew = np.linspace(x[0]-dx/n, x[-1]+dx, n*N+1)
+    else:
+        wNew = np.linspace(n*(w[0]-dw/2), n*(w[-1]+dw/2), n*N)
+        xNew = np.linspace(x[0]-dx/n, x[-1]+dx, n*N)
+
+    yf = fft(y, output='complex')
+    yNewf = np.zeros_like(wNew, dtype=np.complex128)
+    yNewf[n*N//2 - N//2 : n*N//2 - N//2 + N] = yf
+    yNew = ifft(yNewf)
+    return xNew, n*yNew
