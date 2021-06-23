@@ -52,6 +52,8 @@ def find_drift_parameter(A, r=None, w=None, mask3=None, cut1=None, cut2=None, bp
         cut1        - Optional : List of length 1 or length 4, specifying how much bad area or area with too large drift to be cut
         cut2        - Optional : List of length 1 or length 4, specifying after local drift correction how much to crop on the edge
         angle_offset- Optional : The min offset angle of the Bragg peak to the x-axis, in unit of rad
+        bp_angle    - Optional : The angle between neighboring Bragg peaks, if not given, it will be computed based on all Bragg peaks
+        orient      - Optional : The orientation of the Bragg peaks with respect to the x-axis
         bp_c        - Optional : The correct Bragg peak position that user wants after the drift correction  
         sigma       - Optional : Floating number specifying the size of mask to be used in phasemap()
         method      - Optional : Specifying which method to apply the drift correction
