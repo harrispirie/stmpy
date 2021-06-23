@@ -69,6 +69,7 @@ def find_drift_parameter(A, r=None, w=None, mask3=None, cut1=None, cut2=None, bp
     History:
         06/23/2020  - RL : Initial commit.
     '''
+    p = {}
     if cut1 is not None:
         A = cropedge(A, n=cut1)
 
@@ -111,6 +112,7 @@ def find_drift_parameter(A, r=None, w=None, mask3=None, cut1=None, cut2=None, bp
         bp3 = findBraggs(z_temp, r=r, w=w, mask3=mask3, even_out=even_out, **kwargs)
         force_commen = True
         z_c = cropedge(z_temp, n=cut2, bp=bp3, force_commen=force_commen)
+        p['bp3'] = bp3
     
     # This part displays the intermediate maps in the process of drift correction
     if show is True:
@@ -136,7 +138,6 @@ def find_drift_parameter(A, r=None, w=None, mask3=None, cut1=None, cut2=None, bp
         ax[1,0].imshow(z_c, cmap=stmpy.cm.blue2, origin='lower', clim=[c2-5*s2, c2+5*s2])
         ax[1,1].imshow(B_fft, cmap=stmpy.cm.gray_r, origin='lower', clim=[0, c1+5*s1])
     
-    p = {}
     p['cut1'] = cut1
     p['cut2'] = cut2
     p['r'] = r
@@ -146,12 +147,13 @@ def find_drift_parameter(A, r=None, w=None, mask3=None, cut1=None, cut2=None, bp
     p['method'] = method
     p['even_out'] = even_out
     p['bp_c'] = bp_c
+    p['bp_angle'] = bp_angle
+    p['orient'] = orient
     p['bp1'] = bp1
     p['phix'] = phix
     p['phiy'] = phiy
     p['ux'] = ux
     p['uy'] = uy
-    p['bp3'] = bp3
 
     return z_c, p
 
@@ -325,7 +327,7 @@ def find_drift(self, A, r=None, w=None, mask3=None, cut1=None, cut2=None, \
                                 show=show, even_out=even_out, **kwargs)
         # self.bp1 = findBraggs(A, obj=self, show=show)
 
-    self.bp1 = sortBraggs(self.bp1, s=s=np.shape(A))
+    self.bp1 = sortBraggs(self.bp1, s=np.shape(A))
     if self.parameters['angle'] is None:
         N = len(self.bp1)
         Q = bp_to_q(self.bp1, A)
