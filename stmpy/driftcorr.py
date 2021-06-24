@@ -76,7 +76,7 @@ def find_drift_parameter(A, r=None, w=None, mask3=None, cut1=None, cut2=None, bp
         A = cropedge(A, n=cut1)
 
     # find the Bragg peak before the drift correction 
-    bp1 = findBraggs(A, r=r, w=w, mask3=mask3, show=show, even_out=even_out, **kwargs)
+    bp1 = findBraggs(A, r=r, w=w, mask3=mask3, show=show, **kwargs)
     bp1 = sortBraggs(bp1, s=np.shape(A))
 
     if bp_c is None:
@@ -109,9 +109,8 @@ def find_drift_parameter(A, r=None, w=None, mask3=None, cut1=None, cut2=None, bp
     if cut2 is None:
         z_c = z_temp
     else:
-        bp3 = findBraggs(z_temp, r=r, w=w, mask3=mask3, even_out=even_out, **kwargs)
-        force_commen = True
-        z_c = cropedge(z_temp, n=cut2, bp=bp3, force_commen=force_commen)
+        bp3 = findBraggs(z_temp, r=r, w=w, mask3=mask3, **kwargs)
+        z_c = cropedge(z_temp, n=cut2, bp=bp3, force_commen=True)
         p['bp3'] = bp3
     
     # This part displays the intermediate maps in the process of drift correction
@@ -470,7 +469,7 @@ def __update_parameters(obj, a0=None, bp=None, pixels=None, size=None, use_a0=Tr
 #1 - findBraggs
 def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
                  w=None, mask3=None, even_out=False, precise=False, 
-                 gauss_width=10, p0=None, show=False):
+                 width=10, p0=None, show=False):
     '''
     Find Bragg peaks in the unit of pixels of topo or FT pattern A using peak_local_max. If obj is offered,
     an attribute of bp will be created for obj.
@@ -489,7 +488,7 @@ def findBraggs(A, rspace=True, min_dist=5, thres=0.25, r=None,
                                     Set mask3=None will disable this mask.
         even_out    - Optional : Boolean, if True then Bragg peaks will be rounded to the make sure there are even number of lattice
         precise     - Optional : Boolean, if True then a 2D Gaussian fit will be used to find the precise location of Bragg peaks
-        gauss_width       - Optional : Integer, defines how large the 2D Gaussian fit will be performed around each Bragg peaks
+        width       - Optional : Integer, defines how large the 2D Gaussian fit will be performed around each Bragg peaks
         p0          - Optional : List of initial parameters for fitting. Default: p0 = [amplitude,x0,y0,sigmaX,sigmaY,offset]=[1, width, width, 1, 1, 0]
         show        - Optional : Boolean, if True then data A and Bragg peaks will be plotted.
 
@@ -668,16 +667,10 @@ def cropedge(A, n, bp=None, c1=2, c2=2,
         *_, L2, L1 = np.shape(A)
         if bp is None:
             bp = findBraggs(A, show=False)
-        # bp = sortBraggs(bp, s=np.array([L2, L1]))
         bp = sortBraggs(bp, s=np.shape(A))
         bp_new = bp - (np.array([L1, L2])-1) // 2
-        #N1 = np.absolute(bp_new[0, 0] - bp_new[1, 0])
-        #N2 = np.absolute(bp_new[0, 1] - bp_new[-1, 1])
         N1 = compute_dist(bp_new[0], bp_new[1])
         N2 = compute_dist(bp_new[0], bp_new[-1])
-        #print(N1, N2)
-
-        offset = 0
 
         if a1 is None:
             a1 = c1 * L1 / N1
@@ -685,25 +678,21 @@ def cropedge(A, n, bp=None, c1=2, c2=2,
             a2 = a1
             #a2 = c2 * L2 / N2
         *_, L2, L1 = np.shape(B)
-        L_new1 = a1 * ((L1-offset)//(a1))
-        L_new2 = a2 * ((L2-offset)//(a2))
-        delta1 = (L1 - offset - L_new1) / 2
-        delta2 = (L2 - offset - L_new2) / 2
+        L_new1 = a1 * ((L1)//(a1))
+        L_new2 = a2 * ((L2)//(a2))
         t1 = np.arange(L1)
         t2 = np.arange(L2)
         if len(np.shape(A)) == 2:
             f = interp2d(t1, t2, B, kind='cubic')
-            t_new1 = np.linspace(delta1, L_new1+delta1, num=L1-offset+1)
-            t_new2 = np.linspace(delta2, L_new2+delta2, num=L2-offset+1)
-            #t_new1 = np.linspace(0, L_new1, num=L1-offset+1)
-            #t_new2 = np.linspace(0, L_new2, num=L2-offset+1)
+            t_new1 = np.linspace(0, L_new1, num=L1+1)
+            t_new2 = np.linspace(0, L_new2, num=L2+1)
             z_new = f(t_new1[:-1], t_new2[:-1])
         elif len(np.shape(A)) == 3:
-            z_new = np.zeros([np.shape(A)[0], L2-offset, L1-offset])
+            z_new = np.zeros([np.shape(A)[0], L2, L1])
             for i in range(len(A)):
                 f = interp2d(t1, t2, B[i], kind='cubic')
-                t_new1 = np.linspace(delta1, L_new1+delta1, num=L1-offset+1)
-                t_new2 = np.linspace(delta2, L_new2+delta2, num=L2-offset+1)
+                t_new1 = np.linspace(0, L_new1, num=L1+1)
+                t_new2 = np.linspace(0, L_new2, num=L2+1)
                 z_new[i] = f(t_new1[:-1], t_new2[:-1])
         else:
             print('ERR: Input must be 2D or 3D numpy array!')
@@ -1315,7 +1304,7 @@ def quick_show_cut(A, en, qscale, thres=5, thres2=None, saveon=False, qlimit=1.2
 # Quick show single images
 
 
-def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, qlimit=1.2, imgName='', extension='png', dpi=400):
+def quick_show_single(A, en, thres=5, fs=4, qscale=None, rspace=False, saveon=False, qlimit=1.2, imgName='', extension='png', dpi=400):
     layers = len(A)
     if rspace is False:
         if qscale is None:
@@ -1331,7 +1320,7 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
             ext = qscale
     if len(np.shape(A)) == 3:
         for i in range(layers):
-            plt.figure(figsize=[4, 4])
+            plt.figure(figsize=[fs, fs])
             c = np.mean(A[i])
             s = np.std(A[i])
             if rspace is True:
@@ -1355,7 +1344,7 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
                     plt.savefig("{} at {} mV.{}".format(imgName, int(
                         en[i]), extension), bbox_inches='tight', pad_inches=0)
     elif len(np.shape(A)) == 2:
-        plt.figure(figsize=[4, 4])
+        plt.figure(figsize=[fs, fs])
         c = np.mean(A)
         s = np.std(A)
         if rspace is True:
@@ -1373,7 +1362,7 @@ def quick_show_single(A, en, thres=5, qscale=None, rspace=False, saveon=False, q
         if saveon is True:
             if extension == 'png':
                 plt.savefig("{} at {} mV.{}".format(imgName, int(
-                    en[i]), extension), dpi=dpi, bbox_inches='tight', pad_inches=0)
+                    en), extension), dpi=dpi, bbox_inches='tight', pad_inches=0)
             else:
                 plt.savefig("{} at {} mV.{}".format(imgName, int(
-                    en[i]), extension), bbox_inches='tight', pad_inches=0)
+                    en), extension), bbox_inches='tight', pad_inches=0)
