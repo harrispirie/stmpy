@@ -107,8 +107,6 @@ def find_drift_parameter(A, r=None, w=None, mask3=None, cut1=None, cut2=None, bp
     
     # This part interpolates the drift corrected maps
     if cut2 is None:
-        cut2 = 0
-        force_commen = False
         z_c = z_temp
     else:
         bp3 = findBraggs(z_temp, r=r, w=w, mask3=mask3, even_out=even_out, **kwargs)
