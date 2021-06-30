@@ -4,6 +4,8 @@ from __future__ import print_function
 import stmpy
 import sys
 import numpy as np
+import xlsxwriter as xlsw
+import os
 import matplotlib as mpl
 #import scipy.interpolate as sin  #this is a stupid name for this package...
 from scipy.interpolate import interp1d
@@ -2144,3 +2146,160 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
         else:
             out = m, g0, g1
     return out
+
+
+
+
+
+def export_3ds_summary(folder, fname, minsize,prnt="true"):
+    '''
+   Creates a Excel spreadsheet with thumbnails and setup data of all .3ds (DOS-maps) files in a specific folder and all subfolders
+   
+    Inputs:
+        folder   - Required : Path to data folder in which spreadsheet will also be saved .
+        fname    - Required : Filename for Excel file that is created. Example: "summary.xlsx".
+        minsize  - Required : minimum filesize for .3ds files 1D array containing y values of the first curve.
+        prnt     - Optional : prnt="true" to print list of files that are found.
+
+    Returns:
+        intersect - Float for the intersection of the two curves.
+
+    History:
+        2021-06-29  - CEM : Initial commit.
+    '''
+    # %%capture
+    filelist = create_filelist(folder,minsize,prnt=prnt)
+    headers, lastrow = make_thumbnails(filelist)
+    write_xls_file(folder, fname, filelist, headers, lastrow)
+
+def list_subfolders(folder):
+     # list of all folders
+    if folder[-1]!="/":
+        folder+="/"    
+    dirs = [folder]
+    for ix in os.listdir(folder):
+        if os.path.isdir(folder+ix):
+            subdirs=list_subfolders(folder+ix+'/')
+            for ix in subdirs:
+                dirs.append(ix)
+    return dirs
+
+def create_filelist(folder,filesize,prnt="false"):
+    # find all 3ds files in "folder" subfolders which are bigger than "filesize" in MB. 
+    # full file path
+    # iterates through given folder and its subfolders (only the next layer of subfolders)
+
+        # folder = 'D:\GoogleDrive\Projects_GD\CeBi_SurfMag/data/CeBi_2018_DOS_maps/'
+
+    filelist = []
+    # dirs=[folder] # list of directories
+
+    dirs=list_subfolders(folder)
+
+    # browse through directories and get list of full filelist with files larger than 1MB
+    for i,jx in enumerate(dirs):
+        for ix in os.listdir(jx):
+            if (ix.endswith(".3ds") and os.stat(jx+ix).st_size>filesize*1e6): #checks if file ends on .3ds and if it is larger than 1000 kByte
+                filelist.append(jx+ix)
+    if prnt=="true":
+        # Print files and size
+        for i,jx in enumerate(filelist):
+             print(i, jx, ':', str(os.stat(jx).st_size/1e6),'MB')
+    return filelist
+def make_thumbnails(filelist):
+    # load files, plot and save thumbnail image (.png) with same name as file for a list "filelist". 
+    # produces list of headers
+    fig, ax=mpl.pyplot.subplots(1,2,figsize=[4,1.1])
+    lastrow=[]
+    headers = []
+
+    for i,ix in enumerate(filelist):
+        ax[0].cla()
+        ax[1].cla()
+        d=stmpy.load(ix);
+        headers.append(d.header)
+        d.z=stmpy.tools.lineSubtract(d.Z)
+        imss=str(round(float(d.header['Grid settings'].split(";")[2])*1e9, 1)) #image size in nanometers in x direction
+        imss2=str(round(float(d.header['Grid settings'].split(";")[3])*1e9, 1)) # image size in nanometers in y direction
+        impx=float(d.header['Grid dim'].split("x")[0][1:-1])    # number of pixels in x direction
+        for r, rw in enumerate(d.z): # normalize each scanline by its maximum
+            if(max(rw)>0):
+                lr=r #last row before abortion
+                d.z[r,:]/=max(rw)    
+        ax[0].imshow(d.z,clim=[np.mean(d.z[0:lr,:])-3*np.std(d.z[0:lr,:]), np.mean(d.z[0:lr,:])+3*np.std(d.z[0:lr,:])], aspect=1)
+        if lr>0:
+            d.zfft=stmpy.tools.fft(d.z[0:lr,:],zeroDC=True)
+        else: 
+            d.zfft=d.z*0
+        ax[1].imshow(d.zfft,cmap=stmpy.cm.gray_r, clim=[0, np.mean(d.zfft[0:lr,:])+1*np.std(d.zfft[0:lr,:])],aspect=1)
+        stmpy.image.add_label(imss+" x "+ imss2 + " nm",fs=7.5,ax=ax[0])
+
+        lastrow.append(lr)
+        print(filelist[i])
+        for j, jx in enumerate(ax):
+            jx.set_xticks([])
+            jx.set_yticks([])
+        # tight_layout()
+        mpl.pyplot.savefig(filelist[i][:-4]+".png",dpi=100)
+    return headers, lastrow
+
+def write_xls_file(folder, filename, filelist, headers, lastrow):
+    # write all info into .xlsx file with name "filename" in "folder" and copy thumbnails
+#     workbook = xlsw.Workbook(folder+'DOSmap2019_datalog.xlsx')
+
+    workbook = xlsw.Workbook(folder+"/"+filename)
+    logsh = workbook.add_worksheet()
+    # format .xlsx sheet
+    center = workbook.add_format({'align': 'center'})
+    left = workbook.add_format({'align': 'left'})
+    cenbold   = workbook.add_format({'align': 'center', 'bold': True})
+    logsh.set_column(0,0,45, center) #Width of first column
+    logsh.set_column(1,1,35, center) #Width of second column
+    logsh.set_column(2,20,12, center) #Width of columns A - T to 20
+    logsh.set_column(13,14,35, center) #Width of columns A - T to 20
+
+    # make header of excel file
+    xlsheader=['Thumbnail', 'Filename', 'Folder', 'Bias [mV]', 'Setpoint [pA]','Bias excit. [mV]',  'Sweep Range [mV]', '#Bias points', 
+             'Int time [ms]', '# sweeps', 'Size [nm]', '# pts', 'Feedback', 'comment', 'comment2']
+    for i, ix in enumerate(xlsheader):
+        logsh.write(0,i, ix, cenbold)
+
+    #fill in logsheet 
+    for i,ix in enumerate(headers):
+#         print(filelist[i])
+        logsh.set_row(i+1,65) #height of rows
+        logsh.insert_image(i+1, 0, filelist[i][:-4]+'.png')     # add thumbnail  
+        logsh.write(i+1,1,filelist[i].split('/')[-1], left) 
+    #     logsh.write(i+1,2,ix['NanonisMain>Session Path'].split('\\')[5])
+        logsh.write(i+1,2,filelist[i].split('/')[-2])
+        if 'Bias>Bias (V)' in ix.keys():
+            logsh.write(i+1,3,float(ix['Bias>Bias (V)'])*1e3) #Bias [mV]
+        if 'Z-Controller>Setpoint' in ix.keys():
+            logsh.write(i+1,4,float(ix['Z-Controller>Setpoint'])*1e12) # Setpoint [pA]
+        if 'Lock-in>Amplitude M1' in ix.keys():
+                logsh.write(i+1,5,float(ix['Lock-in>Amplitude M1'])*1000) # Bias excit
+        elif 'Lock-in>Amplitude' in ix.keys():
+                logsh.write(i+1,5,float(ix['Lock-in>Amplitude'])*1000) # Bias excit
+        if 'Bias Spectroscopy>Sweep Start (V)' in ix.keys():
+            logsh.write(i+1,6,str(float(ix['Bias Spectroscopy>Sweep Start (V)'])*1e3)+" -> "+str(float(ix['Bias Spectroscopy>Sweep End (V)'])*1e3)) # sweep range [mV]
+        if 'Points' in ix.keys():
+            logsh.write(i+1,7,int(ix['Points'])) # #Bias points
+        if 'Bias Spectroscopy>Integration time (s)' in ix.keys():
+            logsh.write(i+1,8,float(ix['Bias Spectroscopy>Integration time (s)'])*1e3) # int time [ms]
+        if 'Bias Spectroscopy>Number of sweeps' in ix.keys():
+            logsh.write(i+1,9,int(ix['Bias Spectroscopy>Number of sweeps'])) # #sweeps
+        if 'Grid settings' in ix.keys():
+            logsh.write(i+1,10,str(round(float(ix['Grid settings'].split(";")[2])*1e9, 1))+' x '+str(round(float(ix['Grid settings'].split(";")[3])*1e9, 1))) # scanfield size [nm]
+        if 'Grid dim' in ix.keys():
+            logsh.write(i+1,11,ix['Grid dim']) # #pts in scanfield
+        if 'Bias Spectroscopy>Z-controller hold' in ix.keys():
+            if ix['Bias Spectroscopy>Z-controller hold']=='FALSE':
+                logsh.write(i+1,12,"ON") # #Feedback on or off    
+            else:
+                logsh.write(i+1,12,"OFF") # #Feedback on or off    
+        impx=float(ix['Grid dim'].split("x")[0][1:-1]) #image pixels
+        if lastrow[i]<impx-1:
+            logsh.write(i+1,13,'aborted after '+str(lastrow[i])+' lines') # comment
+        if 'Comment' in ix.keys():
+            logsh.write(i+1,14,ix['Comment'], left) # #pts in scanfield
+    workbook.close()
