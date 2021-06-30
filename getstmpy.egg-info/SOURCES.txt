@@ -16,6 +16,7 @@ stmpy/io.py
 stmpy/matio.py
 stmpy/read_STMView.py
 stmpy/read_all.py
+stmpy/read_rhk_sm4.py
 stmpy/tools.py
 stmpy/color/__init__.py
 stmpy/color/colormap.py
