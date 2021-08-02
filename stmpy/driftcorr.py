@@ -1136,6 +1136,9 @@ def bp_to_q(bp, A):
     return bp - center
 
 
+
+
+
 #15. - display
 
 
@@ -1366,3 +1369,217 @@ def quick_show_single(A, en, thres=5, fs=4, qscale=None, rspace=False, saveon=Fa
             else:
                 plt.savefig("{} at {} mV.{}".format(imgName, int(
                     en), extension), bbox_inches='tight', pad_inches=0)
+
+
+#11. - global_corr
+
+
+def global_corr(A, bp=None, show=False, angle=np.pi/2, orient=np.pi/4, obj=None, update_obj=False, **kwargs):
+    """
+    Global shear correct the 2D topo automatically.
+    Inputs:
+        A           - Required : 2D array of topo to be shear corrected.
+        bp          - Optional : Bragg points. If not offered, it will calculated from findBraggs(A)
+        show        - Optional : Boolean specifying if the results are plotted or not
+        angle       - Optional : Angle of the lattice. If the lattice is n-fold symmetry, then angle = 2*pi/n
+        orient      - Optional : orientation of the Bragg peaks, default as pi/4. Will be passed to gshearcorr
+        **kwargs    - Optional : keyword arguments for gshearcorr function
+        obj         - Optional : Data object that has bp_parameters with it,
+        update_obj  - Optional : Boolean, determines if the bp_parameters attribute will be updated according to current input.
+    Returns:
+        bp_1    - Bragg peaks returned by gshearcorr. To be used in local_corr()
+        data_1  - 2D array of topo after global shear correction
+    Usage:
+        import stmpy.driftcorr as dfc
+        matrix1, data1 = dfc.global_corr(A, show=True)
+    History:
+        04/29/2019      RL : Initial commit.
+    """
+    if obj is None:
+        return __global_corr(A, bp=bp, show=show, angle=angle, orient=orient, **kwargs)
+    else:
+        if bp is None:
+            bp = findBraggs(A, obj=obj)
+        matrix, A_gcorr = __global_corr(
+            A, bp=bp, show=show, angle=angle, orient=orient, **kwargs)
+        if update_obj is not False:
+            obj.matrix.append(matrix)
+            bp_new = findBraggs(A_gcorr, obj=obj)
+            pixels = np.shape(A_gcorr)[::-1]
+            __update_parameters(obj, a0=obj.parameters['a0'], bp=bp_new, pixels=pixels,
+                                size=obj.parameters['size'], use_a0=obj.parameters['use_a0'])
+        return matrix, A_gcorr
+
+
+def __global_corr(A, bp=None, show=False, angle=np.pi/2, orient=np.pi/4, **kwargs):
+
+    *_, s2, s1 = np.shape(A)
+    if bp is None:
+        bp_1 = findBraggs(A, thres=0.2, show=show)
+    else:
+        bp_1 = bp
+    m, data_1 = gshearcorr(A, bp_1, rspace=True, angle=angle, orient=orient, **kwargs)
+    if show is True:
+        fig, ax = plt.subplots(1, 2, figsize=[8, 4])
+        ax[0].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[0].set_xlim(0, s1)
+        ax[0].set_ylim(0, s2)
+        ax[1].imshow(stmpy.tools.fft(data_1, zeroDC=True),
+                     cmap=stmpy.cm.gray_r, origin='lower')
+        fig.suptitle('After global shear correction', fontsize=14)
+        fig, ax = plt.subplots(2, 2, figsize=[8, 8])
+        ax[0, 0].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[0, 1].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[1, 0].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[1, 1].imshow(data_1, cmap=stmpy.cm.blue2, origin='lower')
+        ax[0, 0].set_xlim(0, s1/10)
+        ax[0, 0].set_ylim(s2-s2/10, s2)
+        ax[0, 1].set_xlim(s1-s1/10, s1)
+        ax[0, 1].set_ylim(s2-s2/10, s2)
+        ax[1, 0].set_xlim(0, s1/10)
+        ax[1, 0].set_ylim(0, s2/10)
+        ax[1, 1].set_xlim(s1-s1/10, s1)
+        ax[1, 1].set_ylim(0, s2/10)
+        fig.suptitle('Bad pixels in 4 corners', fontsize=14)
+    return m, data_1
+
+#12. - local_corr
+
+
+def local_corr(A, bp=None, sigma=10, method="lockin", fixMethod='unwrap',
+               obj=None, update_obj=False, show=False):
+    """
+    Locally drift correct 2D topo automatically.
+    Inputs:
+        A           - Required : 2D array of topo after global shear correction, with bad pixels removed on the edge
+        sigma       - Optional : Floating number or list specifying the size of mask to be used in phasemap()
+        bp          - Optional : Bragg points. If not offered, it will calculated from findBraggs(A)
+        method      - Optional : Specifying which method to in phasemap()
+                                "lockin": Spatial lock-in method to find phase map
+                                "convolution": Gaussian mask convolution method to find phase map
+        fixMethod   - Optional : Specifying which method to use in fixphaseslip()
+                                "unwrap": fix phase jumps line by line in x direction and y direction, respectively
+                                "spiral": fix phase slip in phase shift maps by flattening A into a 1D array in a spiral way
+        show        - Optional : Boolean specifying if the results are plotted or not
+        obj         - Optional : Data object that has bp_parameters with it,
+        update_obj  - Optional : Boolean, determines if the bp_parameters attribute will be updated according to current input.
+        **kwargs    - Optional : key word arguments for findBraggs function
+    Returns:
+        ux          - 2D array of drift field in x direction
+        uy          - 2D array of drift field in y direction
+        data_corr   - 2D array of topo after local drift corrected
+    Usage:
+        import stmpy.driftcorr as dfc
+        ux, uy, data_corr = dfc.local_corr(A, sigma=5, method='lockin', fixMethod='unwrap', show=True)
+    History:
+        04/29/2019      RL : Initial commit.
+    """
+    if obj is None:
+        return __local_corr(A, bp=bp, sigma=sigma, method=method, fixMethod=fixMethod, show=show)
+    else:
+        if bp is None:
+            bp = findBraggs(A, obj=obj)
+        ux, uy, A_corr = __local_corr(A, bp=bp, sigma=sigma, method=method,
+                                      fixMethod=fixMethod, show=show)
+        if update_obj is not False:
+            obj.ux.append(ux)
+            obj.uy.append(uy)
+        return ux, uy, A_corr
+
+
+def __local_corr(A, bp=None, sigma=10, method="lockin", fixMethod='unwrap', show=False):
+
+    *_, s2, s1 = np.shape(A)
+    if bp is None:
+        bp_2 = findBraggs(A, thres=0.2, show=show)
+    else:
+        bp_2 = bp
+    thetax, thetay, Q1, Q2 = phasemap(A, bp=bp_2, method=method, sigma=sigma)
+    if show is True:
+        fig, ax = plt.subplots(1, 2, figsize=[8, 4])
+        ax[0].imshow(thetax, origin='lower')
+        ax[1].imshow(thetay, origin='lower')
+        fig.suptitle('Raw phase maps')
+    thetaxf = fixphaseslip(thetax, method=fixMethod)
+    thetayf = fixphaseslip(thetay, method=fixMethod)
+    if show is True:
+        fig, ax = plt.subplots(1, 2, figsize=[8, 4])
+        ax[0].imshow(thetaxf, origin='lower')
+        ax[1].imshow(thetayf, origin='lower')
+        fig.suptitle('After fixing phase slips')
+    ux, uy = driftmap(thetaxf, thetayf, Q1, Q2, method=method)
+    if method == 'lockin':
+        data_corr = driftcorr(A, ux, uy, method='lockin',
+                              interpolation='cubic')
+    elif method == 'convolution':
+        data_corr = driftcorr(A, ux, uy, method='convolution',)
+    else:
+        print("Error: Only two methods are available, lockin or convolution.")
+    if show is True:
+        fig, ax = plt.subplots(2, 2, figsize=[8, 8])
+        ax[1, 0].imshow(data_corr, cmap=stmpy.cm.blue1, origin='lower')
+        ax[1, 1].imshow(stmpy.tools.fft(data_corr, zeroDC=True),
+                        cmap=stmpy.cm.gray_r, origin='lower')
+        ax[0, 0].imshow(A, cmap=stmpy.cm.blue1, origin='lower')
+        ax[0, 1].imshow(stmpy.tools.fft(A, zeroDC=True),
+                        cmap=stmpy.cm.gray_r, origin='lower')
+        fig.suptitle('Before and after local drift correction')
+    return ux, uy, data_corr
+
+#14. - apply_dfc_3d
+
+
+def apply_dfc_3d(A, ux=None, uy=None, matrix=None, bp=None, n1=None, n2=None, obj=None, update_obj=False, method='lockin'):
+    """
+    Apply drift field (both global and local) found in 2D to corresponding 3D map.
+    Inputs:
+        A           - Required : 3D array of map to be drift corrected
+        bp          - Required : Coordinates of Bragg peaks returned by local_corr()
+        ux          - Required : 2D array of drift field in x direction. Usually generated by local_corr()
+        uy          - Required : 2D array of drift field in y direction. Usually generated by local_corr()
+        crop1       - Optional : List of length 1 or length 4, specifying after global shear correction how much to crop on the edge
+        crop2       - Optional : List of length 1 or length 4, specifying after local drift correction how much to crop on the edge
+        method      - Optional : Specifying which method to apply the drift correction
+                                    "lockin": Interpolate A and then apply it to a new set of coordinates,
+                                                    (x-ux, y-uy)
+                                    "convolution": Used inversion fft to apply the drift fields
+        obj         - Optional : Data object that has bp_parameters with it,
+        update_obj  - Optional : Boolean, determines if the bp_parameters attribute will be updated according to current input.
+    Returns:
+        data_corr   - 3D array of topo after local drift corrected
+    Usage:
+        import stmpy.driftcorr as dfc
+        data_corr = dfc.apply_dfc_3d(A, bp=bp, ux=ux, uy=uy, n1=n1, n2=n2, bp=bp, method='convolution')
+    History:
+        04-29-2019      RL : Initial commit.
+        05-25-2020      RL : Add support for object inputs
+    """
+    if obj is None:
+        return __apply_dfc_3d(A, ux=ux, uy=uy, matrix=matrix, bp=bp, n1=n1, n2=n2, method=method)
+    else:
+        ux = obj.ux if ux is None else ux
+        uy = obj.uy if uy is None else uy
+        # matrix = obj.matrix if matrix is None else matrix
+        bp = obj.bp if bp is None else bp
+        return __apply_dfc_3d(A, ux=ux, uy=uy, matrix=matrix, bp=bp, n1=n1, n2=n2, method=method)
+
+
+def __apply_dfc_3d(A, ux, uy, matrix, bp=None, n1=None, n2=None, method='lockin'):
+
+    data_c = np.zeros_like(A)
+    if matrix is None:
+        data_c = np.copy(A)
+    else:
+        for i in range(len(A)):
+            _, data_c[i] = gshearcorr(A[i], matrix=matrix, rspace=True)
+    if n1 is None:
+        data_c = data_c
+    else:
+        data_c = cropedge(data_c, n=n1)
+    data_corr = driftcorr(data_c, ux=ux, uy=uy,
+                          method=method, interpolation='cubic')
+    if n2 is None:
+        data_out = data_corr
+    else:
+        data_out = cropedge(data_corr, bp=bp, n=n2, force_commen=True)
+    return data_out
