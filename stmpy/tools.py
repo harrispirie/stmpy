@@ -4,7 +4,6 @@ from __future__ import print_function
 import stmpy
 import sys
 import numpy as np
-import xlsxwriter as xlsw
 import os
 import matplotlib as mpl
 #import scipy.interpolate as sin  #this is a stupid name for this package...
@@ -2154,7 +2153,7 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
 def export_3ds_summary(folder, fname, minsize,prnt="true"):
     '''
    Creates a Excel spreadsheet with thumbnails and setup data of all .3ds (DOS-maps) files in a specific folder and all subfolders
-   
+
     Inputs:
         folder   - Required : Path to data folder in which spreadsheet will also be saved .
         fname    - Required : Filename for Excel file that is created. Example: "summary.xlsx".
@@ -2166,8 +2165,10 @@ def export_3ds_summary(folder, fname, minsize,prnt="true"):
 
     History:
         2021-06-29  - CEM : Initial commit.
+        2021-08-04  - HP  : Removed xlsxwriter dependency 
     '''
     # %%capture
+    import xlsxwriter as xlsw
     filelist = create_filelist(folder,minsize,prnt=prnt)
     headers, lastrow = make_thumbnails(filelist)
     write_xls_file(folder, fname, filelist, headers, lastrow)
@@ -2175,7 +2176,7 @@ def export_3ds_summary(folder, fname, minsize,prnt="true"):
 def list_subfolders(folder):
      # list of all folders
     if folder[-1]!="/":
-        folder+="/"    
+        folder+="/"
     dirs = [folder]
     for ix in os.listdir(folder):
         if os.path.isdir(folder+ix):
@@ -2185,7 +2186,7 @@ def list_subfolders(folder):
     return dirs
 
 def create_filelist(folder,filesize,prnt="false"):
-    # find all 3ds files in "folder" subfolders which are bigger than "filesize" in MB. 
+    # find all 3ds files in "folder" subfolders which are bigger than "filesize" in MB.
     # full file path
     # iterates through given folder and its subfolders (only the next layer of subfolders)
 
@@ -2207,7 +2208,7 @@ def create_filelist(folder,filesize,prnt="false"):
              print(i, jx, ':', str(os.stat(jx).st_size/1e6),'MB')
     return filelist
 def make_thumbnails(filelist):
-    # load files, plot and save thumbnail image (.png) with same name as file for a list "filelist". 
+    # load files, plot and save thumbnail image (.png) with same name as file for a list "filelist".
     # produces list of headers
     fig, ax=mpl.pyplot.subplots(1,2,figsize=[4,1.1])
     lastrow=[]
@@ -2225,11 +2226,11 @@ def make_thumbnails(filelist):
         for r, rw in enumerate(d.z): # normalize each scanline by its maximum
             if(max(rw)>0):
                 lr=r #last row before abortion
-                d.z[r,:]/=max(rw)    
+                d.z[r,:]/=max(rw)
         ax[0].imshow(d.z,clim=[np.mean(d.z[0:lr,:])-3*np.std(d.z[0:lr,:]), np.mean(d.z[0:lr,:])+3*np.std(d.z[0:lr,:])], aspect=1)
         if lr>0:
             d.zfft=stmpy.tools.fft(d.z[0:lr,:],zeroDC=True)
-        else: 
+        else:
             d.zfft=d.z*0
         ax[1].imshow(d.zfft,cmap=stmpy.cm.gray_r, clim=[0, np.mean(d.zfft[0:lr,:])+1*np.std(d.zfft[0:lr,:])],aspect=1)
         stmpy.image.add_label(imss+" x "+ imss2 + " nm",fs=7.5,ax=ax[0])
@@ -2259,17 +2260,17 @@ def write_xls_file(folder, filename, filelist, headers, lastrow):
     logsh.set_column(13,14,35, center) #Width of columns A - T to 20
 
     # make header of excel file
-    xlsheader=['Thumbnail', 'Filename', 'Folder', 'Bias [mV]', 'Setpoint [pA]','Bias excit. [mV]',  'Sweep Range [mV]', '#Bias points', 
+    xlsheader=['Thumbnail', 'Filename', 'Folder', 'Bias [mV]', 'Setpoint [pA]','Bias excit. [mV]',  'Sweep Range [mV]', '#Bias points',
              'Int time [ms]', '# sweeps', 'Size [nm]', '# pts', 'Feedback', 'comment', 'comment2']
     for i, ix in enumerate(xlsheader):
         logsh.write(0,i, ix, cenbold)
 
-    #fill in logsheet 
+    #fill in logsheet
     for i,ix in enumerate(headers):
 #         print(filelist[i])
         logsh.set_row(i+1,65) #height of rows
-        logsh.insert_image(i+1, 0, filelist[i][:-4]+'.png')     # add thumbnail  
-        logsh.write(i+1,1,filelist[i].split('/')[-1], left) 
+        logsh.insert_image(i+1, 0, filelist[i][:-4]+'.png')     # add thumbnail
+        logsh.write(i+1,1,filelist[i].split('/')[-1], left)
     #     logsh.write(i+1,2,ix['NanonisMain>Session Path'].split('\\')[5])
         logsh.write(i+1,2,filelist[i].split('/')[-2])
         if 'Bias>Bias (V)' in ix.keys():
@@ -2294,9 +2295,9 @@ def write_xls_file(folder, filename, filelist, headers, lastrow):
             logsh.write(i+1,11,ix['Grid dim']) # #pts in scanfield
         if 'Bias Spectroscopy>Z-controller hold' in ix.keys():
             if ix['Bias Spectroscopy>Z-controller hold']=='FALSE':
-                logsh.write(i+1,12,"ON") # #Feedback on or off    
+                logsh.write(i+1,12,"ON") # #Feedback on or off
             else:
-                logsh.write(i+1,12,"OFF") # #Feedback on or off    
+                logsh.write(i+1,12,"OFF") # #Feedback on or off
         impx=float(ix['Grid dim'].split("x")[0][1:-1]) #image pixels
         if lastrow[i]<impx-1:
             logsh.write(i+1,13,'aborted after '+str(lastrow[i])+' lines') # comment
