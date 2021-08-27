@@ -1452,34 +1452,6 @@ def linecut(data, p0, p1, width=1, dl=1, dw=1, kind='linear',
     return r, cut
 
 
-def crop(data, cen, width=15):
-    '''Crops data to be square.
-
-    Inputs:
-        data    - Required : A 2D or 3D numpy array.
-        cen     - Required : A tuple containing location of the center
-                             pixel.
-        width   - Optional : Integer containing the half-width of the
-                             square to crop.
-
-    Returns:
-        croppedData - A 2D or 3D numpy square array of specified width.
-
-    Usage:
-        croppedData = crop(data, cen, width=15)
-
-    History:
-        2017-07-11  - HP : Initial commit.
-    '''
-    imcopy = data.copy()
-    if len(data.shape) == 2:
-        return imcopy[cen[1]-width : cen[1]+width,
-                      cen[0]-width : cen[0]+width]
-    elif len(data.shape) == 3:
-        return imcopy[:, cen[1]-width : cen[1]+width,
-                      cen[0]-width : cen[0]+width]
-
-
 def curve_fit(f, xData, yData, p0=None, vary=None, **kwarg):
     '''Fit a function to data allowing parameters to be fixed.
 
@@ -2165,7 +2137,7 @@ def export_3ds_summary(folder, fname, minsize,prnt="true"):
 
     History:
         2021-06-29  - CEM : Initial commit.
-        2021-08-04  - HP  : Removed xlsxwriter dependency 
+        2021-08-04  - HP  : Removed xlsxwriter dependency
     '''
     # %%capture
     import xlsxwriter as xlsw
@@ -2304,3 +2276,129 @@ def write_xls_file(folder, filename, filelist, headers, lastrow):
         if 'Comment' in ix.keys():
             logsh.write(i+1,14,ix['Comment'], left) # #pts in scanfield
     workbook.close()
+
+
+def crop(data, locs, n, output='all', kind='cubic'):
+    '''
+    Crop data around a single point or a series of points. Fills with np.nan
+    if the crop area exceeds the image boundaries.
+
+    Inputs:
+        data    - Required : A 2D or 3D numpy array.
+        locs    - Required : Array/list of the center point(s) for each crop
+                             e.g locs = [x0, y0] or [[x0, y0], [x1, y1], ...]
+        n       - Required : Integer describing the crop size. Each crop
+                             will be 2*n+1 by 2*n+1.
+        output  - Optional : String determining output operation:
+                            'all' returns all cropped images (one for each point)
+                            'mean' returns the average cropped image.
+        kind    - Optional : Sting for interpolation scheme. The options are:
+                             'nearest', 'linear', 'cubic', 'quintic'.
+                             Interpolated data fills with np.nan to ensure image
+                             is square. Using 'none' does not interpolate, so
+                             the output will not always be 2*n+1 by 2*n+1.
+
+    Returns:
+        cut -   2D, 3D, or 4D array containg the cropped data at each point(s).
+
+    History:
+        2021-08-26  - HP : Initial commit.
+    '''
+    def crop2D(data, locs, n, kind='cubic', flag=False):
+        out = np.zeros([locs.shape[0], 2*n+1, 2*n+1])
+        x = np.linspace(0, data.shape[-1]-1, data.shape[-1])
+        y = np.linspace(0, data.shape[-2]-1, data.shape[-2])
+        F = interp2d(x, y, data, kind=kind, fill_value=np.nan)
+        for ix, loc in enumerate(locs):
+            x0, y0 = loc
+            xint = np.linspace(x0 - n, x0 + n, 2*n+1)
+            yint = np.linspace(y0 - n, y0 + n, 2*n+1)
+            out[ix] = F(xint, yint)
+        if flag:
+            out = out[0]
+        return out
+    locs = np.array(locs)
+    flag = False
+    if locs.ndim == 1:
+        flag = True  # True if there is only one loc in locs
+        locs = array([locs])
+    if data.ndim == 2:
+        crops = crop2D(data, locs, n, kind=kind, flag=flag)
+    elif data.ndim == 3:
+        crops = np.zeros([locs.shape[0], data.shape[0], 2*n+1, 2*n+1])
+        for ix, layer in enumerate(data):
+            crops[:, ix] = crop2D(layer, locs, n, kind=kind, flag=flag)
+    else:
+        raise TypeError('Data must be a 2D or 3D numpy array.')
+    if flag or output == 'all':
+        out = crops.copy()
+    elif output == 'mean':
+        out = np.nanmean(crops, axis=0)
+    else:
+        raise ValueError('Unsupported output operation.')
+    return out
+
+
+def align_defects(Z, locs, n=5, method='peak'):
+    '''
+    Fine tunes locations to align Z[location] with each other.
+
+    Inputs:
+        Z       - Required : A 2D array (usually the topography).
+        locs    - Required : Array/list of the rough center for each defect
+                             e.g locs = [x0, y0] or [[x0, y0], [x1, y1], ...]
+        n       - Optional : Integer describing the image size to be aligned at
+                            each location (it's cropped to be 2*n+1 by 2*n+1).
+        method  - Optional : String determining alignment method:
+                            'peak' interpolates to find the max height at each
+                                location.
+                            'shift' adjusts location to minimizes the difference
+                                between Z[location] and Z[loc[0]].
+                            'xcorr' adjusts location to maximize the cross
+                                correlation between Z[location] and Z[loc[0]].
+
+    Returns:
+        newlocs -  2D, or 3D array containg the optimized defect locations.
+
+    History:
+        2021-08-26  - HP : Initial commit.
+    '''
+    flag = False
+    locs = np.array(locs)
+    if locs.ndim == 1:
+        locs = np.array([locs])
+        flag = True
+    x = np.linspace(0, Z.shape[-1]-1, Z.shape[-1])
+    y = np.linspace(0, Z.shape[-2]-1, Z.shape[-2])
+    F = interp2d(x, y, Z, kind='cubic', fill_value=np.nan)
+    if method == 'peak':
+        out = np.zeros_like(locs, dtype=np.float64)
+        F0 = lambda x: -F(*x)
+        for ix, loc in enumerate(locs):
+            x0, y0 = loc
+            bounds = ((x0 - n, x0 + n), (y0 - n, y0 + n))
+            out[ix] = opt.minimize(F0, x0=(x0,y0), bounds=bounds).x
+        if flag:
+            out = out[0]
+    elif method == 'shift' or 'xcorr':
+        if flag:
+            raise TypeError(
+                'At least 2 locs are needed to align with %s method' % method)
+        x0, y0 = locs[0]
+        X0 = np.linspace(x0 - n, x0 + n, 2*n+1)
+        Y0 = np.linspace(y0 - n, y0 + n, 2*n+1)
+        Z0 = F(X0, Y0)
+        F0 = interp2d(x, y, Z, kind='cubic', fill_value=0)
+        bounds = ((-n, n), (-n, n))
+        p = np.zeros(locs.shape)
+        for ix, loc in enumerate(locs[1:]):
+            x1, y1 = loc
+            X1 = np.linspace(x1 - n, x1 + n, 2*n+1)
+            Y1 = np.linspace(y1 - n, y1 + n, 2*n+1)
+            if method =='xcorr':
+                F1 = lambda p: -xcorr(Z0, F0(X1 - p[0], Y1 - p[1]))[n, n]
+            if method == 'shift':
+                F1 = lambda p: np.nanmean(np.absolute(Z0 - F(X1 - p[0], Y1 - p[1])))
+            p[ix+1] = opt.minimize(F1, x0=(0,0), bounds=bounds).x
+        out = locs - p
+    return out
