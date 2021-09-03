@@ -2321,7 +2321,7 @@ def crop(data, locs, n, output='all', kind='cubic'):
     flag = False
     if locs.ndim == 1:
         flag = True  # True if there is only one loc in locs
-        locs = array([locs])
+        locs = np.array([locs])
     if data.ndim == 2:
         crops = crop2D(data, locs, n, kind=kind, flag=flag)
     elif data.ndim == 3:
