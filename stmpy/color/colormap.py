@@ -141,9 +141,17 @@ cm.helix = invert_cmap(cm.cubehelix_r, name='helix')
 cm.gold = invert_cmap(cm.bone_r, name='gold')
 cm.als = _make_STMView_colormap('ALS.txt', name='als')
 cm.hpblue = _make_diverging_colormap([0,0,0],
-        [0.14901960784313725, 0.5450980392156862, 0.9176470588235294])
+        [0.14901960784313725, 0.5450980392156862, 0.9176470588235294], name='hpblue')
 cm.mhblue = _make_STMView_colormap('mhblue.mat', name='mhblue')
 cm.cemblue2 = _LSC.from_list("", ["k",_np.array([65,67,169])/256,"lavender","white",'yellow','orangered','darkred','k'])
+cm.bgray = _make_diverging_colormap(
+                (0.5019607843137255, 0.5019607843137255, 0.5019607843137255),
+                (0.0, 0.6823529411764706, 0.9372549019607843),
+                m=(0.93333333, 0.93333333, 0.93333333), name='bgray')
+cm.ogray = _make_diverging_colormap(
+                (0.5019607843137255, 0.5019607843137255, 0.5019607843137255),
+                (1.0, 0.7082352941176471, 0.2862352941176471),
+                m=(0.93333333, 0.93333333, 0.93333333), name='ogray')
 
 
 
@@ -152,7 +160,7 @@ cmaps = [cm.BuGy, cm.GnGy, cm.redblue, cm.autumn, cm.blue1, cm.blue2, cm.blue3,
          cm.defect0, cm.defect1, cm.defect2, cm.defect4, cm.gray,
          cm.sailingMod2, cm.jackyYRK, cm.jackyCopper, cm.jackyRdGy,
          cm.jackyPSD, cm.jason, cm.helix, cm.yanghe, cm.gold, cm.als,
-         cm.hpblue, cm.mhblue, cm.PuGn]
+         cm.hpblue, cm.mhblue, cm.cemblue2, cm.PuGn, cm.ogray, cm.bgray]
 
 for cmap in cmaps:
     rev = _reverse_LSC(cmap)
