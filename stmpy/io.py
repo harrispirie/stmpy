@@ -871,8 +871,44 @@ def load_asc(filePath):
 
         
 def load_sm4(filePath):
-    ''' Load RHK SM4 files into python. '''
-    import stmpy.read_rhk_sm4 as sm4
+    ''' Load RHK SM4 files into python.
+
+    Inputs:
+        filePath- Required : Name of the file
+        
+    Returns:
+        self.info     - information of the pages
+        self.header   - details of the pages
+        self.data     - all the data from all of the pages
+        self.en       - x axis for the spectropscopy data
+        self.Z        - Topography of the data
+        self.I        - Spectropscopy of the current data
+        self.iv       - Average of the current spectroscopy data
+        self.LIY      - Spectropscopy of the didv data
+        self.didv     - Average of the didv spectroscopy data
+        self.didvStd  - Standard deviation of all the didv spectropscopy data
+   
+    History:
+        2020-07-15  - WT : Initial commit.
+        2022-03-02  - KH: include try-except statement to warn user in case 
+                            RHK-SM4 package is not installed.
+      
+    '''
+    
+    try: 
+        import rhk_sm4.rhk_sm4 as sm4
+    except ModuleNotFoundError:
+        msg = """
+        
+        RHK-SM4 package not found. 
+        Install the RHK-SM4 package to use this loader function.
+        
+        Installation details can be found under: 
+            https://github.com/w24729695/RHK-SM4
+        
+        """
+        raise ModuleNotFoundError(msg)
+    
     f = sm4.load_sm4(filePath)
     self = Spy()
     self.info = {}
