@@ -235,6 +235,7 @@ def add_cbar(ax=None, im=None, orient='v', length='45%', thickness='7%',
     History:
         2019-11-02  - HP : Initial commit.
         2019-11-24  - HP : Added horizontal compatibility.
+        2022-03-07  - HP : Fixed compatibility issue with mpl 3.3
     '''
     fm ='%.' + str(sf) + 'f '
     ln = float(length.split('%')[0])/100
@@ -256,7 +257,7 @@ def add_cbar(ax=None, im=None, orient='v', length='45%', thickness='7%',
                         loc='lower left', bbox_to_anchor=(hPos, vPos, 1, 1),
                         bbox_transform=ax.transAxes, borderpad=0)
         cb = mpl.pyplot.colorbar(im, cax=axins, orientation='vertical')
-        low, high = cb.get_clim()
+        low, high = im.get_clim()
         axins.text(hPos+th/2, vPos+ln+labelpad, fm % high + units,
                 transform=ax.transAxes, fontsize=fs, ha='center')
         axins.text(hPos+th/2, vPos-labelpad, fm % low + units,
@@ -271,7 +272,7 @@ def add_cbar(ax=None, im=None, orient='v', length='45%', thickness='7%',
                         loc='lower left', bbox_to_anchor=(hPos, vPos, 1, 1),
                         bbox_transform=ax.transAxes, borderpad=0)
         cb = mpl.pyplot.colorbar(im, cax=axins, orientation='horizontal')
-        low, high = cb.get_clim()
+        low, high = im.get_clim()
         axins.text(hPos-labelpad, vPos+th/2, fm % low + units,
                 transform=ax.transAxes, fontsize=fs, ha='right', va='center')
         axins.text(hPos+ln+labelpad, vPos+th/2, fm % high + units,

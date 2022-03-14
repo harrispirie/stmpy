@@ -1888,10 +1888,47 @@ def thermal_broaden(en, didv, T, N=10000, mode='reflect', offset=None):
 
 
 
-def find_edges(img, sigma=1, mult=1, thresL=None, thresH=None, ax=None):
+def find_edges(img, sigma=1, mult=1, thresL=None, thresH=None, ax=None,
+               mode='reflect', **kwargs):
+    '''
+    Wrapper for skimage.feature.canny(). Normalizes data first.
+    Edge filter an image using the Canny algorithm.
+
+    Parameters
+    ----------
+    image : 2D array
+        Grayscale input image to detect edges on; can be of any dtype.
+    sigma : float, optional
+        Standard deviation of the Gaussian filter.
+    low_threshold : float, optional
+        Lower bound for hysteresis thresholding (linking edges).
+        If None, low_threshold is set to 10% of dtype's max.
+    high_threshold : float, optional
+        Upper bound for hysteresis thresholding (linking edges).
+        If None, high_threshold is set to 20% of dtype's max.
+    mask : array, dtype=bool, optional
+        Mask to limit the application of Canny to a certain area.
+    use_quantiles : bool, optional
+        If ``True`` then treat low_threshold and high_threshold as
+        quantiles of the edge magnitude image, rather than absolute
+        edge magnitude values. If ``True`` then the thresholds must be
+        in the range [0, 1].
+    mode : str, {'reflect', 'constant', 'nearest', 'mirror', 'wrap'}
+        The ``mode`` parameter determines how the array borders are
+        handled during Gaussian filtering, where ``cval`` is the value when
+        mode is equal to 'constant'.
+    cval : float, optional
+        Value to fill past edges of input if `mode` is 'constant'.
+
+    Returns
+    -------
+    output : 2D array (image)
+    The binary edge map.
+    '''
     from skimage import feature
     data = img - np.mean(img)
-    edges = feature.canny(data/np.max(data)*mult, sigma=sigma, low_threshold=thresL, high_threshold=thresH)
+    edges = feature.canny(data/np.max(data)*mult, sigma=sigma,
+                low_threshold=thresL, high_threshold=thresH, mode=mode, **kwargs)
     if ax is not None:
         ax.imshow(edges, cmap=stmpy.cm.gray_r, alpha=0.3)
     return edges
