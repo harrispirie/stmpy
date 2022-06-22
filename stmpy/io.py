@@ -11,6 +11,7 @@ Contents:
 Version history:
     1.0     2018-03-02  - HP : Initial release.
     1.1     2018-10-10  - HP : Python 3 compatibility
+    1.2     2022-06-22  - HP : Load Cornell file types
 
 TO DO:
     - Add support for .mat files
@@ -49,6 +50,10 @@ def load(filePath, biasOffset=True, niceUnits=False):
         .nvl    -   NISTview layer data, used for 3D DOS maps.
         .asc    -   ASCII file type.
         .sm4    -   RHK sm4 file type.
+        .2FL    -   Cornell LIY spectroscopy data (3D)
+        .1FL    -   Cornell current spectroscopy data (3D)
+        .TFR    -   Cornell topography data (2D)
+        .1FR    -   Cornell feedback current data (e.g. during a topo, 2D)
 
     For .3ds and .dat file types there is an optional flag to correct for bias offset
     that is true by default.  This does not correct for a current offset, and
@@ -88,6 +93,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2019-01-09  - BB : Generalize file extension extraction
         2019-02-28  - HP : Loads multisweep .dat files even if missing header.
         2020-07-12  - WT : Added support for sm4 file from rhk system.
+        2022-06-22  - HP : Added support for Cornell files: .2FL .1FL .TFR .1FR
 
     '''
     try:
@@ -105,7 +111,8 @@ def load(filePath, biasOffset=True, niceUnits=False):
             dataObject = _nice_units(dataObject, extension)
         return dataObject
 
-    elif extension in ['spy', 'sxm', 'nvi', 'nvl', 'nsp', 'asc', 'sm4']:
+    elif extension in ['spy', 'sxm', 'nvi', 'nvl', 'nsp', 'asc', 'sm4', 
+                       '2FL', '1FL', 'TFR', '1FR']:
         return eval(loadFn)(filePath)
 
   #  elif filePath.endswith('.mat'):
@@ -963,6 +970,110 @@ def load_sm4(filePath):
         self.Z = self.Z
     else:
         print('ERR: Z channel not found')
+    return self
+
+
+def _read_Cornell_header(fid):
+    def hread(r_offset, start, dtype, length):
+        fid.seek(r_offset + start - 1)
+        if dtype is 'str':
+            out = fid.read(length).decode('latin-1').rstrip('\x00')
+        else: 
+            out = np.fromfile(fid, dtype=dtype, count=length)[0]
+        return out
+
+    header = {}
+
+    ###### Document info #####
+    r_offset = 256
+    starts = [5, 25, 45, 179, 183, 151, 155, 225, 195, 205, 163, 167, 171, 175]
+    lengths = [1, 20, 40, 1, 1, 1, 1, 1, 10, 10, 1, 1, 1, 1]
+    dtypes = ['int32', 'str', 'str', 'float32', 'float32', 'int16', 'int16', 
+              'int16', 'str', 'str', 'float32', 'float32', 'float32', 'float32' ]
+    names = ['bit_offset', 'date', 'description', 'w_factor', 'w_zero', 'irows', 'icols', 
+             'ilayers', 'unit', 'xyunit', 'x_distmin', 'xdist', 'y_distmin', 'ydist']
+
+    for start, dtype, length, name in zip(starts, dtypes, lengths, names):
+        header[name] = hread(r_offset, start, dtype, length)
+
+    ###### Lock-in parameters #####
+    r_offset = 1356
+    starts = [1, 5, 9, 13, 17, 21, 23, 25, 27, 29, 31]
+    lengths = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    dtypes = ['float32', 'float32', 'float32', 'float32', 'float32', 
+              'int16', 'int16', 'int16', 'int16', 'int16', 'float32' ]
+    names = ['li_f', 'li_amp', 'li_phase', 'li_sens', 'li_tconst', 'li_rolloff', 'li_reserve', 
+             'li_filters', 'li_harmonic', 'li_expand', 'li_foffset']
+    for start, dtype, length, name in zip(starts, dtypes, lengths, names):
+        header[name] = hread(r_offset, start, dtype, length)
+    if header['li_expand'] == 0:
+        header['li_expand'] = 1
+
+    ###### Scan parameters #####
+    r_offset = 1280
+    starts = [1, 5, 127, 131]
+    lengths = [1, 1, 1, 1]
+    dtypes = ['float32', 'float32', 'float32', 'float32']
+    names = ['s_startvolt', 's_endvolt', 's_vtip', 's_itip']
+    for start, dtype, length, name in zip(starts, dtypes, lengths, names):
+        header[name] = hread(r_offset, start, dtype, length)    
+    header['s_jr'] = np.absolute(header['s_vtip'] / header['s_itip'])
+    
+    return header
+
+def _load_FL(filePath):
+    fid = open(filePath, 'rb')
+    header = _read_Cornell_header(fid)
+    fid.seek(2112) # Data starts at byte 2112
+    a = np.fromfile(fid, dtype='uint16', count=-1)
+    fid.close()
+    s = max(header['irows'], header['icols'])
+    b = a[:-1300] * header['w_factor'] + header['w_zero'] 
+    h = int(np.floor(len(b)) / s**2)
+    data = b.reshape([h, s, s])
+    return header, data
+
+def _load_FR(filePath):
+    fid = open(filePath, 'rb')
+    header = _read_Cornell_header(fid)
+    fid.seek(2112) # Data starts at byte 2112
+    a = np.fromfile(fid, dtype='uint16', count=-1)
+    fid.close()
+    s = max(header['irows'], header['icols'])
+    b = a[:s**2] * header['w_factor'] + header['w_zero'] 
+    data = b.reshape([s, s])
+    return header, data
+
+def load_2FL(filePath):
+    self = stmpy.io.Spy()
+    h, data = _load_FL(filePath)
+    self.LIY = (data/(h['li_expand']*10) + h['li_foffset']*(0.01)) * h['li_sens']
+    # use nS by dividing by bias modulation
+    divider = 10 #voltage divider on bias line
+    self.LIY /= (h['li_amp']/(100*divider)) #100 comes from ECU divider
+    self.didv = np.mean(self.LIY, axis=(1,2))
+    self.en = np.linspace(h['s_startvolt'], h['s_endvolt'], h['ilayers'])
+    self.header = h
+    return self
+
+def load_1FL(filePath):
+    self = stmpy.io.Spy()
+    h, data = _load_FL(filePath)
+    self.I = - data # Inverting amplifier
+    self.iv = np.mean(self.I, axis=(1,2))
+    self.en = np.linspace(h['s_startvolt'], h['s_endvolt'], h['ilayers'])
+    self.header = h
+    return self
+
+def load_TFR(filePath):
+    self = stmpy.io.Spy()
+    self.header, self.Z = _load_FR(filePath)
+    return self
+
+def load_1FR(filePath):
+    self = stmpy.io.Spy()
+    self.header, I = _load_FR(filePath)
+    self.I = -I # Inverting amplifier?
     return self
 
 

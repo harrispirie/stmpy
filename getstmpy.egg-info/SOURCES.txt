@@ -41,3 +41,8 @@ stmpy/color/maps/mhblue.mat
 stmpy/hp/__init__.py
 stmpy/hp/kondo_holes.py
 stmpy/hp/tight_binding.py
+stmpy/mapviewer/__init__.py
+stmpy/mapviewer/gui_components.py
+stmpy/mapviewer/helptext.txt
+stmpy/mapviewer/misc.py
+stmpy/mapviewer/view3ds.py
