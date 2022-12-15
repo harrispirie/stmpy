@@ -1583,3 +1583,88 @@ def __apply_dfc_3d(A, ux, uy, matrix, bp=None, n1=None, n2=None, method='lockin'
     else:
         data_out = cropedge(data_corr, bp=bp, n=n2, force_commen=True)
     return data_out
+
+
+
+def gshearcorr(A, bp=None, rspace=True, pts1=None, pts2=None, angle=np.pi/2, orient=np.pi/4, matrix=None):
+    '''
+    Global shear correction based on position of Bragg peaks in FT of 2D or 3D array A
+
+    Inputs:
+        A           - Required : 2D or 3D array to be shear corrected.
+        bp          - Required : (Nx2) array contains Bragg peaks in the unit of pixels.
+        rspace      - Optional : Boolean indicating if A is real or Fourier space image. Default: True
+        pts1        - Optional : 3x2 array containing coordinates of three points in the raw FT (center,
+                                    bg_x, bg_y).
+        pts2        - Optional : 3x2 array containing coordinates of three corresponding points in the corrected
+                                    FT (i.e., model center and bg_x and bg_y coordinates).
+        angle       - Optional : Specify angle between scan direction and lattice unit vector direction (x and ux direction)
+                                    in the unit of radian. Default is pi/2 -- 90 degrees rotated.
+        orient      - Optional : Initial angle of Bragg peak, or orientation of the scan. Default is np.pi/4
+        matrix      - Optional : If provided, matrix will be used to transform the dataset directly.
+
+    Returns:
+        A_corr      - 2D or 3D array after global shear correction.
+        M           - Transformation matrix to shear correct the topo/map
+
+    Usage:
+        import stmpy.driftcorr as dfc
+        M, A_gcorr = dfc.gshearcorr(A, bp, rspace=True)
+    '''
+    *_, s2, s1 = np.shape(A)
+    bp_temp = bp
+    if matrix is None:
+        if pts1 is None:
+            if s1 == s2:
+                bp = sortBraggs(bp, s=np.shape(A))
+                center = (np.array([s1, s2])-1) // 2
+                Q1, Q2, Q3, Q4, *_ = bp
+                Qx_mag = compute_dist(Q1, center)
+                Qy_mag = compute_dist(Q2, center)
+                Q_corr = np.mean([Qx_mag, Qy_mag])
+                Qc1 = np.array([int(k) for k in Q_corr*np.array([np.cos(orient+np.pi), \
+                                                                 np.sin(orient+np.pi)])]) + center
+                Qc2 = np.array([int(k) for k in Q_corr*np.array([np.cos(-angle+orient+np.pi), \
+                                                                 np.sin(-angle+orient+np.pi)])]) + center
+                pts1 = np.float32([center, Qc1, Qc2])
+            else:
+                bp = sortBraggs(bp, s=np.shape(A))
+                s = np.array(np.shape(A))
+                bp_temp = bp * s
+                # center = [int(s[0]*s[1]/2), int(s[0]*s[1]/2)]
+                center = (np.array([s[0]*s[1], s[0]*s[1]])-1) // 2
+                Q1, Q2, Q3, Q4, *_ = bp_temp
+                Qx_mag = compute_dist(Q1, center)
+                Qy_mag = compute_dist(Q2, center)
+                Q_corr = np.mean([Qx_mag, Qy_mag])
+                Qc1 = Q_corr*np.array([np.cos(orient+np.pi), \
+                                       np.sin(orient+np.pi)]) + center
+                Qc2 = Q_corr*np.array([np.cos(-angle+orient+np.pi), \
+                                       np.sin(-angle+orient+np.pi)]) + center
+                Q1, Q2, Q3, Q4, *_ = bp
+                Qc2 = np.array([int(k) for k in Qc2 / s])
+                Qc1 = np.array([int(k) for k in Qc1 / s])
+                # center = [int(s2/2),int(s1/2)]
+                center = (np.array([s1, s2])-1) // 2
+                pts1 = np.float32([center, Q1, Q2])
+        else:
+            pts1 = pts1.astype(np.float32)
+        if pts2 is None:
+            pts2 = np.float32([center, Qc1, Qc2])
+        else:
+            pts2 = pts2.astype(np.float32)
+        M = cv2.getAffineTransform(pts1, pts2)
+    else:
+        M = matrix
+
+    if rspace is not True:
+        A_corr = cv2.warpAffine(A, M, (s2, s1),
+                                flags=(cv2.INTER_CUBIC + cv2.BORDER_CONSTANT))
+    else:
+        M[:, -1] = np.array([0, 0])
+        offset = np.min(A)
+        A = A - offset
+        A_corr = cv2.warpAffine(np.flipud(A.T), M, (s2, s1),
+                                flags=(cv2.INTER_CUBIC + cv2.BORDER_CONSTANT))
+        A_corr = np.flipud(A_corr).T + offset
+    return M, A_corr

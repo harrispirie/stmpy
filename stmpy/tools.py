@@ -10,7 +10,7 @@ import matplotlib as mpl
 from scipy.interpolate import interp1d
 import scipy.optimize as opt
 import scipy.ndimage as snd
-from scipy.signal import butter, filtfilt, fftconvolve, hilbert, correlate
+from scipy.signal import butter, filtfilt, fftconvolve, hilbert, correlate, windows
 
 
 def interp2d(x, y, z, kind='nearest', **kwargs):
@@ -1226,7 +1226,7 @@ def fft(dataIn, window='None', output='absolute', zeroDC=False, beta=1.0,
     windowFunctions = {'None':(lambda x:np.ones(x)), 'none':(lambda x:np.ones(x)),
                        'bartlett':np.bartlett, 'blackman':np.blackman,
                        'hamming':np.hamming, 'hanning':np.hanning,
-                       'kaiser':np.kaiser }
+                       'kaiser':np.kaiser , 'sine':windows.cosine}
 
     outputFunction = outputFunctions[output]
     windowFunction = windowFunctions[window]
@@ -2478,3 +2478,76 @@ def enhance_resolution(x, y, n):
     yNewf[n*N//2 - N//2 : n*N//2 - N//2 + N] = yf
     yNew = ifft(yNewf)
     return xNew, n*yNew
+
+
+
+def domain_filter(z, bp, sig, sig2=None, trim=0.5):
+    '''
+    Find domains by inverse fourier transforming the Bragg peak.
+
+    Inputs:
+        z    - Required : 2D array (usually topography).
+        bp   - Required : 1D array containing the Bragg peak coordinates.
+        sig  - Required : Integer for HWHM of gaussian to filter the Bragg peak.
+        sig2 - Optional : Integer for HWHM of gaussian filter applied to output.
+        trim - Optional : Integer defining cut off for the mask. 
+
+    Returns:
+        mask - 2D array containing of binary values defning the areas where the
+               Bragg peak is well defined.
+
+    History:
+        2022-12-13  - HP : Initial commit.
+    '''
+    x = np.linspace(0.5, z.shape[1]+0.5, z.shape[1])
+    y = np.linspace(0.5, z.shape[0]+0.5, z.shape[0])
+    G = gauss2d(x, y, [bp[0], bp[1], sig, sig, 1, 0], symmetric=True)
+    zfc = fft(z, zeroDC=True, output='complex')
+    out = -ifft(G*zfc, envelope=True, output='absolute')
+    mask = out < (1 + trim) * np.mean(out)
+    if sig2 is not None: 
+        out = snd.gaussian_filter(mask * 1e4, sig2) / 1e4
+    return out
+
+
+
+
+def fourier_filter(data, freq, sigma, method='disk', envelope=False):
+    '''
+    Filter data a specific frequency.
+
+    Inputs:
+        data    - Required: 2D array containing data to be filtered
+        freq    - Required: Array containing center filter frequcy [kx, ky]
+        sigma   - Required: Integer for HWHM of gaussian to mask FFT
+        method  - Optional: String describing the mask in Fourier space
+                            'disk' - binary mask where gaussian > 0.5
+                            'gaussian' - gaussian mask
+        envelope- Optional: Boolen, when True applies the Hilbert transform
+                            to detect the envelope of the IFT, which is the
+                            absolute values. 
+
+    Returns: 
+        out     - 2D data filtered at [kx,ky] 
+
+    History: 
+    2022-12-15  - HP : Initial commit.
+
+    '''
+    x = np.linspace(1, data.shape[-1], data.shape[-1])
+    g = gauss2d(x, x, [freq[0], freq[1], sigma, sigma, 1, 0], symmetric=True) 
+    ft = fft(data, units=None, output='complex')
+    if method is 'disk':
+        filt = g > 0.5
+    elif method == 'gaussian':
+        filt = g
+    else:
+        raise ValueError('Method %s not supported' % method)
+    if envelope:
+        out = ifft(ft * filt, output='absolute', envelope=envelope)
+    else:
+        out = ifft(ft * filt, output='real', envelope=envelope)
+    return out 
+
+
+
