@@ -51,7 +51,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         .asc    -   ASCII file type.
         .sm4    -   RHK sm4 file type.
         .2FL    -   Cornell LIY spectroscopy data (3D)
-        .1FL    -   Cornell current spectroscopy data (3D)
+        .1FL    -   Cornell STM2 current map, or STM1/3 didv map (3D)
         .TFR    -   Cornell topography data (2D)
         .1FR    -   Cornell feedback current data (e.g. during a topo, 2D)
 
@@ -94,6 +94,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         2019-02-28  - HP : Loads multisweep .dat files even if missing header.
         2020-07-12  - WT : Added support for sm4 file from rhk system.
         2022-06-22  - HP : Added support for Cornell files: .2FL .1FL .TFR .1FR
+        2022-02-15  - HP : Added support for STM1 Cornell .FFL files
 
     '''
     try:
@@ -112,7 +113,7 @@ def load(filePath, biasOffset=True, niceUnits=False):
         return dataObject
 
     elif extension in ['spy', 'sxm', 'nvi', 'nvl', 'nsp', 'asc', 'sm4', 
-                       '2FL', '1FL', 'TFR', '1FR']:
+                       '2FL', '1FL', 'TFR', '1FR', 'FFL']:
         return eval(loadFn)(filePath)
 
   #  elif filePath.endswith('.mat'):
@@ -1057,6 +1058,13 @@ def load_2FL(filePath):
     return self
 
 def load_1FL(filePath):
+    print('WARNING: Assuming 1FL file contains a current-voltage map (Cornell STM2).\n'
+        + 'Use stmpy.io.load_2FL("data.1FL") if the 1FL file instead contains a didv map '
+        + '(Cornell STM1 and STM3).')
+    self = load_FFL(filePath)
+    return self
+
+def load_FFL(filePath):
     self = stmpy.io.Spy()
     h, data = _load_FL(filePath)
     self.I = - data # Inverting amplifier
