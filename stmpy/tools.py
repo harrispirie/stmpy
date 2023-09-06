@@ -2053,7 +2053,7 @@ def remove_piezo_drift(data):
     return outn - np.mean(outn)
 
 
-def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
+def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1, imin='min'):
     '''
     Calculate zero-bias offset for I(V) map or for a two-setpoint map. If only
     one map is provided, the zero-bais point is when the I(V) curve crosses
@@ -2069,6 +2069,10 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
                              to include either side of the minimum current.
         i0      - Optional : float for the current offset (if known).
         deg     - Optional : Integer for the degree of polynomial to fit.
+        imin    - Optional : Describes how the minimum current is found. Either
+                             'min' - absolute(iv-i0)
+                             'zero' - en.searchsorted(0)
+                             'iter' - 'zero' then en.searchsorted(v0)
 
     Returns:
         m       - Numpy 2D array of the zero-bias voltage point at each point
@@ -2082,14 +2086,23 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
         2019-11-04  - HP : Add compatibility for a two-setpoint map.
         2020-06-19  - HP : Add support for fitting n-degree polynomials and
                            handling 1D, 2D or 3D current maps.
+        2023-09-06  - HP : Added different modes for estimating imin.
     '''
-    def find_v0(en, iv, iv2=None, npts='all', i0=0, deg=1):
+    def find_v0(en, iv, iv2=None, npts='all', i0=0, deg=1, imin='min'):
         '''Find the local slope and offset for a single IV curve'''
+        if imin is 'min':
+            imin = np.argmin(np.absolute(iv - i0))
+        elif imin is 'zero':
+            imin = en.searchsorted(0)
+        elif imin is 'iter':
+            v0, __ = find_v0(en, iv, iv2=iv2, npts=npts, i0=i0, deg=deg, imin='zero')
+            imin = en.searchsorted(v0)
+        else:
+            raise ValueError('Selected imin mode is not supported.')
         if iv2 is None:
             if npts == 'all':
                 x, y1 = en, iv - i0
             else:
-                imin = np.argmin(np.absolute(iv - i0))
                 x = en[max(imin-npts,0):min(imin+npts,len(en))]
                 y1 = iv[max(imin-npts,0):min(imin+npts,len(en))] - i0
             p = np.polyfit(x, y1, 1)
@@ -2107,7 +2120,6 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
             if npts == 'all':
                 x, y1, y2 = en, iv - i0, iv2 - i0
             else:
-                imin = np.argmin(np.absolute(iv - i0))
                 x = en[max(imin-npts,0):min(imin+npts,len(en))]
                 y1 = iv[max(imin-npts,0):min(imin+npts,len(en))] - i0
                 y2 = iv2[max(imin-npts,0):min(imin+npts,len(en))] - i0
@@ -2120,18 +2132,19 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
             if deg > 1:
                 print('Warning: 2-setpoint map assumes deg=1.')
             return v0, g0, g1
+
     if len(I.shape) == 1:
-        out = find_v0(en, I, iv2=I2, npts=npts, i0=i0, deg=deg)
+        out = find_v0(en, I, iv2=I2, npts=npts, i0=i0, deg=deg, imin=imin)
     elif len(I.shape) == 2:
         m = np.zeros_like(I[0])
         g0 = np.zeros_like(m)
         g1 = np.zeros_like(g0)
         for ix in range(I.shape[1]):
             if I2 is None:
-                res = find_v0(en, I[:,ix], npts=npts, i0=i0, deg=deg)
+                res = find_v0(en, I[:,ix], npts=npts, i0=i0, deg=deg, imin=imin)
                 m[ix], g0[ix] = res[0], res[1]
             else:
-                res = find_v0(en, I[:,ix], iv2=I2[:,ix], npts=npts, i0=i0, deg=deg)
+                res = find_v0(en, I[:,ix], iv2=I2[:,ix], npts=npts, i0=i0, deg=deg, imin=imin)
                 m[ix], g0[ix], g1[ix] = res[0], res[1], res[2]
         if I2 is None:
             out = m, g0
@@ -2144,10 +2157,11 @@ def bias_offset_map(en, I, I2=None, npts='all', i0=0, deg=1):
         for ix in range(I.shape[1]):
             for iy in range(I.shape[2]):
                 if I2 is None:
-                    res = find_v0(en, I[:,ix,iy], npts=npts, i0=i0, deg=deg)
+                    res = find_v0(en, I[:,ix,iy], npts=npts, i0=i0, deg=deg, imin=imin)
                     m[ix, iy], g0[ix, iy] = res[0], res[1]
                 else:
-                    res = find_v0(en, I[:,ix,iy], iv2=I2[:,ix,iy], npts=npts, i0=i0, deg=deg)
+                    res = find_v0(en, I[:,ix,iy], iv2=I2[:,ix,iy], 
+                        npts=npts, i0=i0, deg=deg, imin=imin)
                     m[ix, iy], g0[ix, iy], g1[ix, iy] = res[0], res[1], res[2]
         if I2 is None:
             out = m, g0
