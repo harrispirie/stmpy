@@ -2546,10 +2546,12 @@ def fourier_filter(data, freq, sigma, method='disk', envelope=False):
 
     History: 
     2022-12-15  - HP : Initial commit.
+    2023-10-03  - HP : Modified to work on non-square data.
 
     '''
     x = np.linspace(1, data.shape[-1], data.shape[-1])
-    g = gauss2d(x, x, [freq[0], freq[1], sigma, sigma, 1, 0], symmetric=True) 
+    y = np.linspace(1, data.shape[-2], data.shape[-2])
+    g = gauss2d(x, y, [freq[0], freq[1], sigma, sigma, 1, 0], symmetric=True) 
     ft = fft(data, units=None, output='complex')
     if method is 'disk':
         filt = g > 0.5
